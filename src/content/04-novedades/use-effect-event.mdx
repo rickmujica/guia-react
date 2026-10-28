@@ -1,0 +1,70 @@
+Este hook resuelve uno de los problemas más molestos de `useEffect`: necesitás **leer el valor más reciente** de algo dentro de un Effect, pero **no querés que el Effect se vuelva a ejecutar** cada vez que ese valor cambia.
+
+## El problema
+
+Un chat se conecta a una sala. Cuando la conexión se establece, muestra una notificación con el tema actual (claro u oscuro). El Effect depende de `roomId`, pero como lee `theme`, el linter te obliga a agregarlo a las dependencias:
+
+```tsx
+useEffect(() => {
+  const connection = createConnection(roomId)
+  connection.on('connected', () => {
+    showNotification('¡Conectado!', theme) // lee theme…
+  })
+  connection.connect()
+  return () => connection.disconnect()
+}, [roomId, theme]) // …entonces cambiar el tema RECONECTA el chat 🔴
+```
+
+Cambiar de tema no tiene nada que ver con la conexión. Antes había que elegir entre desactivar el linter (y arriesgarse a bugs) o hacer malabares con refs.
+
+## La solución: un Effect Event
+
+`useEffectEvent` crea una función que **siempre ve los valores más recientes** de props y estado, pero que **no es reactiva**: no va en las dependencias y no hace que el Effect se re-ejecute.
+
+```tsx
+const onConnected = useEffectEvent(() => {
+  showNotification('¡Conectado!', theme) // siempre el theme actual
+})
+
+useEffect(() => {
+  const connection = createConnection(roomId)
+  connection.on('connected', () => onConnected())
+  connection.connect()
+  return () => connection.disconnect()
+}, [roomId]) // ✅ solo se reconecta si cambia la sala
+```
+
+<Demo file="novedades/ChatRoomEffectEvent" title="Cambiar el tema sin reconectar" highlight="44-46,51,57" />
+
+<Probalo>
+1. Con `useEffectEvent` activado, cambiá el **tema** varias veces: no aparece ningún "desconectado" en el log. Cambiá la **sala**: ahí sí se reconecta, y la notificación muestra el tema actual.
+2. Desactivá `useEffectEvent` y cambiá el tema: cada click desconecta y reconecta el chat. Ese es el bug.
+</Probalo>
+
+## Una forma de pensarlo
+
+| | Reactivo | No reactivo |
+| --- | --- | --- |
+| Qué es | Código que tiene que re-sincronizarse cuando un valor cambia | Código que reacciona a un **evento**, leyendo los valores de ese momento |
+| Dónde va | El cuerpo del Effect, con sus dependencias | Un Effect Event |
+| Ejemplo | Conectarse a `roomId` | Mostrar una notificación con el `theme` actual |
+
+Por eso se llama "Effect **Event**": se parece más a un event handler (que siempre ve los valores actuales) que a un Effect.
+
+## Reglas
+
+- **Solo se llama desde adentro de Effects** (o de otros Effect Events del mismo componente). No lo pases a otros componentes ni lo llames durante el render.
+- **No lo pongas en las dependencias**. Su identidad cambia a propósito en cada render, justamente para que no se use como dependencia. El linter de React lo sabe.
+- **No lo uses para "silenciar" el linter.** Si un valor tiene que re-sincronizar el Effect, va en las dependencias. Usá Effect Events solo para lógica que realmente es un evento.
+
+<Tip title="Casos típicos">
+
+- Analytics: registrar una visita a una página con el carrito actual, pero solo cuando cambia la URL.
+- Notificaciones o toasts que leen el idioma o el tema actual.
+- Callbacks que llegan por props (`onTick`, `onMessage`) y que no querés que reinicien una suscripción.
+
+</Tip>
+
+<Entrevista>
+"¿Para qué sirve useEffectEvent?" → "Para separar la lógica no reactiva de un Effect. Crea una función que siempre ve las props y el estado más recientes, pero que no va en las dependencias, así que no hace que el Effect se vuelva a ejecutar. El ejemplo clásico es un chat que se reconecta solo cuando cambia la sala, aunque la notificación de conexión use el tema actual."
+</Entrevista>

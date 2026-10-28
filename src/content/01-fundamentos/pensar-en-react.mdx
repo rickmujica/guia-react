@@ -1,0 +1,68 @@
+Dos ideas separan el código React prolijo del código React que se vuelve inmanejable: **guardar el mínimo estado posible** y **ponerlo en el lugar correcto**. Las dos te van a ahorrar la mayoría de los `useEffect` innecesarios.
+
+## Estado mínimo, todo lo demás se deriva
+
+Antes de crear un `useState`, preguntate:
+
+1. ¿Viene de las props? → No es estado.
+2. ¿Se mantiene igual con el tiempo? → No es estado, es una constante.
+3. ¿Se puede **calcular** con otras props o estado? → No es estado, es un **dato derivado**.
+
+Lo que queda es el estado real. Todo lo demás se calcula **durante el render**, en variables comunes.
+
+<Demo file="fundamentos/DerivedState" title="Filtrar y contar sin estado extra" highlight="16-25" />
+
+Fijate que hay solo dos `useState` (el texto y el filtro). La lista filtrada y la cantidad de activas son variables que se recalculan en cada render. Es rápido, siempre está sincronizado y no hay forma de que quede desactualizado.
+
+<AntesAhora antes="Sincronizar con useEffect" ahora="Calcular durante el render">
+
+```tsx
+const [query, setQuery] = useState('')
+const [filtered, setFiltered] = useState(apps)
+
+// 🔴 Un render extra y una fuente de bugs
+useEffect(() => {
+  setFiltered(apps.filter((a) => a.company.includes(query)))
+}, [apps, query])
+```
+
+```tsx
+const [query, setQuery] = useState('')
+
+// ✅ Un solo render, siempre correcto
+const filtered = apps.filter((a) =>
+  a.company.includes(query),
+)
+```
+
+</AntesAhora>
+
+<Tip title="¿Y si el cálculo es caro?">
+Filtrar unas cuantas centenas de elementos es instantáneo. Si de verdad el cálculo es pesado (miles de elementos, procesamiento complejo), lo memoizás con `useMemo`, o mejor, dejás que el [React Compiler](#/react-compiler) lo haga por vos. Nunca lo resuelvas con un Effect.
+</Tip>
+
+## Levantar el estado
+
+Cuando dos componentes necesitan el mismo dato, el estado se "levanta" al **padre común más cercano**, que lo pasa hacia abajo por props. Los hijos avisan cambios llamando a funciones que también reciben por props.
+
+<Demo file="fundamentos/Accordion" title="Un solo panel abierto a la vez" highlight="10-11,24-25,29" />
+
+Si cada `Panel` tuviera su propio `useState(isOpen)`, no habría forma de cerrar uno cuando se abre otro. Al subir el estado al padre, `Accordion` es la **única fuente de verdad** y cada `Panel` pasa a ser un componente **controlado**: no decide nada, solo muestra lo que le dicen y avisa cuando lo tocan.
+
+## Componentes controlados y no controlados
+
+| | Controlado | No controlado |
+| --- | --- | --- |
+| ¿Quién tiene el dato? | El padre (estado de React) | El propio componente o el DOM |
+| Ejemplo con inputs | `<input value={v} onChange={...} />` | `<input defaultValue="x" />` |
+| Ventaja | Podés validar y transformar mientras se escribe | Menos código y menos renders |
+
+En React 19 los formularios con `action` reciben un `FormData` con todos los valores, así que los inputs **no controlados** vuelven a ser una opción excelente para formularios simples.
+
+## Flujo de datos en una sola dirección
+
+Los datos bajan por props y los eventos suben por funciones. Cuando algo se ve mal en la pantalla, seguís el dato hacia arriba hasta encontrar quién tiene el estado. Esa previsibilidad es la razón de ser de React.
+
+<Entrevista>
+"¿Dónde ponés el estado?" → "Primero me fijo si realmente es estado o si se puede derivar. Si es estado, lo pongo en el componente más bajo que lo necesite; si lo necesitan varios, lo subo al padre común más cercano y lo paso por props. Si muchos niveles lo necesitan, uso Context o una librería de estado."
+</Entrevista>

@@ -1,0 +1,60 @@
+El **React Compiler** es una herramienta de build (no de runtime) que analiza tus componentes y hooks y les agrega **memoización automática**: guarda en caché valores calculados, funciones y JSX, y los reutiliza mientras sus datos no cambien. Es como si alguien hubiera escrito `useMemo`, `useCallback` y `memo` en todos los lugares correctos por vos.
+
+Salió estable (**v1.0**) en octubre de 2025, después de años usándose en producción en Meta. Funciona con React 17, 18 y 19.
+
+## La demo: el mismo componente, compilado y sin compilar
+
+Los dos paneles tienen **exactamente el mismo código**. La única diferencia es que el de la derecha empieza con la directiva `'use memo'`, que en este proyecto le indica al Compiler que lo compile. Tocá los botones y mirá qué lista parpadea:
+
+<Demo file="novedades/CompilerDemo" title="Sin compilar vs. con React Compiler" highlight="24,37-39" />
+
+- **Sin compilar**: cada click crea un array `remoteJobs` nuevo y un elemento `<RemoteJobs>` nuevo, así que la lista se vuelve a renderizar aunque no cambió nada.
+- **Compilado**: el Compiler detecta que `remoteJobs` y el JSX de la lista no dependen de `clicks` y los guarda en caché. React recibe el mismo elemento y **se saltea** el render de la lista. Sin escribir `memo` ni `useMemo`.
+
+Si querés ver lo que genera, con `npm run dev` corriendo abrí en el navegador `http://localhost:5173/src/demos/novedades/CompilerDemo.tsx`: es el archivo ya transformado por Vite. Dentro de `BoardWithCompiler` vas a encontrar `const $ = _c(9)`, la caché que agrega el Compiler. `BoardWithoutCompiler`, en cambio, no tiene ninguna caché.
+
+## Cómo se activa
+
+En **Next.js** es una opción de configuración:
+
+```ts
+// next.config.ts
+const nextConfig = {
+  reactCompiler: true,
+}
+export default nextConfig
+```
+
+En **Vite** (con `@vitejs/plugin-react` 6 o superior) se agrega con Babel. Así está configurado este proyecto:
+
+<Source path="vite.config.ts" highlight="15-19" />
+
+<Nota title="¿Por qué este proyecto usa el modo annotation?">
+Con `compilationMode: 'annotation'` solo se compilan los componentes que tienen `'use memo'`. Lo usamos para que las demos de [rendimiento](#/rendimiento) muestren el comportamiento **sin** Compiler y podamos compararlo. En un proyecto real usás el modo por defecto, `reactCompilerPreset()` sin opciones, que compila todo automáticamente.
+</Nota>
+
+## Las directivas
+
+| Directiva | Efecto |
+| --- | --- |
+| `'use memo'` | Pide compilar esta función (necesaria en modo `annotation`). |
+| `'use no memo'` | Excluye esta función del Compiler. Es una salida de emergencia temporal si algo se rompe. |
+
+## Requisito: seguir las Reglas de React
+
+El Compiler asume que tu código respeta las reglas de siempre: componentes **puros**, props y estado **inmutables**, hooks en el nivel superior. Si un componente las rompe, el Compiler simplemente **no lo optimiza** (no rompe nada), y el linter te avisa por qué.
+
+```bash
+# Las reglas del Compiler vienen en el plugin oficial de ESLint
+npm install -D eslint-plugin-react-hooks@latest
+```
+
+La configuración recomendada de `eslint-plugin-react-hooks` (v6 y v7) incluye reglas nuevas basadas en el Compiler: detectan mutaciones durante el render, lecturas de refs en el render, componentes creados dentro de otros componentes, `setState` síncrono dentro de Effects y más. Este proyecto usa **oxlint**, que trae reglas equivalentes.
+
+<Tip title="¿Entonces tiro todos mis useMemo?">
+No hace falta. El Compiler convive con la memoización manual. En código nuevo, escribí sin `useMemo` ni `useCallback` y dejá que el Compiler optimice. En código existente, podés ir sacándolos de a poco, con tests. Y para dependencias de Effects, a veces conviene mantener `useMemo` o `useCallback` explícitos para controlar exactamente cuándo se re-ejecutan.
+</Tip>
+
+<Entrevista>
+"¿Qué es el React Compiler?" → "Una herramienta de build, estable desde octubre de 2025, que memoiza automáticamente componentes y hooks: valores, callbacks y JSX. En la práctica reemplaza a escribir useMemo, useCallback y memo a mano. Requiere que el código respete las reglas de React, y si un componente no las respeta, simplemente no lo optimiza. En Next.js se activa con reactCompiler: true."
+</Entrevista>

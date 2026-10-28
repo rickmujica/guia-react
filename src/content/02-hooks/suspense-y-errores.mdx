@@ -1,0 +1,78 @@
+Dos componentes especiales manejan los dos "estados raros" de cualquier UI: **cargando** y **error**. En vez de llenar cada componente de `if (isLoading)` y `if (error)`, los declarás una vez, más arriba en el árbol.
+
+```tsx
+<ErrorBoundary fallback={<p>Algo salió mal</p>}>
+  <Suspense fallback={<Spinner />}>
+    <Perfil />
+  </Suspense>
+</ErrorBoundary>
+```
+
+## Suspense: estados de carga declarativos
+
+Cuando un componente **suspende** (porque está esperando código o datos), React muestra el `fallback` del `<Suspense>` más cercano hasta que todo lo de adentro esté listo.
+
+Un componente puede suspender por:
+
+- **Código**: un componente cargado con `lazy()` que todavía se está descargando.
+- **Datos**: una promesa leída con [use()](#/use) (React 19), o datos de un framework compatible con Suspense (Next.js, React Router, TanStack Query con `useSuspenseQuery`).
+
+<Ojo title="Suspense no detecta fetch en useEffect">
+Suspense solo funciona con fuentes de datos preparadas para él. Si pedís datos en un `useEffect` y guardás un `isLoading`, Suspense no se entera.
+</Ojo>
+
+## lazy: cargar componentes cuando hacen falta
+
+`lazy()` divide tu bundle: el código del componente se descarga recién la primera vez que se renderiza. Ideal para pantallas pesadas, modales o editores que no todos los usuarios abren.
+
+<Demo file="hooks/LazyDemo" title="Code splitting con lazy y Suspense" extra={['hooks/SalaryChart.tsx']} highlight="6,18-20" />
+
+Si reiniciás la demo y volvés a tocar el botón, el gráfico aparece al instante: `lazy` recuerda el módulo que ya descargó.
+
+<Nota>
+El archivo de `lazy()` tiene que tener un `export default` con el componente. En Next.js no hace falta usar `lazy` para las páginas: el framework divide el código por ruta automáticamente.
+</Nota>
+
+## Suspense y transiciones juntas
+
+Si un contenido que **ya se estaba mostrando** vuelve a suspender (por ejemplo, porque cambiaste de pestaña y la nueva pide datos), React reemplaza todo por el fallback. Eso suele verse mal: la pantalla "parpadea". Si el cambio ocurre dentro de una **transición**, React mantiene la UI vieja visible mientras prepara la nueva. Lo vas a ver en acción en el capítulo de [use()](#/use).
+
+## Error Boundaries: atrapar errores de render
+
+Si un componente lanza un error mientras renderiza y nadie lo atrapa, React desmonta **toda la app** y queda la pantalla en blanco. Un Error Boundary atrapa los errores de su subárbol y muestra un fallback en su lugar.
+
+<Demo file="hooks/ErrorBoundaryDemo" title="Un componente que explota" extra={['shared/ErrorBoundary.tsx']} highlight="6-9" />
+
+Abrí la pestaña `ErrorBoundary.tsx`: es una **clase**. Los Error Boundaries siguen siendo el único caso que todavía necesita una clase, porque dependen de `getDerivedStateFromError` y `componentDidCatch`, que no tienen equivalente en hooks. En la práctica casi todos usan la librería **react-error-boundary**, que ya la trae hecha:
+
+```tsx
+import { ErrorBoundary } from 'react-error-boundary'
+
+<ErrorBoundary fallbackRender={({ error, resetErrorBoundary }) => (
+  <div>
+    <p>Error: {error.message}</p>
+    <button onClick={resetErrorBoundary}>Reintentar</button>
+  </div>
+)}>
+  <Dashboard />
+</ErrorBoundary>
+```
+
+## Qué atrapa y qué no
+
+| Lo atrapa ✅ | No lo atrapa ❌ |
+| --- | --- |
+| Errores durante el render | Errores en event handlers (`onClick`) |
+| Errores en Effects y lifecycle | Código async suelto (`setTimeout`, promesas sin esperar) |
+| Promesas rechazadas leídas con `use()` | Errores en el propio Error Boundary |
+| Errores lanzados dentro de una **Action** (React 19) | Errores del servidor en SSR (los maneja el framework) |
+
+Para los errores de event handlers usás `try/catch` y guardás el error en el estado. En React 19, las [Actions](#/actions) simplifican esto: si una Action lanza un error, va al Error Boundary más cercano.
+
+<Tip title="¿Dónde poner los boundaries?">
+No uno solo en la raíz (todo se cae junto) ni uno por componente (demasiado). Lo habitual: uno general en la raíz, uno por sección o widget independiente (el sidebar, el feed, un gráfico) y uno por ruta. En Next.js, el archivo `error.tsx` de cada carpeta de rutas crea un Error Boundary automáticamente, y `loading.tsx` crea un `<Suspense>`.
+</Tip>
+
+<Entrevista>
+"¿Qué es Suspense?" → "Un componente que muestra un fallback mientras algo de su subárbol está esperando código o datos. Funciona con lazy para code splitting y con fuentes de datos compatibles, como use() en React 19 o los frameworks. Combinado con transiciones evita que la UI ya visible vuelva al spinner. Para los errores se complementa con los Error Boundaries."
+</Entrevista>

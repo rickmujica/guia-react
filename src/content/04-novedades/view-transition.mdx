@@ -1,0 +1,77 @@
+React 19.3 incorpora **animaciones** de forma nativa. `<ViewTransition>` usa la [View Transitions API](https://developer.mozilla.org/es/docs/Web/API/View_Transition_API) del navegador para animar componentes cuando entran, salen, se mueven o cambian, y React decide cuándo y qué animar.
+
+```tsx
+import { ViewTransition, startTransition } from 'react'
+
+<ViewTransition>
+  <JobCard job={job} />
+</ViewTransition>
+```
+
+## Qué activa una animación
+
+Esta es la regla más importante: **un `setState` común no anima nada**. Solo animan los cambios que ocurren dentro de:
+
+- una **Transition** (`startTransition`, `useTransition`, una Action, un `<form action>`),
+- un **`<Suspense>`** que revela su contenido,
+- o un **`useDeferredValue`**.
+
+Tiene sentido: las transiciones son las actualizaciones "no urgentes", y una animación de 300 ms es justamente algo que no querés en una tecla del input.
+
+## Los cuatro tipos de animación
+
+| Tipo | Cuándo se activa |
+| --- | --- |
+| `enter` | El `<ViewTransition>` se monta en la transición. |
+| `exit` | El `<ViewTransition>` se desmonta en la transición. |
+| `update` | Cambia algo adentro, o el boundary cambia de tamaño o posición (por ejemplo, al reordenar una lista). |
+| `share` | Un `<ViewTransition>` con `name` se desmonta y otro con el mismo `name` se monta: "elemento compartido" que vuela de un lugar a otro. |
+
+Por defecto todas hacen un **cross-fade**. Para personalizarlas, pasás una **clase** a cada prop (`enter="vt-slide-in"`) y la estilás con los pseudo-elementos de la View Transitions API.
+
+<Demo
+  file="novedades/ViewTransitionList"
+  title="Agregar, quitar y reordenar con animación"
+  extra={['novedades/view-transitions.css']}
+  highlight="15-17,24,28,40"
+/>
+
+<Probalo>
+Agregá un par de ofertas, quitá alguna y tocá **Mezclar**: las tarjetas se deslizan a su nueva posición. Ahora, en el código, sacá el `startTransition` de la función `shuffle` y probá de nuevo: el orden cambia de golpe, sin animación.
+</Probalo>
+
+## Transition Types: animar distinto según la causa
+
+Una misma actualización puede necesitar animaciones distintas según **por qué** ocurrió: avanzar o retroceder en un carrusel, navegar hacia adelante o hacia atrás. `addTransitionType` le agrega un "tipo" a la transición y `<ViewTransition>` acepta un objeto que mapea cada tipo a una clase.
+
+<Demo
+  file="novedades/TransitionTypes"
+  title="Carrusel que se desliza según la dirección"
+  extra={['novedades/view-transitions.css']}
+  highlight="17-18,26-30"
+/>
+
+## Esta guía lo usa
+
+El cambio de capítulo de esta misma app es un `<ViewTransition>` con una `key` por capítulo: el capítulo viejo sale con un fade y el nuevo entra desde abajo.
+
+<Source path="src/App.tsx" highlight="25-26,62-66" />
+
+<Ojo title="default='none' para no animar de más">
+Fijate en `default="none"` del `App.tsx`. Sin eso, cualquier transición **dentro** de un capítulo (por ejemplo, las demos de Actions) haría que toda la página se anime con un cross-fade. Con `default="none"` solo se animan la entrada y la salida del capítulo.
+</Ojo>
+
+## Buenas prácticas
+
+- **Respetá `prefers-reduced-motion`**: React no desactiva las animaciones solo. Agregá una media query que las apague (mirá el final de `view-transitions.css`).
+- **No llames a `document.startViewTransition`** por tu cuenta: React lo hace por vos y coordina las animaciones. Si ya usabas la API a mano, migrá a `<ViewTransition>`.
+- **Usá `name` solo para elementos compartidos.** Para todo lo demás, React genera nombres únicos automáticamente.
+- **Animaciones con JavaScript**: los eventos `onEnter`, `onExit`, `onUpdate` y `onShare` te dan acceso a la animación para controlarla con la Web Animations API.
+
+<Nota title="Soporte">
+Funciona en los navegadores con View Transitions de mismo documento (Chrome, Edge, Safari y Firefox recientes). Donde no hay soporte, el cambio se aplica sin animación: nada se rompe. Por ahora solo funciona en el DOM, no en React Native.
+</Nota>
+
+<Entrevista>
+"¿Cómo se animan componentes en React 19.3?" → "Con ViewTransition, que usa la View Transitions API del navegador. Envuelvo el componente y React activa animaciones de enter, exit, update o share cuando el cambio ocurre dentro de una transición, un Suspense o un useDeferredValue. Las personalizo con clases CSS, y con addTransitionType puedo animar distinto según la causa, por ejemplo la dirección de navegación."
+</Entrevista>

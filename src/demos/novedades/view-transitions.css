@@ -1,0 +1,70 @@
+/* Clases de View Transition que usan las demos de <ViewTransition>.
+   React las aplica a los elementos cuando la animación se activa. */
+
+/* Entrada y salida de un elemento de la lista */
+::view-transition-new(.vt-slide-in):only-child {
+  animation: 320ms ease-out both vt-slide-in;
+}
+::view-transition-old(.vt-slide-out):only-child {
+  animation: 220ms ease-in both vt-slide-out;
+}
+
+/* Carrusel: la dirección depende del Transition Type */
+::view-transition-new(.vt-from-right) {
+  animation: 300ms ease-out both vt-from-right;
+}
+::view-transition-old(.vt-to-left) {
+  animation: 300ms ease-out both vt-to-left;
+}
+::view-transition-new(.vt-from-left) {
+  animation: 300ms ease-out both vt-from-left;
+}
+::view-transition-old(.vt-to-right) {
+  animation: 300ms ease-out both vt-to-right;
+}
+
+@keyframes vt-slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(-32px);
+  }
+}
+@keyframes vt-slide-out {
+  to {
+    opacity: 0;
+    transform: translateX(32px) scale(0.96);
+  }
+}
+@keyframes vt-from-right {
+  from {
+    transform: translateX(60%);
+    opacity: 0;
+  }
+}
+@keyframes vt-to-left {
+  to {
+    transform: translateX(-60%);
+    opacity: 0;
+  }
+}
+@keyframes vt-from-left {
+  from {
+    transform: translateX(-60%);
+    opacity: 0;
+  }
+}
+@keyframes vt-to-right {
+  to {
+    transform: translateX(60%);
+    opacity: 0;
+  }
+}
+
+/* Siempre respetá a quien prefiere menos movimiento */
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(*),
+  ::view-transition-new(*),
+  ::view-transition-group(*) {
+    animation: none !important;
+  }
+}

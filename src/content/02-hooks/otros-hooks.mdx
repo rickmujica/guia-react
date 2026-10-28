@@ -1,0 +1,80 @@
+Estos hooks y APIs se usan menos, pero aparecen en código real, en librerías y en entrevistas. Conviene saber qué hace cada uno y cuándo tiene sentido.
+
+## useId: ids únicos para accesibilidad
+
+Para conectar un `<label>` con su `<input>`, o un input con su texto de ayuda (`aria-describedby`), necesitás ids únicos. Si el componente se usa varias veces, un id fijo como `"email"` se repetiría. `useId` genera uno distinto por instancia, estable entre el servidor y el cliente.
+
+<Demo file="hooks/UseIdDemo" title="Un id distinto por cada campo" highlight="5,8-9" />
+
+<Ojo>
+`useId` no sirve para las `key` de una lista: las keys tienen que salir de tus datos.
+</Ojo>
+
+## createPortal: renderizar en otro lugar del DOM
+
+Modales, tooltips y menús desplegables tienen que escaparse de contenedores con `overflow: hidden` o `z-index` bajos. `createPortal(jsx, nodo)` renderiza el JSX en otro nodo del DOM (casi siempre `document.body`), pero **sigue siendo parte del árbol de React**: recibe contexto, mantiene su estado y los eventos burbujean por el árbol de React, no por el del DOM.
+
+<Demo file="hooks/PortalModal" title="Un modal que escapa del overflow: hidden" highlight="14-16,32" />
+
+<Tip title="El elemento dialog">
+El elemento nativo `<dialog>` con `showModal()` ya resuelve el apilamiento, el foco y la tecla Escape, y desde React 19.1 React soporta sus eventos `toggle` y `beforetoggle`. Para muchos modales simples es una gran alternativa.
+</Tip>
+
+## useSyncExternalStore: suscribirse a un store externo
+
+Es la forma correcta de leer datos que viven **fuera de React** y cambian con el tiempo: APIs del navegador (`navigator.onLine`, `matchMedia`) o stores de librerías. Es exactamente lo que usan Zustand, Redux y Jotai por dentro.
+
+```tsx
+const value = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot?)
+```
+
+- `subscribe(callback)`: se suscribe a los cambios y devuelve la función para desuscribirse.
+- `getSnapshot()`: devuelve el valor actual. Tiene que devolver el **mismo** valor (o el mismo objeto) si nada cambió.
+
+<Demo file="hooks/ExternalStore" title="Un store de 15 líneas compartido por dos componentes" highlight="4-18,22-24" />
+
+Este proyecto lo usa en la vida real: `src/lib/useColorScheme.ts` lee la preferencia de tema oscuro del sistema con `useSyncExternalStore`.
+
+## useImperativeHandle: exponer una API acotada por ref
+
+Normalmente, si un padre le pasa un `ref` a tu componente, termina apuntando a un nodo del DOM. Con `useImperativeHandle` decidís **qué métodos** recibe el padre en vez del nodo completo.
+
+<Demo file="hooks/ImperativeHandle" title="Un input que solo expone focus() y clear()" highlight="7,11-16" />
+
+Fijate que `SearchInput` recibe `ref` como una prop común: en React 19 ya no hace falta `forwardRef`. Usalo con moderación: la mayoría de las cosas se resuelven mejor con props.
+
+## useLayoutEffect: medir antes de pintar
+
+Igual que `useEffect`, pero corre **antes** de que el navegador pinte. Se usa para medir el DOM y corregir algo sin que el usuario vea el "salto":
+
+```tsx
+function Tooltip({ targetRect, children }: TooltipProps) {
+  const ref = useRef<HTMLDivElement>(null)
+  const [height, setHeight] = useState(0)
+
+  useLayoutEffect(() => {
+    // Medimos el tooltip ya renderizado, antes de que se vea en pantalla
+    setHeight(ref.current!.getBoundingClientRect().height)
+  }, [])
+
+  // Si no entra arriba del elemento, lo ponemos abajo
+  const top = targetRect.top - height < 0 ? targetRect.bottom : targetRect.top - height
+  return <div ref={ref} style={{ position: 'fixed', top }}>{children}</div>
+}
+```
+
+Bloquea el pintado, así que usalo solo cuando `useEffect` produce un parpadeo visible.
+
+## Los que casi no vas a usar
+
+| API | Para qué |
+| --- | --- |
+| `useInsertionEffect` | Para autores de librerías CSS-in-JS: insertar estilos antes que los layout effects. |
+| `useDebugValue` | Mostrar una etiqueta en React DevTools para un custom hook. |
+| `flushSync` | Forzar que una actualización se aplique al DOM de forma síncrona (por ejemplo, antes de hacer scroll). |
+| `<Profiler>` | Medir tiempos de render por código. |
+| `cloneElement`, `Children` | APIs legacy para manipular children. Hoy se prefieren props explícitas o render props. |
+
+<Entrevista>
+"¿Para qué sirve createPortal?" → "Para renderizar un componente en otro nodo del DOM, como document.body, sin sacarlo del árbol de React. Se usa en modales, tooltips y dropdowns que tienen que escaparse de un overflow hidden o de un z-index. Sigue recibiendo contexto y los eventos burbujean por el árbol de React."
+</Entrevista>

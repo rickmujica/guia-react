@@ -1,0 +1,66 @@
+Cuando un componente tiene muchas formas de cambiar su estado (agregar, editar, mover, borrar…), los `setX` se desparraman por todos los handlers y cuesta seguir qué pasa. `useReducer` junta **toda la lógica de cambio en una sola función pura**, el reducer.
+
+```tsx
+const [state, dispatch] = useReducer(reducer, initialState)
+
+dispatch({ type: 'advanced', id: 3 }) // "pasó esto"
+
+function reducer(state, action) {
+  // "entonces el estado nuevo es este"
+  return nuevoEstado
+}
+```
+
+La idea es la misma de Redux, pero local a un componente y sin librerías.
+
+## Un pipeline de postulaciones
+
+<Demo file="hooks/PipelineReducer" title="Mover postulaciones entre etapas con un reducer" highlight="7-11,21-32" />
+
+Tres cosas para notar:
+
+1. **Las acciones describen qué pasó** (`added`, `advanced`, `rejected`), no qué hay que hacer con el estado. Los handlers quedan cortos y declarativos.
+2. **El reducer es puro**: no hace requests, no genera ids aleatorios, no muta. Por eso el `id` se genera en el handler y viaja dentro de la acción.
+3. **TypeScript brilla acá**: con la unión discriminada `Action`, dentro de cada `case` TypeScript sabe qué campos tiene la acción. Y si agregás un tipo nuevo y te olvidás de manejarlo, te avisa.
+
+<Ojo title="El reducer tiene que ser puro">
+En desarrollo, StrictMode llama al reducer **dos veces** para detectar impurezas. Si adentro usás `Date.now()`, `Math.random()` o mutás el estado, vas a ver comportamientos raros. Todo lo impuro va en el handler, antes del `dispatch`.
+</Ojo>
+
+## useState o useReducer
+
+| Usá `useState` si… | Usá `useReducer` si… |
+| --- | --- |
+| El estado es simple (un string, un booleano, un número). | Hay muchas formas distintas de actualizar el estado. |
+| Las actualizaciones son independientes entre sí. | Varias partes del estado cambian juntas. |
+| Hay pocos handlers. | Querés testear la lógica sin renderizar nada (el reducer es una función común). |
+
+No hay una respuesta correcta universal: muchos equipos arrancan con `useState` y migran a `useReducer` cuando el componente crece.
+
+## useReducer + Context
+
+Para compartir este estado con un árbol grande, el patrón clásico es proveer `state` y `dispatch` en dos contextos:
+
+```tsx
+const ApplicationsContext = createContext<Application[]>([])
+const ApplicationsDispatchContext = createContext<Dispatch<Action>>(() => {})
+
+export function ApplicationsProvider({ children }: { children: ReactNode }) {
+  const [applications, dispatch] = useReducer(applicationsReducer, [])
+  return (
+    <ApplicationsContext value={applications}>
+      <ApplicationsDispatchContext value={dispatch}>{children}</ApplicationsDispatchContext>
+    </ApplicationsContext>
+  )
+}
+```
+
+`dispatch` tiene identidad estable, así que los componentes que solo despachan acciones no se re-renderizan cuando cambia la lista.
+
+<Nota title="useReducer y useActionState">
+En React 19 existe [useActionState](#/use-action-state), que se parece mucho a un `useReducer` pero cuyo reducer **puede ser async y tener efectos secundarios** (por ejemplo, llamar a una API). Cuando llegues a ese capítulo, vas a reconocer el patrón.
+</Nota>
+
+<Entrevista>
+"¿Cuándo usarías useReducer en vez de useState?" → "Cuando el estado tiene muchas transiciones posibles o varias partes cambian juntas. El reducer centraliza la lógica en una función pura que puedo testear sola, y los componentes solo despachan acciones que describen qué pasó."
+</Entrevista>

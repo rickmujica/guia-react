@@ -1,0 +1,56 @@
+Los Fragments (`<>...</>`) agrupan elementos sin agregar un nodo al DOM. El problema aparecía cuando necesitabas **interactuar** con ese grupo: escuchar clicks, mover el foco, medirlo u observar si es visible. La única salida era envolverlo en un `<div>`, y ese div extra rompía layouts con flexbox o grid, o el HTML semántico.
+
+React 19.3 permite pasarle un **`ref` a un Fragment**. Lo que recibís es un `FragmentInstance`: un objeto con métodos que se aplican a todos los elementos del grupo.
+
+```tsx
+import { Fragment, useRef, type FragmentInstance } from 'react'
+
+const groupRef = useRef<FragmentInstance>(null)
+
+<Fragment ref={groupRef}>
+  <input />
+  <input />
+</Fragment>
+
+groupRef.current?.focus() // enfoca el primer elemento enfocable del grupo
+```
+
+<Ojo>
+Para pasar un `ref` (o una `key`) tenés que usar la forma larga `<Fragment>`. La forma corta `<>...</>` no acepta props.
+</Ojo>
+
+## Eventos sin un div envoltorio
+
+`addEventListener` agrega el listener a **cada hijo DOM de primer nivel** del Fragment. Si después se agregan o quitan hijos, el Fragment actualiza los listeners solo.
+
+<Demo file="novedades/FragmentRefEvents" title="Un listener para varios botones, sin wrapper" highlight="5-15" />
+
+## Foco y medidas de un grupo
+
+<Demo file="novedades/FragmentRefFocus" title="Enfocar y medir un grupo de inputs" highlight="10-11,19-20,23" />
+
+Los inputs son hijos directos de la grilla (`grid-2`), así que el layout no cambia por usar el Fragment. Con un `<div>` envoltorio, los cuatro inputs quedarían dentro de una sola celda.
+
+## Los métodos de FragmentInstance
+
+| Método | Qué hace |
+| --- | --- |
+| `addEventListener`, `removeEventListener` | Agregar o quitar listeners en todos los hijos de primer nivel. |
+| `dispatchEvent` | Disparar un evento desde el Fragment; burbujea hacia el padre. |
+| `focus`, `focusLast`, `blur` | Manejar el foco buscando en todos los hijos, en profundidad. |
+| `observeUsing`, `unobserveUsing` | Conectar un `IntersectionObserver` o un `ResizeObserver` a todos los hijos. |
+| `getClientRects` | Las medidas de cada hijo de primer nivel. |
+| `scrollIntoView` | Hacer scroll hasta el grupo. |
+| `compareDocumentPosition`, `getRootNode` | Ubicar el grupo dentro del documento. |
+
+<Nota title="¿Qué hijos cuenta?">
+Los "hijos de primer nivel" son los nodos DOM más cercanos, atravesando componentes. En `<Fragment ref={r}><div id="A" /><Wrapper><div id="B"><div id="C" /></div></Wrapper></Fragment>`, los hijos son A y B (Wrapper es un componente, así que React mira adentro), pero no C, que está dentro de B.
+</Nota>
+
+<Tip title="¿Quién lo va a usar más?">
+Sobre todo las **librerías de componentes**: un `<Tooltip>`, un `<FocusTrap>` o un `<Draggable>` que envuelven a sus children sin agregar DOM. En tu código de aplicación lo vas a usar de vez en cuando, por ejemplo para trackear la visibilidad de un grupo de elementos con un `IntersectionObserver`.
+</Tip>
+
+<Entrevista>
+"¿Qué son los Fragment refs?" → "Desde React 19.3 un Fragment puede recibir un ref, que devuelve un FragmentInstance con métodos para trabajar con todo el grupo de hijos: agregar listeners, manejar el foco, observarlos con IntersectionObserver o medirlos. Sirve para no tener que agregar un div envoltorio que rompa el layout."
+</Entrevista>

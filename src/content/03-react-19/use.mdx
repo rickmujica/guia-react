@@ -1,0 +1,76 @@
+`use` es una API nueva de React 19 que **lee el valor de un recurso** durante el render. Hoy acepta dos tipos de recursos: **promesas** y **contexto**.
+
+```tsx
+const job = use(jobPromise) // espera la promesa (con Suspense)
+const theme = use(ThemeContext) // lee un contexto
+```
+
+No se llama `useAlgo` porque no es un hook común: **se puede llamar dentro de un `if` o de un loop**. Lo que sí mantiene es que solo se usa durante el render de un componente o de un hook.
+
+## Leer una promesa
+
+Cuando le pasás una promesa a `use`:
+
+- Si todavía no se resolvió, el componente **suspende** y se muestra el fallback del `<Suspense>` más cercano.
+- Cuando se resuelve, React vuelve a renderizar y `use` devuelve el valor.
+- Si se rechaza, el error va al **Error Boundary** más cercano.
+
+<Demo
+  file="react19/UsePromise"
+  title="use(promise) con Suspense, Error Boundary y transiciones"
+  extra={['react19/jobs-api.ts']}
+  highlight="7,22,29-32,58-63"
+/>
+
+<Probalo>
+1. Tocá **Oferta 2** y **Oferta 3**: ves el fallback "Cargando oferta…" durante 1,2 segundos. Volvé a la 2: aparece al instante, porque la promesa ya está en la caché.
+2. Tocá **Oferta 4 (rota)**: la promesa se rechaza y el Error Boundary muestra el error.
+3. Tocá **Vaciar caché**, activá **Cambiar dentro de startTransition** y cambiá de oferta: en vez del fallback, la oferta anterior queda visible (atenuada) hasta que llega la nueva. Así se evita el parpadeo. Fijate que el botón también se marca recién al final: `setSelectedId` está dentro de la misma transición, y React muestra todo junto cuando está listo.
+</Probalo>
+
+Un detalle del código: el `<Suspense>` está **afuera** del `ErrorBoundary` que tiene `key`. Si estuviera adentro, cada cambio de oferta crearía un `<Suspense>` nuevo, y un Suspense recién montado siempre muestra su fallback, aunque estés en una transición. La transición solo evita **volver a ocultar** contenido que ya estaba en pantalla.
+
+## La regla de oro: la promesa tiene que ser estable
+
+`use` necesita recibir **la misma promesa** en cada render. Si creás la promesa durante el render, cada render crea una nueva, el componente vuelve a suspender y nunca sale del fallback.
+
+```tsx
+function JobDetails({ id }: { id: number }) {
+  const job = use(fetch(`/api/jobs/${id}`).then((r) => r.json())) // 🔴 promesa nueva en cada render
+}
+```
+
+Las promesas tienen que venir de un lugar estable:
+
+- **Creadas en un event handler** y guardadas en el estado (como en la demo).
+- De una **caché** (como `fetchJob` en `jobs-api.ts`, que guarda una promesa por id).
+- De un **Server Component** que la pasa como prop a un Client Component (el caso ideal en Next.js, lo vemos en la [Parte 5](#/server-components)).
+- De un **framework o librería** compatible con Suspense (React Router, TanStack Query, Relay).
+
+<Ojo title="use no es el nuevo fetch en un Effect">
+`use` no pide datos: **lee** una promesa que alguien más creó. En una SPA con Vite, armar tu propia caché de promesas es delicado (invalidación, reintentos, refetch). Para producción usá TanStack Query (`useSuspenseQuery`) o un framework. Donde `use` brilla es con Server Components.
+</Ojo>
+
+## Leer contexto, incluso de forma condicional
+
+`use(Context)` hace lo mismo que `useContext(Context)`, con una diferencia: como no es un hook común, lo podés llamar **después de un return temprano o dentro de un if**.
+
+<Demo file="react19/UseContextConditional" title="use(Context) después de un return temprano" highlight="6-10" />
+
+Con `useContext` en esa misma posición, el linter te marcaría un error: los hooks tienen que llamarse siempre, en el mismo orden, en cada render.
+
+<Nota title="¿Y useContext? ¿Queda obsoleto?">
+No. `useContext` sigue funcionando y no se va a deprecar. `use(Context)` es más flexible, así que en código nuevo podés usar cualquiera de los dos; muchos equipos usan `use` solo cuando necesitan llamarlo de forma condicional.
+</Nota>
+
+<Ojo title="Lo que use no puede hacer">
+
+- No se puede llamar dentro de un `try/catch`: para los errores, usá un Error Boundary.
+- No se usa en event handlers ni en Effects: solo durante el render.
+- Desde React 19.3, en desarrollo vas a ver una advertencia si un componente parece haberse "desbloqueado" llamando a `use()` de forma condicional según el estado de la promesa.
+
+</Ojo>
+
+<Entrevista>
+"¿Qué es use() en React 19?" → "Una API para leer recursos durante el render: promesas y contexto. Con una promesa, el componente suspende hasta que se resuelve, se integra con Suspense y los errores van al Error Boundary. La promesa tiene que ser estable, por ejemplo creada en un Server Component o en una caché. Y a diferencia de los hooks, se puede llamar dentro de condicionales."
+</Entrevista>

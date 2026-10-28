@@ -1,0 +1,66 @@
+Pasar props de padre a hijo está bien. Pero cuando un dato lo necesitan muchos componentes en distintos niveles (el usuario logueado, el tema, el idioma), terminás pasándolo por componentes que ni lo usan. Eso se llama **prop drilling**, y Context lo resuelve: un componente **provee** un valor y cualquier descendiente lo **lee** directamente.
+
+## Los tres pasos
+
+```tsx
+// 1. Crear el contexto (con un valor por defecto)
+const ThemeContext = createContext<'claro' | 'oscuro'>('claro')
+
+// 2. Proveer un valor a un subárbol (React 19: sin .Provider)
+<ThemeContext value={theme}>
+  <App />
+</ThemeContext>
+
+// 3. Leerlo en cualquier componente de abajo
+const theme = useContext(ThemeContext)
+```
+
+<Demo file="hooks/ThemeContext" title="Tema compartido sin prop drilling" highlight="6,15,33-34,46" />
+
+Fijate en `Toolbar`: renderiza los botones pero no recibe ni pasa ninguna prop de tema. Y el recuadro de abajo muestra otra regla: **gana el provider más cercano**.
+
+<AntesAhora antes="Hasta React 18" ahora="React 19">
+
+```tsx
+<ThemeContext.Provider value={theme}>
+  <App />
+</ThemeContext.Provider>
+```
+
+```tsx
+<ThemeContext value={theme}>
+  <App />
+</ThemeContext>
+```
+
+</AntesAhora>
+
+`.Provider` sigue funcionando, pero la forma nueva es más corta y es la recomendada. En el futuro `.Provider` se va a deprecar.
+
+## El patrón Provider + custom hook
+
+En una app real casi nunca se usa `useContext` "suelto". Se arma un componente que encapsula el estado y un custom hook que lo consume y valida que exista el provider:
+
+<Demo file="hooks/AuthContext" title="AuthProvider + useAuth" highlight="10-11,16-18,23-25" />
+
+El `throw` dentro de `useAuth` te salva de horas de debugging: si alguien usa el hook fuera del provider, el error dice exactamente qué pasa.
+
+## Context y rendimiento
+
+Cuando el `value` de un provider cambia, **todos** los componentes que leen ese contexto se vuelven a renderizar. Algunas recomendaciones:
+
+- **Separá contextos** por frecuencia de cambio: no mezcles el usuario (cambia poco) con la posición del mouse (cambia todo el tiempo).
+- Si el `value` es un objeto creado en el render, es nuevo en cada render del provider. Con el [React Compiler](#/react-compiler) eso se memoiza solo; sin él, envolvelo en `useMemo`.
+- Para estado global que cambia seguido y que leen muchos componentes, una librería como **Zustand** (que usa `useSyncExternalStore`) suele ser mejor opción.
+
+<Ojo title="Context no es un gestor de estado">
+Context es un mecanismo de **transporte**: lleva un valor a lo profundo del árbol. El estado sigue viviendo en un `useState` o un `useReducer` dentro del provider. La combinación `useReducer` + Context es un patrón clásico para estado global sin librerías.
+</Ojo>
+
+<Tip title="React 19: use(Context)">
+`use(ThemeContext)` hace lo mismo que `useContext(ThemeContext)`, pero se puede llamar **dentro de un if** o de un loop. Lo vemos en el capítulo de [use()](#/use).
+</Tip>
+
+<Entrevista>
+"¿Cuándo usás Context?" → "Para datos que necesitan muchos componentes en distintos niveles y que cambian poco: usuario autenticado, tema, idioma, feature flags. Lo encapsulo en un Provider con un custom hook. Para estado que cambia muy seguido o que leen muchísimos componentes, prefiero una librería como Zustand para evitar renders innecesarios."
+</Entrevista>

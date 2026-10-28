@@ -1,0 +1,136 @@
+Todo lo que viste hasta acá corre en el navegador. Los **React Server Components** (RSC) son componentes que corren **en el servidor** (en cada request o durante el build) y cuyo código **nunca llega al navegador**. Son estables desde React 19 y son la base del App Router de Next.js.
+
+Este capítulo no tiene demos en vivo: los Server Components necesitan un framework con servidor, y Vite solo arma una SPA. Pero todo lo que aprendiste aplica tal cual.
+
+## Un componente async que lee datos directamente
+
+```tsx
+// app/postulaciones/page.tsx  (Server Component: es el default en Next.js)
+import { db } from '@/lib/db'
+
+export default async function ApplicationsPage() {
+  const applications = await db.application.findMany({ orderBy: { createdAt: 'desc' } })
+
+  return (
+    <main>
+      <h1>Mis postulaciones ({applications.length})</h1>
+      <ul>
+        {applications.map((app) => (
+          <li key={app.id}>
+            {app.company} · {app.role}
+          </li>
+        ))}
+      </ul>
+    </main>
+  )
+}
+```
+
+Fijate lo que **no** hay: ni `useEffect`, ni `useState`, ni `isLoading`, ni un endpoint de API intermedio. El componente es una función `async` que espera los datos y devuelve JSX.
+
+<Tip title="La respuesta a la Misión 1">
+¿Por qué podés hacer `await` dentro del componente? Porque es un **Server Component**: corre en el servidor una sola vez por request, así que puede ser `async` y esperar datos antes de devolver el JSX. React manda el resultado ya renderizado al navegador. Un Client Component no puede ser `async`, porque se vuelve a renderizar muchas veces en el navegador.
+</Tip>
+
+## Server vs Client Components
+
+En Next.js, **todo componente es de servidor por defecto**. Para que uno corra en el navegador, el archivo empieza con la directiva `'use client'`:
+
+```tsx
+'use client' // este archivo, y todo lo que importa, va al navegador
+
+import { useState } from 'react'
+
+export function StatusFilter({ onChange }: { onChange?: (s: string) => void }) {
+  const [status, setStatus] = useState('todos')
+  // ...
+}
+```
+
+| Necesitás… | Server Component | Client Component |
+| --- | --- | --- |
+| Leer la base de datos, archivos o secretos | ✅ | ❌ |
+| Que el código no pese en el bundle | ✅ | ❌ |
+| `useState`, `useReducer`, `useEffect` | ❌ | ✅ |
+| Event handlers (`onClick`, `onChange`) | ❌ | ✅ |
+| APIs del navegador (`localStorage`, `window`) | ❌ | ✅ |
+| Context (proveer o leer) | ❌ | ✅ |
+| Ser `async` | ✅ | ❌ |
+
+La estrategia: **componentes de servidor por defecto**, y `'use client'` solo en las "hojas" interactivas (un botón, un filtro, un formulario), lo más abajo posible en el árbol.
+
+## Las reglas del límite
+
+1. **Las props que van de Server a Client se serializan.** Pueden ser strings, números, booleanos, arrays, objetos planos, `Date`, `Map`, `Set`, JSX, **promesas** y Server Functions. No pueden ser funciones comunes ni instancias de clases.
+2. **Un Client Component no puede importar un Server Component**, pero sí recibirlo como `children` o como prop. Así podés meter contenido del servidor dentro de un layout interactivo:
+
+```tsx
+// app/layout.tsx (Server)
+<Sidebar>            {/* 'use client': tiene estado para abrirse y cerrarse */}
+  <RecentJobs />     {/* Server Component: lee la base de datos */}
+</Sidebar>
+```
+
+3. **Lo que es solo del servidor, que no se escape.** Importá el paquete `server-only` en los módulos con secretos o acceso a la base: si alguien los importa desde un Client Component, el build falla.
+
+## Streaming con Suspense
+
+Si una parte de la página tarda, no hace falta esperarla para mostrar el resto. Envolvela en `<Suspense>` y React manda primero lo que está listo y después, por el mismo stream, lo que faltaba:
+
+```tsx
+export default function DashboardPage() {
+  return (
+    <>
+      <h1>Dashboard</h1>
+      <Suspense fallback={<p>Cargando estadísticas…</p>}>
+        <SlowStats /> {/* async: tarda 2 segundos */}
+      </Suspense>
+    </>
+  )
+}
+```
+
+En Next.js, el archivo `loading.tsx` de una carpeta envuelve la página en un `<Suspense>` automáticamente. Es lo que pusiste (o vas a poner) en la Misión 1.
+
+## Pasar una promesa al cliente y leerla con use()
+
+El patrón más elegante para combinar los dos mundos: el servidor **empieza** el fetch sin esperarlo y le pasa la promesa a un Client Component, que la lee con [use()](#/use).
+
+```tsx
+// app/postulaciones/[id]/page.tsx (Server)
+export default async function Page({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
+  const notesPromise = getNotes(id) // sin await: arranca ya
+  return (
+    <Suspense fallback={<p>Cargando notas…</p>}>
+      <Notes notesPromise={notesPromise} />
+    </Suspense>
+  )
+}
+
+// app/postulaciones/[id]/notes.tsx
+'use client'
+import { use } from 'react'
+
+export function Notes({ notesPromise }: { notesPromise: Promise<Note[]> }) {
+  const notes = use(notesPromise) // estable: viene del servidor
+  // ...interactividad con estado
+}
+```
+
+<Nota title="params es una promesa">
+Desde Next.js 15, `params` y `searchParams` llegan como **promesas**: hay que hacer `await params`. Es un error muy común al seguir tutoriales viejos.
+</Nota>
+
+<Ojo title="Errores típicos al empezar">
+
+- Poner `'use client'` en todos lados "para que funcione": perdés los beneficios del servidor.
+- Usar `useState` o `onClick` en un Server Component: el error dice que falta `'use client'`.
+- Pasar una función común como prop de Server a Client: no se puede serializar. Usá una Server Function o mové la lógica al cliente.
+- Pensar que `'use server'` marca Server Components: **no**. `'use server'` marca **Server Functions** (siguiente capítulo). Los Server Components no llevan ninguna directiva.
+
+</Ojo>
+
+<Entrevista>
+"¿Qué son los Server Components?" → "Componentes que se renderizan en el servidor y no mandan su JavaScript al navegador. Pueden ser async y acceder directo a la base de datos o a secretos. En Next.js son el default; uso 'use client' solo en las partes interactivas, que necesitan estado, efectos o eventos. Las props que cruzan al cliente se serializan, y con Suspense puedo hacer streaming de las partes lentas."
+</Entrevista>

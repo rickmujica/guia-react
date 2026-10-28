@@ -1,0 +1,56 @@
+Hasta ahora, para ocultar una parte de la UI había dos opciones, y las dos tenían un costo:
+
+- **Render condicional** (`{show && <Panel />}`): el componente se desmonta y **pierde su estado**.
+- **Ocultarlo con CSS** (`display: none`): conserva el estado, pero **sus Effects siguen corriendo** (timers, suscripciones, videos) aunque nadie lo vea.
+
+React 19.2 agregó un tercer camino: `<Activity>`.
+
+```tsx
+<Activity mode={isVisible ? 'visible' : 'hidden'}>
+  <Sidebar />
+</Activity>
+```
+
+Cuando `mode` es `"hidden"`, React:
+
+1. Oculta los hijos con `display: none`.
+2. **Destruye sus Effects** (ejecuta los cleanups): se cortan timers y suscripciones.
+3. **Conserva su estado** (y el del DOM, como el texto de un textarea).
+4. Los sigue renderizando en segundo plano, con baja prioridad, si cambian sus props.
+
+Cuando vuelve a `"visible"`, React muestra los hijos con el estado intacto y vuelve a crear sus Effects.
+
+<Demo file="novedades/ActivityTabs" title="Pestañas que recuerdan su estado" highlight="52-61,65-68" />
+
+<Probalo>
+1. Con `<Activity>` activado, escribí algo en **notas**, sumá preguntas en **preguntas** y dejá correr el **timer** unos segundos. Cambiá de pestaña y volvé: todo sigue ahí. En el log ves que al salir del timer su Effect se limpia (el timer se pausa) y al volver arranca de nuevo desde donde estaba.
+2. Desactivá `<Activity>` y repetí: cada vez que salís de una pestaña, su estado se pierde y el timer vuelve a 0.
+</Probalo>
+
+## Para qué sirve
+
+| Caso de uso | Por qué Activity |
+| --- | --- |
+| Pestañas | Volver a una pestaña sin perder el scroll, los filtros ni lo escrito. |
+| Sidebars y paneles | Cerrar y abrir sin reiniciar su contenido. |
+| Navegación "atrás" | Volver a la pantalla anterior al instante, con su estado. |
+| Pre-renderizar | Renderizar en `hidden` una pantalla que el usuario probablemente visite después, para que aparezca al instante. |
+
+<Tip title="Pre-renderizar lo próximo">
+Como el contenido oculto se renderiza con baja prioridad, podés montar en `hidden` la siguiente pantalla (y empezar a cargar sus datos con Suspense) sin afectar a la pantalla actual. Cuando el usuario navega, ya está lista.
+</Tip>
+
+## Detalles a tener en cuenta
+
+- Los Effects se destruyen al ocultar: si un componente oculto tiene que seguir haciendo algo (por ejemplo, reproducir música), Activity no es la herramienta.
+- Mantener muchas pantallas ocultas consume memoria. Usalo para lo que es probable que el usuario vuelva a ver.
+- Un `<Activity>` oculto que solo renderiza texto no muestra nada, porque no hay un elemento DOM al que aplicarle `display: none`.
+- Dentro de un [`<ViewTransition>`](#/view-transition), pasar de oculto a visible dentro de una transición activa la animación de entrada, y al revés la de salida.
+
+<Nota title="El nombre">
+Durante años esta API se desarrolló con el nombre `Offscreen`. Si lo ves en algún artículo viejo, es lo mismo.
+</Nota>
+
+<Entrevista>
+"¿Qué es Activity en React 19.2?" → "Un componente para ocultar parte de la UI sin desmontarla. Con mode hidden, React aplica display none, destruye los Effects para que no consuman recursos, pero conserva el estado. Al volver a visible, restaura todo y recrea los Effects. Sirve para pestañas, sidebars, volver atrás rápido y pre-renderizar la próxima pantalla."
+</Entrevista>

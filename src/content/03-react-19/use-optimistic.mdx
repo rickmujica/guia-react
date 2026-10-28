@@ -1,0 +1,71 @@
+Cuando le das "me gusta" a algo en una red social, el corazón se pinta **al instante**, aunque el servidor todavía no confirmó nada. Eso es una **actualización optimista**: asumís que la operación va a salir bien y mostrás el resultado ya. Si falla, volvés atrás.
+
+Hacerlo a mano era delicado (guardar el valor anterior, revertir en el `catch`, cuidar los casos de carrera). `useOptimistic` lo resuelve:
+
+```tsx
+const [optimisticValue, setOptimistic] = useOptimistic(value, reducer?)
+```
+
+- `value`: el valor **real** (de tu estado o de las props).
+- `optimisticValue`: igual a `value`, **salvo mientras haya una Action en curso**, en cuyo caso refleja lo que hayas seteado con `setOptimistic`.
+- Cuando la Action termina, el valor optimista **se descarta solo** y se vuelve a mostrar `value`. Si la Action actualizó `value`, ves el dato real; si falló, ves el valor de antes.
+
+## Mensajes que aparecen al instante
+
+<Demo file="react19/OptimisticNotes" title="Lista optimista con manejo de errores" highlight="17-21,27,29-30,34" />
+
+<Probalo>
+1. Enviá un mensaje: aparece al instante, semitransparente y con "enviando…". Al segundo y medio queda confirmado.
+2. Activá **Simular error del servidor** y enviá otro: aparece, y cuando la API falla desaparece solo y se muestra el error. No escribiste ningún código para "deshacer".
+3. Enviá tres mensajes seguidos rápido: los tres aparecen enseguida.
+</Probalo>
+
+Este hook usa la forma con **reducer**: `useOptimistic(notes, (current, newNote) => [...current, newNote])`. El segundo argumento de `addOptimisticNote` se pasa a ese reducer. Es la forma ideal para listas, donde querés "agregar" sobre el estado actual.
+
+## La forma simple: un valor
+
+Para un valor suelto (un booleano, un contador, un texto) no hace falta reducer:
+
+<Demo file="react19/OptimisticLike" title="Guardar una oferta con feedback instantáneo" highlight="5-6,9-13" />
+
+## Reglas
+
+- **`setOptimistic` se llama dentro de una Action**: en un `<form action>`, en `startTransition` o en una prop `action`. Fuera de una Action vas a ver una advertencia y el valor optimista se va a ver solo por un instante.
+- **No reemplaza al estado real**: siempre necesitás actualizar el `value` de verdad (con `setState`, revalidando datos, etc.). El optimista es solo la "vista previa".
+- **Tiene que ser rápido y puro**: el reducer se puede ejecutar varias veces; no hagas efectos secundarios adentro.
+
+<Tip title="¿Cuándo vale la pena?">
+En acciones frecuentes, de bajo riesgo y que casi siempre salen bien: likes, marcar como leído, reordenar, agregar a favoritos, enviar mensajes. Para cosas críticas (pagos, borrar algo importante) mejor mostrá un estado pendiente claro y esperá la confirmación.
+</Tip>
+
+<AntesAhora antes="Optimista a mano" ahora="useOptimistic">
+
+```tsx
+async function toggle() {
+  const previous = saved
+  setSaved(!saved) // optimista
+  try {
+    await api.toggleSaved(jobId)
+  } catch {
+    setSaved(previous) // revertir a mano
+  }
+}
+```
+
+```tsx
+const [optimisticSaved, setOptimisticSaved] = useOptimistic(saved)
+
+function toggle() {
+  startTransition(async () => {
+    setOptimisticSaved(!saved)
+    await api.toggleSaved(jobId)
+    startTransition(() => setSaved(!saved))
+  })
+}
+```
+
+</AntesAhora>
+
+<Entrevista>
+"¿Qué hace useOptimistic?" → "Muestra un valor provisional mientras una Action está en curso, por ejemplo un mensaje que aparece al instante antes de que el servidor confirme. Cuando la Action termina, React descarta el valor optimista y muestra el real, así que si hubo un error vuelve solo al estado anterior, sin código para revertir."
+</Entrevista>

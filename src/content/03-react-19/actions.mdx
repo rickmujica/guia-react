@@ -1,0 +1,100 @@
+Si tuvieras que explicar React 19 en una sola palabra, sería **Actions**. Casi todo lo nuevo (`useActionState`, `useOptimistic`, `useFormStatus`, `<form action>`) gira alrededor de esta idea.
+
+## El problema: siempre el mismo código repetido
+
+Cada vez que el usuario hace algo que llama a una API, escribíamos lo mismo: un `isPending`, un `error`, un `try/catch/finally`, deshabilitar el botón y, si es un formulario, `preventDefault` y resetear los campos.
+
+<AntesAhora antes="React 18: todo a mano" ahora="React 19: una Action">
+
+```tsx
+function UpdateName() {
+  const [name, setName] = useState('')
+  const [error, setError] = useState(null)
+  const [isPending, setIsPending] = useState(false)
+
+  async function handleSubmit() {
+    setIsPending(true)
+    try {
+      const error = await updateName(name)
+      if (error) {
+        setError(error)
+        return
+      }
+      redirect('/perfil')
+    } finally {
+      setIsPending(false)
+    }
+  }
+  // ...
+}
+```
+
+```tsx
+function UpdateName() {
+  const [name, setName] = useState('')
+  const [error, setError] = useState(null)
+  const [isPending, startTransition] = useTransition()
+
+  function handleSubmit() {
+    startTransition(async () => {
+      const error = await updateName(name)
+      if (error) {
+        setError(error)
+        return
+      }
+      redirect('/perfil')
+    })
+  }
+  // ...
+}
+```
+
+</AntesAhora>
+
+## Qué es una Action
+
+> Una **Action** es una función que se ejecuta dentro de una transición. En React 19 esa función puede ser **async**.
+
+Cuando una Action está en curso, React se encarga de:
+
+- **Estado pendiente**: `isPending` es `true` desde que la Action empieza hasta que termina toda la función, incluidos los `await`.
+- **Errores**: si la Action lanza un error, lo podés mostrar con un [Error Boundary](#/suspense-y-errores).
+- **Actualizaciones optimistas**: con [useOptimistic](#/use-optimistic) mostrás el resultado esperado al instante.
+- **Formularios**: `<form action={fn}>` ejecuta `fn` como Action y resetea el formulario al terminar.
+- **UI responsiva**: como es una transición, la interfaz sigue respondiendo mientras tanto.
+
+<Demo file="react19/UpdateName" title="Una Action con useTransition" extra={['react19/api.ts']} highlight="11-27" />
+
+<Probalo>
+Escribí "Al" (2 letras) y tocá **Actualizar**: el botón queda deshabilitado durante el segundo que tarda la "API" y después aparece el error. Con un nombre más largo, se guarda. Fijate que no hay ningún `setIsPending` en el código.
+</Probalo>
+
+<Ojo title="setState después de un await">
+Hoy, las actualizaciones de estado que hacés **después de un `await`** no quedan automáticamente dentro de la transición. La documentación oficial recomienda envolverlas en otro `startTransition`, como en la demo. Es una limitación conocida que el equipo de React planea resolver; mientras tanto, es el patrón correcto.
+</Ojo>
+
+## Action props: componentes que aceptan Actions
+
+Una convención nueva: si una prop de tu componente se ejecuta dentro de una transición, la llamás `action` (o `algoAction`, como `submitAction` o `changeAction`). El componente se encarga del estado pendiente y quien lo usa solo dice **qué** hacer.
+
+<Demo file="react19/ActionButton" title="Un botón de design system con prop action" extra={['react19/api.ts']} highlight="10-25" />
+
+Esto es lo que van a hacer las librerías de componentes: botones, tabs, selects y date pickers que aceptan una `action` y muestran solos su estado de carga.
+
+<Nota title="Actions ≠ Server Actions">
+Una **Action** es cualquier función en una transición: corre en el navegador. Una **Server Function** (antes llamada Server Action) es una función marcada con `"use server"` que corre en el servidor y que podés usar *como* Action. Las ves en la [Parte 5](#/server-functions).
+</Nota>
+
+## Mapa de las APIs nuevas
+
+| API | Para qué |
+| --- | --- |
+| `startTransition(async () => …)` | Ejecutar una Action y obtener `isPending` (con `useTransition`). |
+| [`useActionState`](#/use-action-state) | Estado que se actualiza con el resultado de una Action. |
+| [`<form action={fn}>`](#/formularios) | Enviar formularios con Actions, con reset automático. |
+| [`useFormStatus`](#/formularios) | Leer desde un hijo si el form padre se está enviando. |
+| [`useOptimistic`](#/use-optimistic) | Mostrar el resultado esperado mientras la Action termina. |
+
+<Entrevista>
+"¿Qué es una Action en React 19?" → "Una función, normalmente async, que corre dentro de una transición. React maneja automáticamente el estado pendiente, los errores, las actualizaciones optimistas y el reset de formularios. Es la base de useActionState, useOptimistic y los formularios con action, y elimina el boilerplate de isLoading y try/finally."
+</Entrevista>

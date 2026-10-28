@@ -1,0 +1,102 @@
+Una página para tener a mano mientras trabajás en código legacy o antes de una entrevista.
+
+## De clases a hooks
+
+| En una clase | Con hooks |
+| --- | --- |
+| `this.state = { … }` y `this.setState` | `const [x, setX] = useState(…)` (uno por dato) |
+| `componentDidMount` | `useEffect(() => { … }, [])` |
+| `componentDidUpdate(prevProps)` | `useEffect(() => { … }, [dep])` |
+| `componentWillUnmount` | El `return () => { … }` (cleanup) de un `useEffect` |
+| `shouldComponentUpdate`, `PureComponent` | `memo(Componente)`, o el React Compiler |
+| `getDerivedStateFromProps` | Calcular durante el render, o resetear con `key` |
+| `createRef()` | `useRef(null)` |
+| `static contextType`, `this.context` | `useContext(Ctx)` o `use(Ctx)` |
+| `forceUpdate()` | No existe: si lo necesitás, falta estado |
+| HOCs (`withRouter`, `connect`) y render props | Custom hooks (`useRouter`, `useSelector`) |
+| `componentDidCatch`, `getDerivedStateFromError` | **Sigue siendo una clase** (o `react-error-boundary`) |
+| `getSnapshotBeforeUpdate` | Sin equivalente en hooks (caso muy raro) |
+
+## ¿Qué uso para…?
+
+| Necesito… | Usá |
+| --- | --- |
+| Un dato que cambia y se ve en pantalla | [`useState`](#/use-state) |
+| Muchas formas de cambiar el mismo estado | [`useReducer`](#/use-reducer) |
+| Un valor calculado a partir de otros | Una variable en el render ([estado derivado](#/pensar-en-react)) |
+| Sincronizar con algo externo (timer, socket, API del navegador) | [`useEffect`](#/use-effect) |
+| Acceder a un nodo del DOM | [`useRef`](#/use-ref) |
+| Un valor que no se muestra (id de timer, instancia) | [`useRef`](#/use-ref) |
+| Compartir datos con un subárbol profundo | [`createContext` + `useContext`](#/use-context) |
+| Reutilizar lógica con estado | Un [custom hook](#/custom-hooks) |
+| Que una actualización lenta no trabe la UI | [`useTransition` o `useDeferredValue`](#/transiciones) |
+| Llamar a una API desde un botón con estado pendiente | Una [Action](#/actions) con `useTransition` |
+| Un formulario con validación y mensajes | [`useActionState`](#/use-action-state) + `<form action>` |
+| Un botón que sabe si su form se está enviando | [`useFormStatus`](#/formularios) |
+| Mostrar el resultado antes de que confirme el servidor | [`useOptimistic`](#/use-optimistic) |
+| Leer una promesa (con Suspense) | [`use(promise)`](#/use) |
+| Ocultar UI sin perder su estado | [`<Activity>`](#/activity) |
+| Leer el último valor en un Effect sin re-ejecutarlo | [`useEffectEvent`](#/use-effect-event) |
+| Animar cambios | [`<ViewTransition>`](#/view-transition) |
+| Ids para label/input | [`useId`](#/otros-hooks) |
+| Suscribirse a un store externo | [`useSyncExternalStore`](#/otros-hooks) |
+| Un modal fuera del contenedor | [`createPortal`](#/otros-hooks) |
+| Pedir datos en una app real | Server Components, TanStack Query o el loader del router |
+
+## Las dos reglas de los hooks
+
+1. **Llamalos siempre en el nivel superior** de un componente o de un custom hook: nunca dentro de `if`, loops, callbacks ni después de un `return` temprano. (La excepción es `use`, que sí puede ir en un `if`).
+2. **Llamalos solo desde componentes o custom hooks**, nunca desde funciones comunes.
+
+React identifica cada hook por **el orden** en que se llama. Si un `if` hace que un hook se saltee en un render, todos los siguientes quedan desfasados.
+
+## Preguntas de entrevista con respuesta corta
+
+**¿Qué es el Virtual DOM y la reconciliación?**
+React mantiene una representación del UI en memoria. Cuando cambia el estado, renderiza de nuevo, compara el árbol nuevo con el anterior (reconciliación) y aplica en el DOM real solo las diferencias.
+
+**¿Por qué las keys en las listas?**
+Para que React sepa qué elemento es cuál entre renders y pueda mover, agregar o borrar sin perder estado. El índice como key falla si la lista se reordena.
+
+**¿Props vs estado?**
+Las props vienen del padre y son de solo lectura. El estado es la memoria propia del componente y cambiarlo dispara un render.
+
+**¿Por qué setState no cambia el valor inmediatamente?**
+El estado es una foto del render actual. `setState` agenda un nuevo render. Si el valor nuevo depende del anterior, se usa `setX(prev => …)`.
+
+**¿Para qué sirve el array de dependencias de useEffect?**
+Le dice a React con qué valores se sincroniza el efecto: si alguno cambia, ejecuta el cleanup y vuelve a correr el setup. Todo valor reactivo que se usa adentro tiene que estar.
+
+**¿Qué hace StrictMode?**
+En desarrollo, renderiza dos veces y monta, desmonta y vuelve a montar los efectos, para detectar componentes impuros y efectos sin cleanup. No afecta a producción.
+
+**¿useMemo vs useCallback vs memo?**
+`useMemo` memoiza un valor, `useCallback` una función y `memo` un componente entero según sus props. Con el React Compiler esto es automático.
+
+**¿Qué es el prop drilling y cómo se evita?**
+Pasar props por componentes que no las usan. Se evita con composición (`children`), Context o un store como Zustand.
+
+**¿Controlado vs no controlado?**
+Un input controlado toma su valor del estado de React; uno no controlado guarda el valor en el DOM y se lee con un ref o con `FormData`.
+
+**¿Qué son las Actions de React 19?**
+Funciones async dentro de transiciones. React maneja el pending, los errores, las actualizaciones optimistas y el reset de formularios.
+
+**¿Server Components vs Client Components?**
+Los de servidor corren solo en el servidor, pueden ser async y no mandan JavaScript. Los de cliente (`'use client'`) tienen estado, efectos y eventos.
+
+**¿Cómo optimizarías una app lenta?**
+Mido primero con el Profiler o las Performance Tracks. Después: bajar el estado, dividir componentes, virtualizar listas largas, code splitting con `lazy`, transiciones para lo no urgente y el React Compiler para la memoización.
+
+**¿Qué es la hidratación?**
+Cuando el HTML viene renderizado del servidor, React en el navegador "adopta" ese HTML: conecta los event handlers y el estado sin volver a crear el DOM. Si el HTML no coincide con lo que renderiza el cliente, hay un error de hidratación.
+
+## Qué sigue
+
+1. **Misión 1 del Job Tracker**: crear el proyecto en Next.js y listar postulaciones con Server Components y `loading.tsx`.
+2. **Misión 2**: el formulario con `useActionState` y una Server Function.
+3. **Misión 3**: `useOptimistic` y `useFormStatus`.
+4. **Misión 4**: caché y revalidación en Next.js 16.
+5. **Misión 5**: deploy en Vercel y un README que venda.
+
+Volvé a esta guía cada vez que un hook no se comporte como esperabas: casi siempre la respuesta está en alguna de las demos.

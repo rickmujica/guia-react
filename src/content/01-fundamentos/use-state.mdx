@@ -1,0 +1,80 @@
+El **estado** es la memoria de un componente: datos que cambian con el tiempo (lo que escribió el usuario, si un menú está abierto, la lista de tareas). Cuando el estado cambia, React vuelve a ejecutar el componente y actualiza la pantalla.
+
+```tsx
+const [count, setCount] = useState(0)
+//     ↑ valor   ↑ función para cambiarlo   ↑ valor inicial
+```
+
+¿Por qué no alcanza con una variable común? Porque una variable local se reinicia en cada render y, además, cambiarla no le avisa a React que tiene que volver a renderizar.
+
+## El estado es una foto
+
+Esta es la idea más importante del capítulo. Dentro de un render, `count` **es una constante**. Llamar a `setCount` no cambia la variable: le pide a React un nuevo render, donde `count` va a tener el valor nuevo.
+
+<Demo file="fundamentos/Counter" title="El estado como foto y la función actualizadora" highlight="6-17" />
+
+El botón "+3 (mal)" suma solo 1 porque las tres líneas leen el mismo `count` de esa foto: es como escribir `setCount(0 + 1)` tres veces. Con la **función actualizadora** `setCount(c => c + 1)`, React encola las funciones y le pasa a cada una el resultado de la anterior.
+
+<Tip title="Regla práctica">
+Si el valor nuevo depende del anterior, usá la función actualizadora: `setX(prev => ...)`. Es más segura y además es la única opción correcta cuando hay varias actualizaciones seguidas o código async.
+</Tip>
+
+React además **agrupa (batching)** todas las actualizaciones de un mismo evento en un solo render. Desde React 18 eso pasa en todos lados: handlers, timeouts, promesas.
+
+## Objetos: nunca mutes, reemplazá
+
+React compara el estado viejo con el nuevo usando `Object.is`. Si mutás un objeto (`form.company = 'X'`), es el mismo objeto, React no ve ningún cambio y no vuelve a renderizar. Siempre creás un objeto nuevo con spread.
+
+<Demo file="fundamentos/ApplicationForm" title="Objeto en el estado e inputs controlados" highlight="19-21" />
+
+Los inputs de esta demo están **controlados**: su `value` sale del estado y `onChange` lo actualiza. El estado es la única fuente de verdad. En React 19 vas a ver que para muchos formularios ya no hace falta controlar cada input (capítulo de [formularios](#/formularios)).
+
+## Arrays: map, filter y spread
+
+Las operaciones que mutan (`push`, `splice`, `sort`, `reverse`, `arr[i] = x`) están prohibidas sobre el estado. Usá las que devuelven un array nuevo:
+
+| Para… | En vez de (muta) | Usá (devuelve uno nuevo) |
+| --- | --- | --- |
+| agregar | `push`, `unshift` | `[...arr, item]`, `[item, ...arr]` |
+| borrar | `splice` | `arr.filter(x => x.id !== id)` |
+| editar | `arr[i] = x` | `arr.map(x => x.id === id ? { ...x, done: true } : x)` |
+| ordenar | `sort`, `reverse` | `arr.toSorted(...)`, `arr.toReversed()` |
+
+<Demo file="fundamentos/TodoList" title="Agregar, editar y borrar sin mutar" highlight="14-15,21,26,30" />
+
+<Nota title="Inicialización perezosa">
+`useState(createInitialTasks)` (sin paréntesis) le pasa **la función** a React, que la ejecuta solo en el primer render. Si escribís `useState(createInitialTasks())` la función corre en **cada** render, aunque el resultado se descarte. Importa cuando el cálculo inicial es caro, como leer `localStorage` o procesar una lista grande.
+</Nota>
+
+## El estado vive en la posición del árbol
+
+El estado no está "dentro" del componente: React lo guarda asociado a la **posición** del componente en el árbol. Si en el mismo lugar renderizás el mismo tipo de componente, el estado se conserva aunque cambien las props.
+
+<Demo file="fundamentos/KeyReset" title="Reiniciar el estado con key" highlight="48-53" />
+
+<Probalo>
+Escribí un borrador para el recruiter de Nubelia y cambiá al CTO de Datalab: sin `key`, el borrador te sigue. Activá la opción de `key` y repetí: cada contacto arranca con el borrador vacío. Cambiar la `key` es la forma idiomática de decir "esto es otro componente, empezá de cero".
+</Probalo>
+
+## Errores comunes
+
+<Ojo title="Leer el estado justo después de setearlo">
+
+```tsx
+function handleClick() {
+  setCount(count + 1)
+  console.log(count) // 🔴 todavía muestra el valor viejo: es la foto de este render
+}
+```
+
+Si necesitás el valor nuevo, calculalo en una variable: `const next = count + 1; setCount(next); console.log(next)`.
+
+</Ojo>
+
+<Ojo title="Guardar en el estado algo que se puede calcular">
+Si un valor se puede calcular a partir de props o de otro estado, **no lo guardes en el estado**. Lo vemos en el próximo capítulo.
+</Ojo>
+
+<Entrevista>
+"¿Por qué setState no actualiza el valor inmediatamente?" → "Porque el estado es una foto del render actual. `setState` agenda un nuevo render, y en ese render la variable tiene el valor nuevo. Además React agrupa varias actualizaciones en un solo render. Si el valor nuevo depende del anterior, uso la forma con función: `setCount(c => c + 1)`."
+</Entrevista>

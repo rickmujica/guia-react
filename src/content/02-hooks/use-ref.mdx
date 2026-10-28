@@ -1,0 +1,59 @@
+`useRef` te da una "caja" (`{ current: valor }`) que **persiste entre renders** y que podés modificar sin que el componente se vuelva a renderizar. Tiene dos usos principales:
+
+1. Guardar una referencia a un **nodo del DOM** (para enfocarlo, medirlo, hacer scroll).
+2. Guardar un **valor que no se muestra** en pantalla (el id de un timer, una instancia de una librería, el valor anterior de algo).
+
+```tsx
+const ref = useRef(valorInicial)
+ref.current // leer
+ref.current = nuevoValor // escribir: NO dispara un render
+```
+
+## Referencias al DOM
+
+Pasás el ref como prop `ref` a un elemento, y después del commit React pone el nodo en `ref.current`.
+
+<Demo file="hooks/FocusInput" title="Enfocar y seleccionar un input" highlight="5,10-12" />
+
+Enfocar, hacer scroll, medir tamaños, reproducir un video o integrar una librería que necesita un nodo del DOM (un mapa, un gráfico, un editor) son los casos típicos.
+
+## Ref vs estado
+
+| | `useState` | `useRef` |
+| --- | --- | --- |
+| ¿Cambiarlo dispara un render? | Sí | No |
+| ¿Se puede leer durante el render? | Sí | No conviene (solo en eventos y Effects) |
+| ¿Cómo se cambia? | Con el setter | Mutando `ref.current` |
+| Usalo para… | Todo lo que se muestra en pantalla | Lo que el render no necesita |
+
+<Demo file="hooks/RefVsState" title="El ref cambia, pero la pantalla no se entera" />
+
+<Probalo>
+Tocá varias veces **Click con ref** y después **Leer el ref**: el valor se fue sumando aunque la pantalla no cambió. Ahora tocá **Click con estado**: cada click dispara un render.
+</Probalo>
+
+## Un valor que no se muestra: el id del intervalo
+
+El cronómetro necesita guardar el id del `setInterval` para poder frenarlo después. Ese id no se muestra en pantalla, así que va en un ref.
+
+<Demo file="hooks/Stopwatch" title="Cronómetro con el id del intervalo en un ref" highlight="6-7,12-13,17,21" />
+
+## Reglas para no meterte en problemas
+
+- **No leas ni escribas `ref.current` durante el render**, salvo para inicializarlo. El render tiene que ser puro; los refs se usan en event handlers y Effects.
+- Si un valor se muestra en pantalla, es **estado**, no ref.
+- Un ref al DOM vale `null` hasta que el elemento se monta. Por eso el `?.` en `inputRef.current?.focus()`.
+
+<Nota title="Novedades de React 19 con refs">
+
+- `ref` ya es una **prop común** en componentes de función: chau `forwardRef`.
+- Un **ref callback** puede devolver una función de limpieza.
+- `useRef()` sin argumento ya no está permitido en los tipos de TypeScript: escribí `useRef<T>(null)` o `useRef<T>(undefined)`.
+
+Todo esto está en [ref como prop](#/refs-y-context). Y en React 19.3 hasta los Fragments aceptan ref: [Fragment refs](#/fragment-refs).
+
+</Nota>
+
+<Entrevista>
+"¿Diferencia entre useRef y useState?" → "Los dos persisten entre renders, pero cambiar un ref no dispara un render y cambiar el estado sí. Uso estado para todo lo que se ve en pantalla y refs para nodos del DOM o valores que el render no necesita, como el id de un timer."
+</Entrevista>

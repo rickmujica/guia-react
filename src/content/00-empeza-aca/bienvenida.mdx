@@ -1,0 +1,73 @@
+Esta guía es una app de React hecha con Vite. Cada capítulo explica un tema, te muestra una **demo funcionando** y, debajo, el **código fuente real** de esa demo.
+
+El código no es una copia pegada a mano: la guía lee el mismo archivo que se está ejecutando (con el sufijo `?raw` de Vite). Si editás el archivo de una demo, cambian a la vez la demo y el snippet. Así podés leer el código en la guía o directamente en tu editor.
+
+## Cómo correrla
+
+```bash
+npm install
+npm run dev
+```
+
+Abrí la URL que muestra la terminal (normalmente `http://localhost:5173`).
+
+Para verla en el celular, conectado a la misma red Wi-Fi, corré `npm run dev -- --host` y abrí desde el teléfono la dirección `Network` que aparece en la terminal.
+
+## Cómo está organizado el proyecto
+
+| Carpeta o archivo | Qué hay |
+| --- | --- |
+| `src/content/` | Los capítulos, en MDX (Markdown con JSX). Se leen bien directo en el editor. |
+| `src/demos/` | Una carpeta por parte y un archivo por demo. **Este es el código para practicar.** |
+| `src/components/` | La maquinaria de la guía: layout, bloques de código y el componente `<Demo>`. |
+| `src/chapters.ts` | El índice: orden, títulos y versión de React de cada capítulo. |
+| `vite.config.ts` | Vite con MDX y el React Compiler (en modo `annotation`, lo vemos en su capítulo). |
+| `scripts/export-pdf.mjs` | El script que genera el PDF (`npm run pdf`). |
+| `docs/` | El PDF de la guía, listo para leer en el celular. |
+
+## Cómo aprovecharla
+
+1. Leé la explicación, tocá la demo y recién después mirá el código.
+2. En cada recuadro **🧪 Probá esto** hay un mini ejercicio: modificá el archivo de la demo y mirá el cambio al instante (Vite recarga solo).
+3. Si rompés algo, usá el botón **↺ Reiniciar** de la demo o volvé el archivo atrás con git.
+4. Los recuadros **🎤 En una entrevista** resumen cómo explicar el tema en voz alta, en dos o tres frases.
+
+Los recuadros que vas a ver:
+
+<Nota>Contexto o detalle extra.</Nota>
+
+<Ojo>Un error común o una trampa.</Ojo>
+
+<Tip>Una forma mejor o más moderna de hacer algo.</Tip>
+
+<Probalo>Un ejercicio corto sobre la demo.</Probalo>
+
+<Entrevista>Cómo responder si te lo preguntan.</Entrevista>
+
+## Ruta sugerida
+
+| Si tenés… | Hacé esto |
+| --- | --- |
+| 1 hora | Leé el capítulo 2 (qué cambió) y recorré la Parte 3 en diagonal. |
+| 2 o 3 días | Partes 1 y 2 completas: es el repaso de hooks, con todas las demos. |
+| 1 semana | Partes 3 y 4 con todos los ejercicios: React 19 a fondo. |
+| Antes de Next.js | Parte 5 y después la Misión 1 del Job Tracker. |
+
+Muchas demos usan el mismo tema: **postulaciones a trabajos** (empresa, puesto, estado). Es a propósito: es el mismo dominio del Job Tracker que vas a construir en Next.js, así que los patrones te van a quedar a mano.
+
+## La app usa lo mismo que enseña
+
+- El cambio de capítulo usa `<ViewTransition>` y `startTransition` (mirá `src/App.tsx`).
+- El título de la pestaña lo pone un `<title>` renderizado dentro de un componente, una novedad de React 19.
+- El tema claro u oscuro de los bloques de código usa `useSyncExternalStore` con una media query (`src/lib/useColorScheme.ts`).
+- El PDF sale de esta misma app, abierta con `?print` en la URL.
+
+## La versión PDF
+
+Arriba a la derecha está el link **Versión imprimible**: abre la guía completa en una sola página, lista para imprimir o guardar como PDF desde el navegador.
+
+El PDF que acompaña al proyecto (`docs/guia-react-moderno.pdf`) sale de esa misma página. Si cambiás algo y lo querés regenerar, corré `npm run pdf`: arma el build, lo abre en un Chromium automático (con Playwright) y lo imprime con un tamaño de página pensado para el celular. La primera vez hace falta descargar ese navegador con `npx playwright install chromium`.
+
+<Nota title="Versiones">
+Escrita en octubre de 2026 con React 19.3.1, Vite 8, TypeScript 7 y React Compiler 1.0.
+</Nota>

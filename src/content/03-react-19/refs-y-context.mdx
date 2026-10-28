@@ -1,0 +1,76 @@
+React 19 trae varios cambios chicos que, sumados, eliminan mucho código ceremonial. Si venís de un proyecto legacy, estos son los que más vas a notar al leer código nuevo.
+
+## ref como prop: chau forwardRef
+
+Hasta React 18, un componente de función **no podía recibir** un `ref`: había que envolverlo en `forwardRef`. En React 19, `ref` es una prop más.
+
+<AntesAhora antes="React 18" ahora="React 19">
+
+```tsx
+const TextField = forwardRef<HTMLInputElement, Props>(
+  function TextField({ label, ...props }, ref) {
+    return (
+      <label>
+        {label}
+        <input ref={ref} {...props} />
+      </label>
+    )
+  },
+)
+```
+
+```tsx
+function TextField({ label, ref, ...props }: Props) {
+  return (
+    <label>
+      {label}
+      <input ref={ref} {...props} />
+    </label>
+  )
+}
+```
+
+</AntesAhora>
+
+<Demo file="react19/RefAsProp" title="Enfocar el primer campo vacío con ref como prop" highlight="5,9" />
+
+`forwardRef` sigue funcionando, pero se va a deprecar en una versión futura. Hay un codemod que lo migra automáticamente.
+
+## Ref callbacks con limpieza
+
+Un **ref callback** es una función que pasás como `ref`: React la llama con el nodo cuando se monta. En React 19 esa función puede **devolver un cleanup**, igual que un Effect. Ideal para conectar observers, librerías o event listeners a un nodo puntual.
+
+<Demo file="react19/RefCleanup" title="ResizeObserver conectado con un ref callback" highlight="8,11-20" />
+
+<Probalo>
+Estirá el textarea desde la esquina y mirá el ancho medido. Después tocá **Desmontar**: el log muestra que el cleanup desconectó el observer. Al montar ves "conectado, desconectado, conectado": como con los Effects, en desarrollo StrictMode ejecuta setup, cleanup y setup para verificar que la limpieza funciona.
+</Probalo>
+
+<Ojo title="TypeScript: cuidado con el return implícito">
+Como ahora un ref callback puede devolver una función, TypeScript rechaza los que devuelven otra cosa:
+
+```tsx
+<div ref={(node) => (instance = node)} />    // 🔴 devuelve el nodo
+<div ref={(node) => { instance = node }} />  // ✅ con llaves no devuelve nada
+```
+
+</Ojo>
+
+## Context como provider
+
+Ya lo usamos en el capítulo de [useContext](#/use-context): en vez de `<ThemeContext.Provider value={...}>` escribís `<ThemeContext value={...}>`.
+
+## Otros cambios que vas a cruzarte
+
+| Cambio | Detalle |
+| --- | --- |
+| `useDeferredValue(value, initialValue)` | Nuevo segundo argumento: el valor que se usa en el primer render. |
+| `useRef` requiere argumento | En los tipos: `useRef<T>(null)` en vez de `useRef<T>()`. |
+| `element.ref` deprecado | Para leer el ref de un elemento se usa `element.props.ref`. |
+| `ReactElement` tipado con `unknown` | Las props de un `ReactElement` sin tipo ahora son `unknown` en vez de `any`. |
+| JSX global | El namespace `JSX` global se reemplaza por `React.JSX`. |
+| Custom elements | Soporte completo de Web Components: las props se asignan como propiedades. |
+
+<Entrevista>
+"¿Qué pasó con forwardRef?" → "En React 19 ref es una prop común en componentes de función, así que ya no hace falta forwardRef; se va a deprecar más adelante. Además los ref callbacks pueden devolver una función de limpieza, y los contextos se proveen directamente con Context en vez de Context.Provider."
+</Entrevista>

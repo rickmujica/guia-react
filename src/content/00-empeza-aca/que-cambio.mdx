@@ -1,0 +1,112 @@
+Si tu último contacto fuerte con React fue código de hace unos años (clases, `componentDidMount`, Redux con mucho boilerplate, Create React App), esto es lo que pasó mientras tanto. La buena noticia: **lo fundamental no cambió**. Componentes, props, estado y hooks siguen siendo la base. Lo que cambió es cómo se piden los datos, cómo se manejan los formularios y cuánto trabajo hace React por vos.
+
+## Línea de tiempo
+
+| Fecha | Versión | Lo más importante |
+| --- | --- | --- |
+| 2019 | 16.8 | Llegan los **hooks**: `useState`, `useEffect`, `useContext`… Las clases dejan de ser necesarias. |
+| 2020 | 17 | Versión puente, sin features nuevas. Nuevo JSX transform: ya no hace falta `import React`. |
+| 2022 | 18 | **Renderizado concurrente**: `createRoot`, batching automático, `useTransition`, `useDeferredValue`, `useId`, `useSyncExternalStore`. |
+| Dic 2024 | 19 | **Actions**: `useActionState`, `useOptimistic`, `<form action>`, `use()`, `ref` como prop, `<title>` en componentes, Server Components estables. |
+| Feb 2025 | — | Create React App queda deprecado. La recomendación es Vite o un framework (Next.js, React Router). |
+| Mar 2025 | 19.1 | Owner Stack para depurar y mejoras en Suspense. |
+| Oct 2025 | 19.2 | `<Activity>`, `useEffectEvent`, Performance Tracks, prerender parcial. |
+| Oct 2025 | Compiler 1.0 | El **React Compiler** pasa a estable: memoización automática. |
+| Sep 2026 | 19.3 | `<ViewTransition>`, `addTransitionType`, Fragment refs y `browser()`. |
+
+## Los seis cambios de mentalidad
+
+1. **De clases a funciones.** Todo componente nuevo es una función. Las clases sobreviven solo para los Error Boundaries.
+2. **De "ciclo de vida" a "sincronización".** Ya no pensás "esto corre cuando se monta", sino "este efecto mantiene X sincronizado con Y". Lo vemos en el capítulo de [useEffect](#/use-effect).
+3. **De fetch en `useEffect` a datos con Suspense.** En apps nuevas los datos se piden en el servidor (Server Components), en el router o con librerías como TanStack Query. El fetch en un efecto queda como último recurso.
+4. **De `isLoading` a mano a Actions.** React 19 maneja el estado pendiente, los errores y las actualizaciones optimistas por vos.
+5. **De `useMemo` en todos lados al React Compiler.** El compilador memoiza automáticamente; escribís código simple y él lo optimiza.
+6. **De SPA pura a "server-first".** En Next.js con App Router los componentes son del servidor por defecto, y el cliente se usa solo donde hace falta interactividad.
+
+## Arrancar una app hoy
+
+<AntesAhora antes="React 17 y anteriores" ahora="React 18 y 19">
+
+```tsx
+import React from 'react'
+import ReactDOM from 'react-dom'
+import App from './App'
+
+ReactDOM.render(<App />, document.getElementById('root'))
+```
+
+```tsx
+import { StrictMode } from 'react'
+import { createRoot } from 'react-dom/client'
+import App from './App'
+
+createRoot(document.getElementById('root')!).render(
+  <StrictMode>
+    <App />
+  </StrictMode>,
+)
+```
+
+</AntesAhora>
+
+`ReactDOM.render` ya no existe en React 19. `createRoot` es lo que activa todas las features concurrentes (transiciones, Suspense, Actions).
+
+Para crear un proyecto nuevo:
+
+```bash
+# SPA con Vite (como esta guía)
+npm create vite@latest mi-app -- --template react-ts
+
+# App full stack con Next.js
+npx create-next-app@latest mi-app
+```
+
+## Una clase y su equivalente moderno
+
+<AntesAhora antes="Componente de clase" ahora="Función con hooks">
+
+```tsx
+class Contador extends React.Component {
+  state = { count: 0 }
+
+  componentDidMount() {
+    document.title = `Clicks: ${this.state.count}`
+  }
+
+  componentDidUpdate() {
+    document.title = `Clicks: ${this.state.count}`
+  }
+
+  render() {
+    return (
+      <button onClick={() => this.setState({ count: this.state.count + 1 })}>
+        {this.state.count}
+      </button>
+    )
+  }
+}
+```
+
+```tsx
+function Contador() {
+  const [count, setCount] = useState(0)
+
+  useEffect(() => {
+    document.title = `Clicks: ${count}`
+  }, [count])
+
+  return (
+    <button onClick={() => setCount(count + 1)}>
+      {count}
+    </button>
+  )
+}
+```
+
+</AntesAhora>
+
+Al final de la guía hay una [chuleta](#/chuleta) con la equivalencia de cada método de clase.
+
+<Entrevista>
+"¿Qué cambió en React 19?" La respuesta corta: "La gran novedad son las Actions, funciones async dentro de transiciones que manejan solas el estado pendiente, los errores y las actualizaciones optimistas. Alrededor de eso vienen `useActionState`, `useOptimistic`, `useFormStatus` y los formularios con `action`. También se estabilizaron los Server Components, apareció `use()` para leer promesas y contexto, y `ref` pasó a ser una prop común. Y desde 2025 el React Compiler hace la memoización automáticamente."
+</Entrevista>

@@ -1,0 +1,60 @@
+En React 19 los formularios volvieron a ser simples. Le pasás una **función** a la prop `action` del `<form>` y React se encarga del resto.
+
+```tsx
+async function subscribe(formData: FormData) {
+  const email = formData.get('email')
+  await api.subscribe(email)
+}
+
+<form action={subscribe}>
+  <input name="email" type="email" />
+  <button type="submit">Suscribirme</button>
+</form>
+```
+
+Cuando el usuario envía el formulario, React:
+
+1. Evita la recarga de la página (no hace falta `preventDefault`).
+2. Arma un `FormData` con todos los campos que tienen `name`.
+3. Ejecuta tu función como una **Action** (dentro de una transición).
+4. Cuando termina sin errores, **resetea el formulario** (los campos no controlados).
+
+## useFormStatus: un botón que sabe si el form se está enviando
+
+`useFormStatus()` (de `react-dom`) devuelve el estado del **`<form>` padre** de un componente: `pending`, `data` (el FormData que se está enviando), `method` y `action`. Es ideal para botones reutilizables: no hace falta pasarles `isPending` por props.
+
+<Demo file="react19/SubscribeForm" title="Form action + SubmitButton con useFormStatus" highlight="7-14,20-25,29" />
+
+<Ojo title="useFormStatus lee el form PADRE">
+`useFormStatus` tiene que llamarse en un componente que se renderiza **adentro** del `<form>`. Si lo llamás en el mismo componente que renderiza el form, siempre te va a devolver `pending: false`. Por eso `SubmitButton` es un componente aparte.
+</Ojo>
+
+## Varios botones, distintas acciones
+
+Un `<button>` (o un `<input type="submit">`) puede tener su propia `formAction` que pisa la `action` del form. Útil para "Guardar borrador" vs "Publicar", o "Aprobar" vs "Rechazar".
+
+<Demo file="react19/DraftOrPublish" title="formAction por botón" highlight="25-26,29" />
+
+Otra opción es usar un solo `action` y darle a cada botón `name="intent"` con un `value` distinto: el botón que se usó para enviar viaja dentro del `FormData`.
+
+## Controlados o no controlados
+
+Con `<form action>`, los inputs **no controlados** (`name` + `defaultValue`) son la opción más simple: no hay estado por campo y los valores llegan en el `FormData`. Usá inputs **controlados** cuando necesitás reaccionar mientras el usuario escribe: validación en vivo, formatear un número, habilitar un botón según lo escrito.
+
+<Tip title="Resetear a mano">
+Si necesitás resetear un form desde otro lugar, `requestFormReset(formElement)` de `react-dom` lo hace respetando el momento correcto dentro de la transición. Y desde React 19.3 el reset automático también dispara el evento `onReset` del form.
+</Tip>
+
+## Lo que no cambió
+
+- La validación nativa del navegador (`required`, `type="email"`, `minLength`) sigue funcionando y corre **antes** de tu Action.
+- `onSubmit` sigue existiendo y es válido. Usá `action` cuando quieras aprovechar las Actions (pending, reset, Server Functions); usá `onSubmit` si necesitás algo muy específico del evento.
+- Para formularios grandes con validación compleja, librerías como **React Hook Form** con **Zod** siguen siendo muy usadas y se pueden combinar con Actions.
+
+<Nota title="Funciona sin JavaScript (en Next.js)">
+Si la `action` es una **Server Function**, el formulario funciona incluso antes de que cargue el JavaScript de la página: el navegador hace un POST normal. Eso se llama **progressive enhancement** y es una de las razones por las que este modelo existe. Lo vemos en [Server Functions](#/server-functions).
+</Nota>
+
+<Entrevista>
+"¿Cómo manejás formularios en React 19?" → "Le paso una función a la prop action del form, que recibe el FormData y corre como una Action: React maneja el pending, evita el reload y resetea el form al terminar. Para mostrar el estado de envío uso useFormStatus en el botón, y para errores de validación o mensajes uso useActionState. Con Next.js esa misma función puede ser una Server Function."
+</Entrevista>

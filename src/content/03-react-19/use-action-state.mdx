@@ -1,0 +1,123 @@
+`useActionState` junta en un solo hook lo que casi toda Action necesita: **el resultado** de la última ejecución (un mensaje, errores de validación, datos guardados) y **si está pendiente**.
+
+```tsx
+const [state, dispatchAction, isPending] = useActionState(reducerAction, initialState)
+```
+
+- `reducerAction(previousState, payload)`: tu función. Recibe el estado anterior y lo que le pases al despacharla; devuelve el estado nuevo. **Puede ser async.**
+- `initialState`: el estado antes de la primera ejecución.
+- `dispatchAction`: la función que dispara la Action. Se la pasás a un `<form action>` o la llamás dentro de `startTransition`.
+- `isPending`: `true` mientras haya una ejecución en curso.
+
+Fijate el nombre `reducerAction`: es literalmente un **reducer que puede ser async y tener efectos secundarios** (como llamar a una API). Si entendiste [useReducer](#/use-reducer), ya entendiste la mitad.
+
+## El caso estrella: un formulario con validación
+
+Este es el formulario "Nueva postulación" del Job Tracker, sin un solo `useState`:
+
+<Demo
+  file="react19/NewApplicationForm"
+  title="Formulario con validación del lado del 'servidor'"
+  extra={['react19/applications-api.ts']}
+  highlight="6,11,14-15,30-32"
+/>
+
+<Probalo>
+1. Tocá **Guardar** con todo vacío: aparecen los tres errores.
+2. Completá empresa y puesto, poné 500 de salario y guardá: el error de salario aparece y **lo que escribiste se mantiene** (gracias a `values` y `defaultValue`).
+3. Corregí el salario y guardá: el formulario se vacía solo y la postulación aparece en la lista.
+</Probalo>
+
+Lo que hay que entender de esta demo:
+
+- **`<form action={formAction}>`**: React llama a tu función con el `FormData` del formulario. No hay `onSubmit`, ni `preventDefault`, ni estado por input.
+- **Los inputs no son controlados**: usan `name` y `defaultValue`. Los valores se leen del `FormData` en la Action.
+- **El reset automático**: cuando una Action de formulario termina, React resetea el form. Por eso, si hay errores, la función devuelve los `values` y el form los usa como `defaultValue` para no perder lo que escribió el usuario.
+- **`saved` se construye con el estado anterior** (`prevState.saved`), igual que en un reducer.
+- **`createApplication` es una función async común.** En Next.js le agregarías `"use server"` arriba y correría en el servidor sin cambiar nada más. Lo vemos en [Server Functions](#/server-functions).
+
+<AntesAhora antes="React 18" ahora="React 19 con useActionState">
+
+```tsx
+function NewApplication() {
+  const [company, setCompany] = useState('')
+  const [errors, setErrors] = useState({})
+  const [isPending, setIsPending] = useState(false)
+
+  async function handleSubmit(e) {
+    e.preventDefault()
+    setIsPending(true)
+    try {
+      const result = await create({ company })
+      setErrors(result.errors ?? {})
+      if (!result.errors) setCompany('')
+    } finally {
+      setIsPending(false)
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <input value={company} onChange={(e) => setCompany(e.target.value)} />
+      {/* ... */}
+    </form>
+  )
+}
+```
+
+```tsx
+function NewApplication() {
+  const [state, formAction, isPending] = useActionState(
+    createApplication,
+    initialFormState,
+  )
+
+  return (
+    <form action={formAction}>
+      <input name="company" defaultValue={state.values.company} />
+      {state.errors.company && <p>{state.errors.company}</p>}
+      <button disabled={isPending}>Guardar</button>
+    </form>
+  )
+}
+```
+
+</AntesAhora>
+
+## Fuera de un formulario: la cola de Actions
+
+`dispatchAction` también se puede llamar con cualquier payload, por ejemplo desde un botón. La regla: tiene que ejecutarse **dentro de una transición**, así que lo envolvés en `startTransition`.
+
+<Demo file="react19/InterviewCounter" title="Llamadas encoladas en orden" extra={['react19/api.ts']} highlight="7-9,15-16" />
+
+<Probalo>
+Tocá **+** cinco veces muy rápido. Cada llamada a la "API" tarda 600 ms y React las **encola**: se ejecutan una por una, en orden, y cada una recibe el resultado de la anterior como `current`. Mientras la cola avanza, `isPending` queda en `true` y el número no se mueve: React agrupa las Actions en curso y muestra el resultado final (5) cuando termina toda la cola, unos 3 segundos después. Ningún click se pierde ni se desordena.
+</Probalo>
+
+Esa garantía de orden es la gran diferencia con hacer el fetch a mano: con `useState` + `fetch`, cinco clicks rápidos pueden terminar en cualquier orden. La contracara es la espera: el número recién cambia al final. Para que suba al instante con cada click, se combina con [useOptimistic](#/use-optimistic).
+
+## useActionState vs useReducer
+
+| | `useReducer` | `useActionState` |
+| --- | --- | --- |
+| La función puede ser async | No | Sí |
+| Puede tener efectos secundarios | No (tiene que ser pura) | Sí (llamar a la API es la idea) |
+| Te da `isPending` | No | Sí |
+| Se conecta directo a `<form action>` | No | Sí |
+| Funciona con Server Functions | No | Sí |
+
+<Ojo title="Errores comunes">
+
+- **Llamar a `dispatchAction` fuera de una transición**: en desarrollo vas a ver un error. Usá `<form action>`, `startTransition` o una prop `action`.
+- **Esperar que el form no se resetee**: si necesitás conservar los valores ante un error, devolvelos en el estado y usá `defaultValue`.
+- **Que el tipo del estado devuelto no coincida con `initialState`**: TypeScript te va a marcar el error; tipá el estado explícitamente (como `FormState` en la demo).
+
+</Ojo>
+
+<Nota title="El nombre viejo">
+Durante la beta de React 19 este hook se llamaba `useFormState` y vivía en `react-dom`. Si lo ves en algún tutorial, es lo mismo: hoy se usa `useActionState` de `react`.
+</Nota>
+
+<Entrevista>
+"¿Para qué sirve useActionState?" → "Para guardar el resultado de una Action, como los errores de validación o un mensaje de éxito, junto con su estado pendiente. Funciona como un reducer que puede ser async: recibe el estado anterior y el payload, que en un formulario es el FormData. Se conecta directo a form action y encola las ejecuciones en orden."
+</Entrevista>

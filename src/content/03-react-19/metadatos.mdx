@@ -1,0 +1,74 @@
+Antes, para cambiar el `<title>` de la página según el componente había que usar `document.title` en un Effect o una librería como `react-helmet`. En React 19 podés renderizar `<title>`, `<meta>` y `<link>` **en cualquier componente**, y React los mueve al `<head>` del documento.
+
+```tsx
+function JobPage({ job }: { job: Job }) {
+  return (
+    <article>
+      <title>{`${job.title} en ${job.company}`}</title>
+      <meta name="description" content={job.summary} />
+      <link rel="canonical" href={`https://ejemplo.com/jobs/${job.id}`} />
+      <h1>{job.title}</h1>
+    </article>
+  )
+}
+```
+
+Funciona en el cliente y también en el servidor (SSR y streaming), que es donde más importa para SEO.
+
+<Demo file="react19/DocumentMetadata" title="El título de la pestaña desde un componente" highlight="10-11" />
+
+<Probalo>
+Tocá **Llega un mensaje** y mirá la pestaña del navegador: el contador de no leídos aparece en el título, como en Gmail. Toda esta guía usa la misma técnica: cada capítulo renderiza su `<title>` (mirá `src/components/DocPage.tsx`).
+</Probalo>
+
+<Ojo title="Un solo title a la vez">
+Si dos componentes renderizan un `<title>` al mismo tiempo, React mete los dos en el `<head>` y el resultado depende del navegador. Por eso, en este capítulo la guía **no** renderiza su propio título y deja que la demo lo controle (fijate en `ownsTitle` dentro de `src/chapters.ts`). En Next.js usás la API de `metadata` del framework, que resuelve esto por vos.
+</Ojo>
+
+## Hojas de estilo con precedencia
+
+Podés renderizar `<link rel="stylesheet">` dentro de un componente y darle una `precedence`. React:
+
+- Inserta la hoja en el `<head>` respetando el orden de precedencia.
+- **No la duplica** si varios componentes la renderizan.
+- Espera a que cargue antes de mostrar el contenido que la usa (con Suspense), para evitar el "flash" sin estilos.
+
+```tsx
+function Chart() {
+  return (
+    <>
+      <link rel="stylesheet" href="/chart.css" precedence="default" />
+      <link rel="stylesheet" href="/chart-dark.css" precedence="high" />
+      <div className="chart">…</div>
+    </>
+  )
+}
+```
+
+Lo mismo pasa con los scripts async: `<script async src="https://widget.ejemplo.com/embed.js" />` se carga una sola vez aunque lo rendericen varios componentes.
+
+## Precargar recursos
+
+`react-dom` exporta funciones para avisarle al navegador qué va a necesitar pronto, desde cualquier componente o event handler:
+
+```tsx
+import { preconnect, prefetchDNS, preinit, preload } from 'react-dom'
+
+function JobDetailsPage() {
+  preinit('https://cdn.ejemplo.com/editor.js', { as: 'script' }) // descarga y ejecuta
+  preload('https://cdn.ejemplo.com/inter.woff2', { as: 'font' }) // solo descarga
+  preconnect('https://api.ejemplo.com') // abre la conexión antes
+  prefetchDNS('https://analytics.ejemplo.com') // resuelve el DNS antes
+  return <div>…</div>
+}
+```
+
+Los frameworks como Next.js ya hacen mucho de esto por vos, pero es bueno saber de dónde sale.
+
+<Nota title="¿Y react-helmet?">
+Para casos simples ya no hace falta. Las librerías de metadatos siguen teniendo sentido si necesitás que un componente **pise** los metadatos de otro según especificidad de la ruta. En Next.js usás `export const metadata` o `generateMetadata` en cada `page.tsx` y `layout.tsx`.
+</Nota>
+
+<Entrevista>
+"¿Cómo manejás el título y los meta tags en React 19?" → "Puedo renderizar title, meta y link directamente en el componente y React los sube al head, también con SSR. En Next.js uso la API de metadata del framework. Para estilos, React 19 permite renderizar link de stylesheets con precedence: los ordena, los deduplica y espera a que carguen."
+</Entrevista>

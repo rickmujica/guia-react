@@ -1,0 +1,117 @@
+Una **Server Function** es una función async marcada con `'use server'` que **corre en el servidor** pero que podés llamar desde el cliente como si fuera una función común. React y el framework se encargan del resto: crean el endpoint, serializan los argumentos, hacen el POST y te devuelven el resultado.
+
+Cuando una Server Function se usa como `action` de un formulario o dentro de una Action, se la suele llamar **Server Action** (así la vas a ver en la documentación de Next.js).
+
+## Del demo de esta guía a Next.js
+
+¿Te acordás de `createApplication` en el capítulo de [useActionState](#/use-action-state)? Para que corra en el servidor de verdad, casi no cambia:
+
+```tsx
+// app/postulaciones/actions.ts
+'use server' // todas las funciones exportadas de este archivo son Server Functions
+
+import { revalidatePath } from 'next/cache'
+import { z } from 'zod'
+import { db } from '@/lib/db'
+import { getCurrentUser } from '@/lib/auth'
+
+const ApplicationSchema = z.object({
+  company: z.string().min(1, 'Falta la empresa.'),
+  role: z.string().min(1, 'Falta el puesto.'),
+  salary: z.coerce.number().min(1000, 'El salario tiene que ser de al menos USD 1000.'),
+})
+
+export async function createApplication(prevState: FormState, formData: FormData): Promise<FormState> {
+  const user = await getCurrentUser()
+  if (!user) return { ...prevState, status: 'error', message: 'Tenés que iniciar sesión.' }
+
+  const parsed = ApplicationSchema.safeParse(Object.fromEntries(formData))
+  if (!parsed.success) {
+    // fieldErrors: { company?: string[], role?: string[], ... } → en el form mostrás errors.company?.[0]
+    return { ...prevState, status: 'error', errors: z.flattenError(parsed.error).fieldErrors }
+  }
+
+  await db.application.create({ data: { ...parsed.data, userId: user.id } })
+  revalidatePath('/postulaciones') // que la lista del Server Component se actualice
+  return { ...initialFormState, status: 'success', message: '¡Guardada!' }
+}
+```
+
+Y el formulario es el mismo Client Component que ya conocés:
+
+```tsx
+// app/postulaciones/new-application-form.tsx
+'use client'
+
+import { useActionState } from 'react'
+import { createApplication } from './actions'
+
+export function NewApplicationForm() {
+  const [state, formAction, isPending] = useActionState(createApplication, initialFormState)
+  return <form action={formAction}>{/* los mismos inputs con name y defaultValue */}</form>
+}
+```
+
+Eso es todo. No hay `fetch`, no hay `app/api/route.ts`, no hay `JSON.stringify`.
+
+## Formularios que funcionan sin JavaScript
+
+Si un `<form>` tiene como `action` una Server Function, el formulario funciona **incluso antes de que cargue el JavaScript** de la página (o si falla): el navegador hace un POST normal y el servidor responde. Cuando el JavaScript carga, React toma el control y el envío pasa a ser sin recarga. Esto se llama **progressive enhancement**.
+
+Desde un Server Component ni siquiera necesitás un Client Component:
+
+```tsx
+// app/postulaciones/[id]/page.tsx (Server Component)
+import { archiveApplication } from '../actions'
+
+export default async function Page({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
+  return (
+    <form action={archiveApplication}>
+      <input type="hidden" name="id" value={id} />
+      <button type="submit">Archivar</button>
+    </form>
+  )
+}
+```
+
+## Seguridad: son endpoints públicos
+
+<Ojo title="Lo más importante de este capítulo">
+Una Server Function es, en la práctica, **un endpoint HTTP público**. Cualquiera puede llamarla con cualquier argumento, aunque tu UI nunca lo haga. Por eso, en cada Server Function:
+
+1. **Verificá la sesión y los permisos** (¿este usuario puede archivar *esta* postulación?).
+2. **Validá todos los datos** que llegan (con Zod o similar). Nunca confíes en el `FormData`.
+3. **No devuelvas datos de más**: lo que retorna la función llega al navegador.
+
+</Ojo>
+
+## Después de una mutación
+
+| Querés… | En Next.js |
+| --- | --- |
+| Que una página muestre los datos nuevos | `revalidatePath('/postulaciones')` |
+| Invalidar todo lo que usa un dato con tag | `updateTag('applications')` (Next 16) |
+| Llevar al usuario a otra página | `redirect('/postulaciones')` |
+| Mostrar el cambio antes de que confirme el servidor | [`useOptimistic`](#/use-optimistic) en el Client Component |
+| Mostrar errores o mensajes | El estado de [`useActionState`](#/use-action-state) |
+
+El detalle de la caché de Next.js 16 (`'use cache'`, `cacheTag`, `updateTag`) lo vemos en la Misión 4 del Job Tracker.
+
+## Lo que ya sabés y vas a reutilizar
+
+| En esta guía | En Next.js |
+| --- | --- |
+| `createApplication` en `applications-api.ts` | La misma función con `'use server'` |
+| `useActionState(createApplication, initialFormState)` | Igual |
+| `<form action={formAction}>` con `name` y `defaultValue` | Igual, y además funciona sin JavaScript |
+| `SubmitButton` con `useFormStatus` | Igual |
+| `useOptimistic` para la lista de notas | Igual, combinado con `revalidatePath` |
+
+<Tip title="Próximo paso: Misión 2 del Job Tracker">
+Con esta guía ya tenés todo para la Misión 2: el formulario "Nueva postulación" con `useActionState` y una Server Function que valida, guarda y revalida la lista. Empezá copiando `NewApplicationForm.tsx` y `applications-api.ts` de esta guía y adaptándolos.
+</Tip>
+
+<Entrevista>
+"¿Qué es una Server Action?" → "Una Server Function marcada con 'use server' que corre en el servidor y se puede usar como action de un formulario o llamar desde el cliente. El framework crea el endpoint y serializa los datos. Funciona con useActionState, useFormStatus y useOptimistic, y los formularios funcionan aunque no haya cargado el JavaScript. Como es un endpoint público, siempre valido los datos y verifico permisos adentro."
+</Entrevista>

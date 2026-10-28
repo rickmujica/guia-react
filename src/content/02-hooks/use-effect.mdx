@@ -1,0 +1,135 @@
+`useEffect` es el hook más usado y el peor usado. La clave es entender **para qué existe**: sincronizar tu componente con un **sistema externo** a React. Un evento del navegador, un `setInterval`, un WebSocket, una librería que no es de React, `localStorage`, una conexión de chat.
+
+```tsx
+useEffect(() => {
+  // setup: conectarse, suscribirse, arrancar algo
+  return () => {
+    // cleanup: desconectarse, desuscribirse, frenar ese algo
+  }
+}, [dependencias])
+```
+
+## Olvidate del ciclo de vida
+
+Con clases pensabas en `componentDidMount`, `componentDidUpdate` y `componentWillUnmount`. Con hooks conviene pensar distinto:
+
+> "Este efecto mantiene **X** sincronizado con **Y**. Cada vez que **Y** cambia, deshago la sincronización vieja y armo la nueva."
+
+El array de dependencias declara **de qué valores depende** la sincronización. No es un "cuándo correr", es un "con qué datos":
+
+| Dependencias | Cuándo corre el setup |
+| --- | --- |
+| Sin array | Después de **cada** render (casi nunca es lo que querés) |
+| `[]` | Solo después del primer render (no depende de nada reactivo) |
+| `[a, b]` | Después del primer render y cada vez que cambie `a` o `b` |
+
+Antes de cada nuevo setup y al desmontar, React ejecuta el **cleanup** del efecto anterior.
+
+<Demo file="hooks/WindowSize" title="Suscribirse a un evento del navegador" highlight="6-15" />
+
+## Setup, cleanup y StrictMode
+
+En la siguiente demo, el reloj depende de `intervalMs`. Cambiá la velocidad y mirá el log: React limpia el intervalo viejo y crea uno nuevo. Desmontá el reloj y vas a ver el cleanup final.
+
+<Demo file="hooks/Clock" title="El ciclo setup → cleanup → setup" highlight="11-19" />
+
+<Nota title="¿Por qué el log arranca con setup, cleanup, setup?">
+En desarrollo, `<StrictMode>` monta cada componente, lo desmonta y lo vuelve a montar enseguida. Lo hace **a propósito** para que te des cuenta si te olvidaste del cleanup: si sin cleanup quedaran dos intervalos andando, lo notarías enseguida. En producción el efecto corre una sola vez. La solución nunca es "evitar que corra dos veces", sino escribir un cleanup correcto.
+</Nota>
+
+<Probalo>
+Comentá la línea `clearInterval(id)` del cleanup en `src/demos/hooks/Clock.tsx` y cambiá varias veces la velocidad. Vas a acumular intervalos y el reloj se va a actualizar cada vez más seguido. Ese es el bug que StrictMode intenta mostrarte.
+</Probalo>
+
+## Pedir datos en un Effect (y la race condition)
+
+Pedir datos en un Effect funciona, pero tiene trampas. La más común: si el usuario cambia rápido de selección, las respuestas pueden llegar **desordenadas** y la última en llegar pisa a la correcta.
+
+<Demo file="hooks/FetchRace" title="Race condition al pedir datos" highlight="25-36" />
+
+<Probalo>
+Desactivá "Ignorar respuestas viejas", tocá **Nubelia** (tarda 2 s) e inmediatamente **Pagos Sur** (tarda 300 ms). Primero aparece Pagos Sur, pero a los 2 segundos llega la respuesta de Nubelia y la pisa. Con el flag `ignore` activado, el cleanup marca la respuesta vieja como descartable.
+</Probalo>
+
+Con `fetch` real también podés usar un `AbortController` y llamar a `controller.abort()` en el cleanup, lo que además cancela la request en el navegador.
+
+<Tip title="En una app real, casi nunca hagas fetch en un Effect">
+Además de las race conditions, el fetch en un Effect no tiene caché, no se ejecuta en el servidor y genera cascadas (el hijo empieza a pedir datos recién cuando el padre terminó). Preferí, en este orden: **Server Components** en Next.js, el loader de tu router, o una librería como **TanStack Query**. Con React 19 también podés leer una promesa con [use()](#/use).
+</Tip>
+
+## Quizás no necesitás un Effect
+
+Esta es la parte más importante del capítulo. Si no hay un sistema externo de por medio, probablemente no necesitás un Effect.
+
+| Situación | En vez de un Effect… |
+| --- | --- |
+| Calcular un dato a partir de props o estado | Calculalo durante el render ([estado derivado](#/pensar-en-react)). |
+| Cálculo caro | `useMemo`, o dejá que lo haga el React Compiler. |
+| Reiniciar el estado cuando cambia una prop | Pasale una `key` distinta al componente. |
+| Reaccionar a algo que hizo el usuario | Ponelo en el **event handler** (onClick, onSubmit…). |
+| Avisarle al padre que algo cambió | Llamá a la prop `onChange` desde el mismo handler. |
+| Enviar un formulario | Event handler o, en React 19, una [Action](#/actions). |
+
+<AntesAhora antes="Lógica de un evento dentro de un Effect" ahora="La lógica vive en el handler">
+
+```tsx
+const [submitted, setSubmitted] = useState(false)
+
+// 🔴 Indirecto, corre de más y es difícil de seguir
+useEffect(() => {
+  if (submitted) {
+    sendApplication(form)
+    showToast('¡Postulación enviada!')
+  }
+}, [submitted, form])
+
+function handleSubmit() {
+  setSubmitted(true)
+}
+```
+
+```tsx
+// ✅ Pasó por un click: va en el handler
+function handleSubmit() {
+  sendApplication(form)
+  showToast('¡Postulación enviada!')
+}
+```
+
+</AntesAhora>
+
+## Las dependencias no se eligen, se declaran
+
+Todo valor reactivo (props, estado, y variables o funciones declaradas dentro del componente) que se lee en el Effect **tiene que estar** en las dependencias. No lo decidís vos: lo exige el código. El linter (`react-hooks/exhaustive-deps`) te avisa cuando falta alguno.
+
+Si una dependencia hace que el Effect corra de más, no la saques del array: **cambiá el código** para no necesitarla.
+
+- Usá la forma con función del setter: `setCount(c => c + 1)` en vez de leer `count`.
+- Mové objetos y funciones **adentro** del Effect si solo se usan ahí.
+- Si necesitás leer el valor más reciente sin "reaccionar" a sus cambios, usá [useEffectEvent](#/use-effect-event) (React 19.2).
+
+<Ojo title="Objetos y funciones en las dependencias">
+
+```tsx
+function ChatRoom({ roomId }: { roomId: string }) {
+  const options = { roomId, serverUrl: 'https://chat.ejemplo.com' } // objeto nuevo en cada render
+
+  useEffect(() => {
+    const connection = createConnection(options)
+    connection.connect()
+    return () => connection.disconnect()
+  }, [options]) // 🔴 se reconecta en CADA render
+}
+```
+
+Solución: creá `options` **dentro** del Effect y dependé solo de `roomId`.
+
+</Ojo>
+
+## useEffect vs useLayoutEffect
+
+`useEffect` corre **después** de que el navegador pinta la pantalla, así no la bloquea. `useLayoutEffect` corre **antes** de pintar, de forma síncrona. Usalo solo cuando necesitás medir el DOM y corregir la posición de algo antes de que el usuario lo vea (por ejemplo, un tooltip). Lo vemos en [otros hooks](#/otros-hooks).
+
+<Entrevista>
+"¿Para qué sirve useEffect?" → "Para sincronizar un componente con un sistema externo: suscripciones, timers, APIs del navegador, librerías que no son de React. El setup arma la sincronización, el cleanup la deshace, y las dependencias le dicen a React cuándo rehacerla. Para datos derivados o lógica de eventos no uso Effects, y para pedir datos prefiero el framework o una librería como TanStack Query."
+</Entrevista>

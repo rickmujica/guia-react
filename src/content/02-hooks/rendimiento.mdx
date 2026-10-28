@@ -1,0 +1,58 @@
+Antes de optimizar hay que entender **cuándo React vuelve a renderizar** un componente:
+
+1. Cuando cambia **su estado**.
+2. Cuando se renderiza **su padre** (aunque las props sean iguales).
+3. Cuando cambia un **contexto** que lee.
+
+Y un dato clave: **renderizar no es tocar el DOM**. Renderizar es ejecutar la función del componente y comparar el resultado. React solo toca el DOM si algo cambió. La mayoría de los renders "de más" son baratos y no hace falta evitarlos.
+
+## memo: saltear el render si las props no cambiaron
+
+`memo(Componente)` hace que React se saltee el render del componente si **todas sus props son iguales** a las del render anterior (comparación superficial, con `Object.is`).
+
+En la demo, cada fila parpadea en amarillo cuando se renderiza. Probá los tres modos y tocá **Re-renderizar el padre**:
+
+<Demo file="hooks/MemoDemo" title="memo y useCallback, con resaltado de renders" highlight="27-28,38-41" />
+
+1. **Sin memo**: cada render del padre renderiza las tres filas.
+2. **memo + función inline**: ¡siguen renderizando! `handleSelectInline` es una función **nueva** en cada render, así que la prop `onSelect` "cambió" y memo no sirve de nada.
+3. **memo + useCallback**: `useCallback` devuelve **la misma función** entre renders y memo por fin funciona. Solo parpadea la fila cuyo `isSelected` cambia de verdad.
+
+## useMemo: no repetir un cálculo caro
+
+`useMemo(() => calcular(a, b), [a, b])` guarda el resultado y solo recalcula cuando cambian las dependencias.
+
+<Demo file="hooks/UseMemoDemo" title="Un cálculo de 150 ms en cada tecla" highlight="23,30" />
+
+<Probalo>
+Sin `useMemo`, escribí rápido en el campo de la nota: cada tecla recalcula el reporte (150 ms) y el input se traba. Activá `useMemo` y repetí: el reporte solo se recalcula al mover el slider.
+</Probalo>
+
+## useCallback: la misma función entre renders
+
+`useCallback(fn, deps)` es `useMemo` para funciones: `useCallback(fn, deps)` equivale a `useMemo(() => fn, deps)`. Solo tiene sentido cuando:
+
+- pasás la función a un componente envuelto en `memo`, o
+- la función es dependencia de un `useEffect` o de otro hook.
+
+## Cuándo optimizar (con o sin Compiler)
+
+<Tip title="El React Compiler cambia las reglas">
+Desde octubre de 2025 el **React Compiler** es estable. Analiza tu código en el build y agrega la memoización automáticamente: valores, funciones y JSX. En un proyecto con el Compiler activado **casi nunca vas a escribir `memo`, `useMemo` ni `useCallback`**. Next.js lo activa con una opción y en Vite se agrega con un plugin. Tiene su [propio capítulo](#/react-compiler) con una demo comparativa.
+</Tip>
+
+Aun así, tenés que entender estas tres APIs porque:
+
+- Vas a encontrarlas en todo el código existente (el de tu próximo trabajo, seguro).
+- Son una pregunta clásica de entrevista.
+- Hay casos puntuales donde el Compiler no puede optimizar y hay que hacerlo a mano.
+
+Sin Compiler, la receta es: **medí primero** (React DevTools → Profiler, o las Performance Tracks del navegador), optimizá solo lo que es lento, y preferí arreglos estructurales antes que memoizar:
+
+- **Bajar el estado**: si solo un input usa un estado, que viva en ese input y no en el padre de toda la página.
+- **Pasar JSX como children**: un componente que recibe `children` no re-renderiza esos children cuando cambia su propio estado.
+- **Virtualizar** listas muy largas (TanStack Virtual).
+
+<Entrevista>
+"¿Diferencia entre useMemo y useCallback?" → "useMemo memoiza el resultado de un cálculo y useCallback memoiza la función misma. useCallback sirve cuando la función va a un componente con memo o es dependencia de un efecto. Hoy, con el React Compiler, esa memoización se hace automáticamente en el build, así que en código nuevo casi no las escribo a mano, pero las uso para entender y mantener código existente."
+</Entrevista>

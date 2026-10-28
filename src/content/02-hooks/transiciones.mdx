@@ -1,0 +1,69 @@
+Desde React 18, no todas las actualizaciones tienen la misma prioridad:
+
+- **Urgentes**: escribir en un input, hacer click, arrastrar. El usuario espera respuesta inmediata.
+- **No urgentes (transiciones)**: mostrar los resultados de una búsqueda, cambiar de pestaña, navegar a otra página. Si tardan un poco, nadie se da cuenta.
+
+Con el renderizado concurrente, React puede **interrumpir** un render no urgente para atender uno urgente. Las dos herramientas para marcar algo como no urgente son `useTransition` y `useDeferredValue`.
+
+## useTransition: marcar una actualización como no urgente
+
+```tsx
+const [isPending, startTransition] = useTransition()
+
+function selectTab(tab: Tab) {
+  startTransition(() => {
+    setTab(tab) // esta actualización puede esperar
+  })
+}
+```
+
+Mientras la transición se procesa, `isPending` vale `true` y la UI vieja **sigue siendo interactiva**.
+
+<Demo file="hooks/TransitionTabs" title="Pestañas que no traban la UI" highlight="27-32" />
+
+<Probalo>
+Con `startTransition` desactivado, tocá **Postulaciones (lenta)** y enseguida **Contacto**: la UI se congela casi medio segundo antes de responder. Activalo y repetí: el click en Contacto interrumpe el render lento y responde al instante, y mientras tanto ves "Cargando pestaña…".
+</Probalo>
+
+También existe `startTransition` importado directo de `react`, sin hook, para cuando no necesitás `isPending`.
+
+<Nota title="Transiciones y React 19">
+En React 19 la función que le pasás a `startTransition` puede ser **async**. Eso se llama una **Action**, y es la base de todo lo nuevo: `useActionState`, `useOptimistic`, formularios con `action`. Lo vemos a fondo en el capítulo de [Actions](#/actions). Y desde React 19.3 las transiciones se renderizan de forma independiente: una transición lenta ya no frena a otras que no tienen nada que ver.
+</Nota>
+
+## useDeferredValue: una copia "atrasada" de un valor
+
+A veces no controlás el `setState` (viene de una prop, o el input tiene que actualizarse sí o sí al instante). `useDeferredValue` te da una versión del valor que **se queda atrás** mientras haya trabajo urgente:
+
+```tsx
+const [query, setQuery] = useState('')
+const deferredQuery = useDeferredValue(query)
+
+// El input usa query (urgente); la lista lenta usa deferredQuery (puede esperar)
+<input value={query} onChange={(e) => setQuery(e.target.value)} />
+<SlowList query={deferredQuery} />
+```
+
+<Demo file="hooks/DeferredSearch" title="Búsqueda fluida sobre una lista lenta" highlight="11-12,26-28" />
+
+<Probalo>
+Desactivá `useDeferredValue` y escribí "123" rápido: cada tecla tarda un cuarto de segundo en aparecer. Activalo y repetí: el input responde al instante y la lista se actualiza cuando puede (mientras está desactualizada se ve más clara, gracias a `isStale`).
+</Probalo>
+
+<Ojo title="memo es parte del truco">
+`SlowList` está envuelta en `memo`. En el render urgente, `deferredQuery` todavía tiene el valor viejo, así que memo se saltea la lista y el render es instantáneo. Sin `memo`, la lista se renderizaría igual en el render urgente y no ganarías nada. Con el React Compiler esa memoización es automática.
+</Ojo>
+
+## ¿Debounce o useDeferredValue?
+
+| | Debounce | useDeferredValue |
+| --- | --- | --- |
+| Qué resuelve | Hacer **menos requests** a una API | Mantener fluida una UI con **render lento** |
+| Cuánto espera | Un tiempo fijo (por ejemplo 400 ms) | Lo que tarde el render, adaptado al dispositivo |
+| Se puede interrumpir | No | Sí, React descarta el render viejo |
+
+Muchas veces se combinan: debounce para la request y `useDeferredValue` para pintar los resultados.
+
+<Entrevista>
+"¿Qué es una transición en React?" → "Una actualización marcada como no urgente con startTransition o useTransition. React la puede interrumpir para atender interacciones urgentes como escribir o hacer click, y mientras tanto muestra la UI anterior con un isPending. useDeferredValue es la versión para valores: una copia atrasada que se actualiza con baja prioridad."
+</Entrevista>

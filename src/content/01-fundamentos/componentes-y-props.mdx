@@ -1,0 +1,130 @@
+Un componente de React es **una función que devuelve UI**. Recibe datos por parámetro (las props) y devuelve JSX. Nada más: no hay clases, no hay `this`, no hay `render()`.
+
+```tsx
+function Saludo({ nombre }: { nombre: string }) {
+  return <h1>Hola, {nombre}</h1>
+}
+
+// Se usa como una etiqueta HTML:
+<Saludo nombre="Ana" />
+```
+
+## JSX en 6 reglas
+
+1. Los componentes empiezan con **mayúscula** (`<Saludo />`); las etiquetas HTML, con minúscula (`<div>`).
+2. Devolvés **un solo elemento raíz**. Si no querés un `div` extra, usá un Fragment: `<>...</>`.
+3. Todas las etiquetas se cierran: `<img />`, `<input />`, `<br />`.
+4. Los atributos van en camelCase: `className`, `onClick`, `htmlFor`, `tabIndex`.
+5. Entre llaves `{}` va **cualquier expresión** de JavaScript: variables, llamadas a funciones, ternarios. No van sentencias (`if`, `for`).
+6. `style` recibe un objeto: `style={{ marginTop: 8 }}`.
+
+## Props
+
+Las props son los argumentos del componente. Son **de solo lectura**: un componente nunca modifica sus props.
+
+- Se desestructuran en la firma de la función.
+- Los **valores por defecto** se ponen en la desestructuración. `defaultProps` ya no funciona en componentes de función en React 19.
+- `children` es una prop especial: lo que va entre la etiqueta de apertura y la de cierre.
+- Podés pasar cualquier valor: strings, números, objetos, funciones y hasta otros componentes.
+
+<Demo file="fundamentos/ProfileCard" title="Props, children y valores por defecto" highlight="9-11,18,21,27-28" />
+
+<AntesAhora antes="PropTypes y defaultProps" ahora="TypeScript y parámetros por defecto">
+
+```tsx
+function Badge({ label, tone }) {
+  return <span className={tone}>{label}</span>
+}
+
+Badge.propTypes = {
+  label: PropTypes.string.isRequired,
+  tone: PropTypes.oneOf(['neutral', 'success']),
+}
+
+Badge.defaultProps = { tone: 'neutral' }
+```
+
+```tsx
+type BadgeProps = {
+  label: string
+  tone?: 'neutral' | 'success'
+}
+
+function Badge({ label, tone = 'neutral' }: BadgeProps) {
+  return <span className={tone}>{label}</span>
+}
+```
+
+</AntesAhora>
+
+`propTypes` se eliminó en React 19 (se ignora en silencio). Hoy el chequeo de tipos lo hace TypeScript, en tiempo de compilación.
+
+<Tip title="Tipos útiles de TypeScript">
+
+- `ReactNode`: cualquier cosa que React pueda renderizar (para `children`).
+- `ComponentProps<'button'>`: todas las props de un `<button>`, ideal para componentes que envuelven un elemento HTML.
+- `ComponentProps<typeof MiComponente>`: las props de otro componente.
+
+```tsx
+import type { ComponentProps } from 'react'
+
+function Button({ variant = 'primary', ...rest }: ComponentProps<'button'> & { variant?: string }) {
+  return <button className={`btn btn-${variant}`} {...rest} />
+}
+```
+
+</Tip>
+
+## Renderizado condicional
+
+Como JSX es JavaScript, usás las herramientas de siempre:
+
+```tsx
+// 1. Return temprano
+if (!user) return <Login />
+
+// 2. Ternario: una cosa u otra
+{isLoading ? <Spinner /> : <Results />}
+
+// 3. && : algo o nada
+{hasError && <ErrorMessage />}
+```
+
+<Ojo title="El 0 que aparece de la nada">
+`{count && <Badge />}` renderiza un **0** cuando `count` vale 0, porque `0 && x` devuelve `0` y React lo muestra. Usá una comparación explícita: `{count > 0 && <Badge />}`.
+</Ojo>
+
+## Listas y keys
+
+Para renderizar una lista, transformás un array en un array de elementos con `map`. Cada elemento necesita una **`key` única y estable** entre sus hermanos, para que React sepa cuál es cuál entre un render y el siguiente.
+
+<Demo file="fundamentos/JobList" title="Lista filtrada con key" highlight="20-21,38-40" />
+
+¿Por qué no usar el índice del array como key? Porque si la lista se reordena o se agrega un elemento al principio, el índice deja de identificar al mismo elemento. React reutiliza el componente equivocado y el estado (el texto de un input, por ejemplo) queda en la fila equivocada.
+
+<Demo file="fundamentos/KeysDemo" title="El bug de usar el índice como key" highlight="36" />
+
+<Probalo>
+Escribí algo en las notas de "Nubelia" y tocá **Agregar arriba** con la opción "índice como key" activada: la nota queda en la fila de la empresa nueva. Desactivá la opción, reiniciá la demo y repetí: ahora cada nota sigue a su empresa.
+</Probalo>
+
+Buenas keys: el `id` que viene de la base de datos, un `crypto.randomUUID()` generado **al crear** el dato (nunca durante el render) o una combinación de campos que sea única.
+
+## Los componentes son puros
+
+React asume que tus componentes son **funciones puras**: con las mismas props, el mismo estado y el mismo contexto, devuelven siempre el mismo JSX, y no modifican nada que exista fuera de ellos mientras renderizan.
+
+```tsx
+let visitas = 0
+
+function Contador() {
+  visitas++ // 🔴 efecto secundario durante el render
+  return <p>Visitas: {visitas}</p>
+}
+```
+
+Los efectos secundarios (pedir datos, modificar el DOM a mano, suscribirse a algo) van en **event handlers** o, si no hay otra opción, en un **Effect**. En desarrollo, `<StrictMode>` renderiza cada componente dos veces justamente para detectar componentes impuros.
+
+<Entrevista>
+"¿Qué es una key y por qué importa?" → "Es el identificador que React usa para saber qué elemento de una lista es cuál entre renders. Con keys estables React puede mover, agregar o borrar elementos sin perder su estado. Con el índice como key, si la lista se reordena, el estado queda asociado al elemento equivocado."
+</Entrevista>

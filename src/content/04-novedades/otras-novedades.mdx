@@ -1,0 +1,99 @@
+Además de las features grandes, cada versión de React 19 trajo mejoras más chicas. No hace falta dominarlas todas, pero conviene saber que existen: algunas aparecen en entrevistas y otras te van a ahorrar horas de debugging.
+
+## React 19.1 (marzo 2025)
+
+### Owner Stack
+
+Cuando algo falla, el **component stack** clásico te dice la jerarquía de componentes hasta el error (padre, abuelo…). El **Owner Stack** te dice **quién renderizó** cada componente, que muchas veces es lo que realmente buscás. Es solo para desarrollo:
+
+```tsx
+import { captureOwnerStack } from 'react'
+
+function reportProblem(message: string) {
+  const ownerStack = captureOwnerStack() // null en producción
+  console.error(message, ownerStack)
+}
+```
+
+Las herramientas de error (como el overlay de Next.js) ya lo usan para mostrar mejores mensajes.
+
+### Suspense en todos lados
+
+Se mejoró Suspense para que funcione de forma consistente en el cliente, en el servidor y durante la hidratación, y se arreglaron casos donde un fallback quedaba "congelado".
+
+## React 19.2 (octubre 2025)
+
+Además de [`<Activity>`](#/activity) y [`useEffectEvent`](#/use-effect-event):
+
+### Performance Tracks
+
+En el panel **Performance** de las DevTools de Chrome aparecen pistas propias de React: qué se está renderizando, con qué prioridad (bloqueante o transición), cuánto tardó cada componente y cuándo corrieron los Effects. Es la herramienta para responder "¿por qué esta pantalla es lenta?".
+
+### Prerender parcial
+
+Una app puede **prerenderizar** la parte estática de una página (por ejemplo, en el build o en un CDN) y después **reanudar** el render para completar la parte dinámica:
+
+```tsx
+// En el build: renderiza lo que se puede y "pospone" lo dinámico
+const { prelude, postponed } = await prerender(<App />, { signal: controller.signal })
+
+// Más tarde, por cada request: completa lo que faltaba
+const stream = await resume(<App />, postponed)
+```
+
+Vos no vas a llamar a estas APIs directamente: son la base de features como el **Partial Prerendering** de Next.js.
+
+### cacheSignal (Server Components)
+
+`cacheSignal()` devuelve un `AbortSignal` que se aborta cuando termina la vida útil del `cache()` del render en el servidor. Sirve para cancelar fetches que ya no hacen falta.
+
+### Detalles
+
+- **Suspense en SSR revela en lote**: el contenido que llega por streaming se muestra en grupos, igual que en el cliente. Prepara el terreno para animar las revelaciones con `<ViewTransition>`.
+- **Web Streams en Node**: `renderToReadableStream` y `prerender` también funcionan en Node.js.
+- **Nuevo formato de `useId`**: los ids pasan a usar el prefijo `_r_` para ser selectores CSS válidos.
+- **eslint-plugin-react-hooks 6**: soporta la "flat config" de ESLint y suma reglas basadas en el [React Compiler](#/react-compiler).
+
+## React 19.3 (septiembre 2026)
+
+Además de [`<ViewTransition>`](#/view-transition), `addTransitionType` y los [Fragment refs](#/fragment-refs):
+
+### browser(): contenido solo para el navegador
+
+Algunos componentes no se pueden renderizar en el servidor porque usan APIs del navegador (`localStorage`, `window`). Antes se resolvía con un Effect y un estado `isMounted`, o desactivando el SSR. Ahora:
+
+```tsx
+import { Suspense, use, useState } from 'react'
+import { browser } from 'react-dom'
+
+function SavedDraft() {
+  use(browser('El borrador vive en localStorage')) // en el servidor: se muestra el fallback
+  const [draft] = useState(() => localStorage.getItem('draft') ?? '')
+  return <p>{draft}</p>
+}
+
+<Suspense fallback={<p>Cargando borrador…</p>}>
+  <SavedDraft />
+</Suspense>
+```
+
+En el servidor, `use(browser())` corta el render y deja el fallback del `<Suspense>` más cercano. En el navegador devuelve `undefined` y el componente renderiza normal. En una SPA con Vite (como esta guía) no hace ninguna diferencia; en Next.js reemplaza al patrón de `useEffect(() => setMounted(true), [])`.
+
+### Transiciones independientes
+
+Antes, varias transiciones al mismo tiempo se "enredaban" en un solo render: una transición lenta podía demorar a otra que no tenía nada que ver. Desde 19.3 cada transición se renderiza de forma independiente.
+
+### Otros cambios
+
+- Advertencia en desarrollo si un componente parece haberse "desbloqueado" llamando a `use()` de forma condicional.
+- Integración con **Trusted Types**, para apps con políticas de seguridad estrictas.
+- Formularios: el `FormData` incluye el botón que envió el form (`submitter`) y el reset automático dispara `onReset`.
+- Soporte para los eventos `onFullscreenChange` y `onFullscreenError`.
+
+<Nota title="¿Dónde enterarte de lo nuevo?">
+El blog oficial ([react.dev/blog](https://react.dev/blog)) anuncia cada versión, y el [CHANGELOG del repositorio](https://github.com/facebook/react/blob/main/CHANGELOG.md) tiene el detalle completo. Para ver qué viene, las publicaciones "React Labs" cuentan en qué está trabajando el equipo.
+</Nota>
+
+<Entrevista>
+"¿Qué hay de nuevo después de React 19?" → "En 19.2 llegaron Activity, para ocultar UI conservando el estado, y useEffectEvent, para lógica no reactiva en Effects, además de las Performance Tracks y el prerender parcial. En octubre de 2025 el React Compiler llegó a 1.0. Y en 19.3 se estabilizaron ViewTransition para animaciones, los Fragment refs y browser() para contenido solo del cliente."
+</Entrevista>

@@ -1,0 +1,83 @@
+Este capítulo es para cuando te toque **mantener o migrar** un proyecto viejo, algo muy probable en tu próximo trabajo. Primero, una mejora que vas a querer usar en cualquier proyecto nuevo: el reporte de errores.
+
+## Mejor manejo de errores
+
+En React 18, un error atrapado por un Error Boundary se logueaba **dos veces** y con información confusa. React 19 lo ordena y agrega tres callbacks en `createRoot` para centralizar el reporte (por ejemplo, a Sentry):
+
+| Opción | Cuándo se llama |
+| --- | --- |
+| `onCaughtError` | Un Error Boundary atrapó el error. La app sigue funcionando. |
+| `onUncaughtError` | Nadie lo atrapó. React desmonta la app. |
+| `onRecoverableError` | React se recuperó solo (por ejemplo, un error de hidratación que resolvió renderizando en el cliente). |
+
+Así lo usa esta misma guía:
+
+<Source path="src/main.tsx" highlight="10-19" />
+
+Abrí la consola del navegador y hacé explotar la demo del capítulo de [Error Boundaries](#/suspense-y-errores): vas a ver el `console.warn` de `onCaughtError`.
+
+Además, los errores de hidratación (cuando el HTML del servidor no coincide con el del cliente) ahora muestran **un solo mensaje con el diff** de lo que no coincide, en vez de varios errores crípticos.
+
+## APIs eliminadas en React 19
+
+| Eliminado | Usá en su lugar |
+| --- | --- |
+| `ReactDOM.render`, `ReactDOM.hydrate` | `createRoot`, `hydrateRoot` de `react-dom/client` |
+| `unmountComponentAtNode` | `root.unmount()` |
+| `ReactDOM.findDOMNode` | Refs |
+| `propTypes` en componentes de función | TypeScript |
+| `defaultProps` en componentes de función | Parámetros por defecto en el destructuring |
+| Refs de tipo string (`ref="input"`) | `useRef` o ref callbacks |
+| Legacy Context (`contextTypes`, `getChildContext`) | `createContext` |
+| `React.createFactory` | JSX |
+| `react-test-renderer/shallow` | `react-shallow-renderer`, o mejor Testing Library |
+| `act` desde `react-dom/test-utils` | `act` desde `react` |
+| Builds UMD | Un CDN con ESM, como esm.sh |
+
+## Deprecado (funciona, pero se va)
+
+- `forwardRef` → `ref` como prop.
+- `<Context.Provider>` → `<Context>`.
+- `element.ref` → `element.props.ref`.
+
+## Cómo migrar un proyecto viejo, paso a paso
+
+1. **Pasá a React 18.3 primero.** Es igual a 18.2 pero agrega advertencias para todo lo que se rompe en 19. Corré la app y los tests, y arreglá los warnings.
+2. **Actualizá** `react`, `react-dom`, `@types/react` y `@types/react-dom` a la última versión 19.
+3. **Corré los codemods** oficiales, que automatizan la mayoría de los cambios:
+
+```bash
+# Cambios de React 19 (render → createRoot, string refs, act, etc.)
+npx codemod@latest react/19/migration-recipe
+
+# Cambios en los tipos de TypeScript
+npx types-react-codemod@latest preset-19 ./src
+```
+
+4. **Si el proyecto usa Create React App**, migrá a Vite. CRA está deprecado y no se actualiza. El cambio suele ser mover `index.html` a la raíz, cambiar los scripts del `package.json` y renombrar las variables `REACT_APP_*` a `VITE_*`.
+5. **Revisá las librerías**: las que dependen de `findDOMNode` o de APIs eliminadas necesitan una versión nueva.
+6. **Activá el React Compiler** al final, cuando todo funcione, y con su regla de lint para detectar código que rompe las reglas de React.
+
+<Tip title="No hace falta reescribir las clases">
+Los componentes de clase **siguen funcionando** en React 19. No hace falta migrarlos todos de golpe: convertí a funciones los que tengas que tocar por otro motivo. La [chuleta](#/chuleta) tiene la equivalencia de cada método.
+</Tip>
+
+## Cambios de TypeScript que te vas a cruzar
+
+```tsx
+// useRef necesita un argumento
+const ref = useRef<HTMLInputElement>(null)
+
+// Los ref callbacks no pueden devolver cualquier cosa
+<div ref={(node) => { instance = node }} />
+
+// El namespace JSX global ahora es React.JSX
+function Icon(): React.JSX.Element { /* ... */ }
+
+// Las props de un ReactElement sin tipar son unknown (antes any)
+const element: ReactElement<{ title: string }> = <Card title="Hola" />
+```
+
+<Entrevista>
+"¿Cómo migrarías una app de React 17 a 19?" → "Primero subo a React 18.3, que avisa todo lo que se rompe en 19, y arreglo esos warnings. Después actualizo a 19 con los codemods oficiales para createRoot, string refs y tipos. Si usa Create React App, aprovecho para pasar a Vite. Las clases las dejo como están salvo que las tenga que tocar, y al final activo el React Compiler con su regla de lint."
+</Entrevista>

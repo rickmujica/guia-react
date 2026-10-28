@@ -1,0 +1,65 @@
+Un **custom hook** es una función cuyo nombre empieza con `use` y que llama a otros hooks. Sirve para **extraer lógica con estado** y reutilizarla en varios componentes, o simplemente para que un componente se lea mejor.
+
+Es el reemplazo moderno de los HOCs (`withRouter(Component)`) y de los render props, que eran la forma de compartir lógica en la época de las clases.
+
+```tsx
+function useOnlineStatus() {
+  // ...hooks adentro...
+  return isOnline
+}
+
+function StatusBar() {
+  const isOnline = useOnlineStatus() // se lee como una frase
+  return <p>{isOnline ? '🟢 En línea' : '🔴 Sin conexión'}</p>
+}
+```
+
+## Tres hooks, una demo
+
+La demo usa tres custom hooks que vas a encontrar (con alguna variante) en casi cualquier proyecto real:
+
+- `useDebouncedValue`: espera a que el usuario deje de escribir antes de buscar. Es lo mismo que practicaste en el ejercicio de **debounce** del live coding, pero como hook.
+- `useLocalStorage`: un `useState` que sobrevive a recargar la página.
+- `useOnlineStatus`: se suscribe a la conexión del navegador con `useSyncExternalStore`.
+
+<Demo
+  file="hooks/CustomHooks"
+  title="useDebouncedValue + useLocalStorage + useOnlineStatus"
+  extra={['hooks/custom/useDebouncedValue.ts', 'hooks/custom/useLocalStorage.ts', 'hooks/custom/useOnlineStatus.ts']}
+  highlight="18-21,24-34"
+/>
+
+<Probalo>
+Escribí "frontend" rápido en el buscador y compará el contador de teclas con el de requests: con debounce, 8 teclas suman una sola request nueva. Cambiá el `500` de `useDebouncedValue(query, 500)` por `0` y repetí.
+</Probalo>
+
+Mirá las pestañas de la demo: cada hook vive en su propio archivo y se puede testear y reutilizar por separado.
+
+## Las reglas
+
+1. **El nombre empieza con `use`.** Así React (y el linter) saben que adentro hay hooks y aplican las reglas.
+2. **Solo se llaman en el nivel superior** de un componente o de otro hook: nunca dentro de un `if`, un loop o un callback.
+3. **Comparten lógica, no estado.** Cada componente que llama a `useLocalStorage` tiene su propio estado independiente. Si querés compartir el estado mismo, necesitás levantarlo, Context o un store externo.
+
+<Ojo title="No todo tiene que ser un hook">
+Si la función no llama a ningún hook, no le pongas `use` adelante: es una función común (`formatSalary`, `filterJobs`). Y no extraigas hooks "por las dudas": extraelos cuando la lógica se repite o cuando el componente se vuelve difícil de leer.
+</Ojo>
+
+## Buenos candidatos a custom hook
+
+| Hook | Qué encapsula |
+| --- | --- |
+| `useDebouncedValue`, `useThrottle` | Timers con cleanup |
+| `useLocalStorage`, `useSessionStorage` | Persistencia en el navegador |
+| `useMediaQuery`, `useWindowSize` | Suscripción a APIs del navegador |
+| `useOnClickOutside`, `useHotkeys` | Event listeners globales |
+| `useAuth`, `useCart` | Leer un Context y validar que exista el provider |
+| `useJobs(filters)` | Un fetch con su estado (aunque en una app real usarías TanStack Query) |
+
+<Tip title="TanStack Query: el custom hook que no vas a tener que escribir">
+`useQuery({ queryKey: ['jobs', filters], queryFn: fetchJobs })` te da caché, reintentos, revalidación, estados de carga y error, deduplicación de requests y mucho más. En el mercado laboral actual aparece en muchísimas ofertas de React: vale la pena conocerlo.
+</Tip>
+
+<Entrevista>
+"¿Qué es un custom hook?" → "Una función que empieza con use y llama a otros hooks, para reutilizar lógica con estado entre componentes. Reemplazó a los HOCs y render props. Importante: comparten la lógica, no el estado; cada componente que lo usa tiene su propia copia."
+</Entrevista>
