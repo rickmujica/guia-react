@@ -1,0 +1,135 @@
+Las **funciones de agregación** resumen muchas filas en un valor: cuántas hay, cuánto suman, el promedio. Con `GROUP BY`, ese resumen se hace **por grupo**.
+
+## Agregaciones sobre toda la tabla
+
+<Consulta>
+
+```sql
+SELECT COUNT(*) AS ofertas,
+       COUNT(salario_max) AS con_salario,
+       MIN(salario_min) AS minimo,
+       MAX(salario_max) AS maximo,
+       AVG(salario_max) AS promedio_max,
+       SUM(salario_max) AS suma
+FROM ofertas;
+```
+
+</Consulta>
+
+- `COUNT(*)` cuenta filas. `COUNT(columna)` cuenta los valores **no nulos**: por eso da 13 y no 15.
+- `SUM`, `AVG`, `MIN` y `MAX` también **ignoran los `NULL`**. El promedio es sobre las 13 ofertas con salario.
+- `COUNT(DISTINCT columna)` cuenta valores distintos.
+
+## GROUP BY
+
+<Consulta>
+
+```sql
+SELECT seniority,
+       COUNT(*) AS ofertas,
+       ROUND(AVG(salario_max)) AS promedio_max
+FROM ofertas
+GROUP BY seniority
+ORDER BY promedio_max DESC;
+```
+
+</Consulta>
+
+`GROUP BY seniority` arma un grupo por cada valor distinto y calcula las agregaciones adentro de cada uno. Se puede agrupar por varias columnas:
+
+<Consulta>
+
+```sql
+SELECT seniority, modalidad, COUNT(*) AS ofertas
+FROM ofertas
+GROUP BY seniority, modalidad
+ORDER BY seniority, ofertas DESC;
+```
+
+</Consulta>
+
+<Ojo title="ONLY_FULL_GROUP_BY">
+En un `SELECT` con `GROUP BY`, cada columna tiene que estar en el `GROUP BY` o adentro de una agregación. Si no, ¿qué `titulo` mostraría para el grupo `senior`, si hay seis? MySQL 8 da error (versiones viejas devolvían uno cualquiera, y mucho código legacy depende de eso):
+
+<Consulta error>
+
+```sql
+SELECT seniority, titulo, COUNT(*)
+FROM ofertas
+GROUP BY seniority;
+```
+
+</Consulta>
+</Ojo>
+
+## HAVING: filtrar grupos
+
+`WHERE` filtra **filas** antes de agrupar; `HAVING` filtra **grupos** después de agregar.
+
+<Consulta>
+
+```sql
+SELECT empresa_id,
+       COUNT(*) AS ofertas,
+       MAX(salario_max) AS mejor
+FROM ofertas
+WHERE modalidad = 'remoto'
+GROUP BY empresa_id
+HAVING COUNT(*) >= 2
+ORDER BY mejor DESC;
+```
+
+</Consulta>
+
+Leído en orden: de las ofertas **remotas** (`WHERE`), agrupá por empresa, y quedate con las empresas que tienen **al menos 2** (`HAVING`).
+
+## Agregaciones condicionales
+
+Con `CASE` (o una condición) adentro de una agregación se arma una tabla de resumen en una sola pasada:
+
+<Consulta>
+
+```sql
+SELECT estado,
+       COUNT(*) AS postulaciones,
+       MIN(fecha) AS primera,
+       MAX(fecha) AS ultima
+FROM postulaciones
+GROUP BY estado
+ORDER BY postulaciones DESC;
+```
+
+</Consulta>
+
+<Consulta>
+
+```sql
+SELECT COUNT(*) AS total,
+       SUM(CASE WHEN modalidad = 'remoto' THEN 1 ELSE 0 END) AS remotas,
+       SUM(CASE WHEN modalidad <> 'remoto' THEN 1 ELSE 0 END) AS no_remotas,
+       ROUND(100 * SUM(CASE WHEN modalidad = 'remoto' THEN 1 ELSE 0 END) / COUNT(*)) AS porcentaje_remoto
+FROM ofertas;
+```
+
+</Consulta>
+
+## GROUP_CONCAT
+
+Una función muy útil de MySQL: junta los valores de un grupo en un string.
+
+<Consulta>
+
+```sql
+SELECT pais,
+       COUNT(*) AS empresas,
+       GROUP_CONCAT(nombre ORDER BY nombre SEPARATOR ', ') AS nombres
+FROM empresas
+GROUP BY pais
+ORDER BY empresas DESC, pais;
+```
+
+</Consulta>
+
+<Entrevista>
+"¿Qué diferencia hay entre WHERE y HAVING?" → "WHERE filtra filas antes de agrupar y no puede usar agregaciones. HAVING filtra los grupos después del GROUP BY y sí puede usar COUNT, SUM, etc. Si una condición se puede poner en el WHERE, conviene ponerla ahí: se descartan filas antes y se agrupa menos."
+</Entrevista>

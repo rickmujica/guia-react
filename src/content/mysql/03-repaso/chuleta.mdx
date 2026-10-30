@@ -1,0 +1,267 @@
+Todo en una página, para repasar antes de una entrevista o tener a mano mientras escribís SQL.
+
+## El orden en que se ejecuta un SELECT
+
+Se escribe en un orden y se **evalúa** en otro. Saberlo explica la mitad de los errores:
+
+| Paso | Cláusula | Por eso… |
+| --- | --- | --- |
+| 1 | `FROM` y `JOIN` | se arma primero la tabla combinada |
+| 2 | `WHERE` | filtra filas: no puede usar agregaciones ni funciones de ventana |
+| 3 | `GROUP BY` | agrupa |
+| 4 | `HAVING` | filtra grupos: sí puede usar `COUNT`, `SUM`… |
+| 5 | Funciones de ventana | se calculan sobre lo que quedó |
+| 6 | `SELECT` | recién acá existen los alias de columna |
+| 7 | `DISTINCT` | |
+| 8 | `ORDER BY` | puede usar los alias del `SELECT` |
+| 9 | `LIMIT` / `OFFSET` | |
+
+## Tablas
+
+```sql
+CREATE TABLE ofertas (
+  id          INT AUTO_INCREMENT PRIMARY KEY,
+  empresa_id  INT NOT NULL,
+  titulo      VARCHAR(150) NOT NULL,
+  salario     DECIMAL(10, 2) NULL CHECK (salario > 0),
+  modalidad   ENUM('remoto', 'hibrido', 'presencial') NOT NULL DEFAULT 'remoto',
+  creado_en   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE (empresa_id, titulo),
+  FOREIGN KEY (empresa_id) REFERENCES empresas (id) ON DELETE CASCADE
+);
+
+ALTER TABLE ofertas ADD COLUMN url VARCHAR(300) NULL;
+ALTER TABLE ofertas MODIFY titulo VARCHAR(200) NOT NULL;
+ALTER TABLE ofertas DROP COLUMN url;
+ALTER TABLE ofertas RENAME COLUMN salario TO salario_max;
+DROP TABLE IF EXISTS ofertas;
+TRUNCATE TABLE ofertas;       -- vacía la tabla y reinicia el AUTO_INCREMENT
+
+SHOW TABLES;
+DESCRIBE ofertas;
+SHOW CREATE TABLE ofertas;
+```
+
+## Escribir datos
+
+```sql
+INSERT INTO empresas (nombre, pais) VALUES ('Nubelia', 'AR'), ('Pagos Sur', 'UY');
+INSERT INTO resumen (pais, total) SELECT pais, COUNT(*) FROM empresas GROUP BY pais;
+
+UPDATE ofertas SET salario_max = salario_max * 1.1 WHERE empresa_id = 3;
+DELETE FROM ofertas WHERE publicada < '2026-01-01';
+
+-- Upsert: insertar o, si choca con una clave única, actualizar
+INSERT INTO empresas (nombre, pais, empleados) VALUES ('Nubelia', 'AR', 150) AS nueva
+ON DUPLICATE KEY UPDATE empleados = nueva.empleados;
+```
+
+`UPDATE` y `DELETE` **sin `WHERE`** cambian toda la tabla. Antes de correrlos, probá el `WHERE` con un `SELECT`.
+
+## Consultar
+
+```sql
+SELECT e.pais, COUNT(*) AS ofertas, AVG(o.salario_max) AS promedio
+FROM ofertas o
+JOIN empresas e ON e.id = o.empresa_id          -- solo las que tienen pareja
+LEFT JOIN postulaciones p ON p.oferta_id = o.id  -- todas las de la izquierda
+WHERE o.modalidad = 'remoto'
+  AND o.publicada BETWEEN '2026-10-01' AND '2026-10-31'
+  AND o.titulo LIKE '%React%'
+  AND e.pais IN ('AR', 'PY')
+  AND p.id IS NULL                               -- sin postulación (anti-join)
+GROUP BY e.pais
+HAVING COUNT(*) >= 2
+ORDER BY ofertas DESC, e.pais
+LIMIT 10 OFFSET 20;
+```
+
+## Subconsultas, CTE y ventanas
+
+```sql
+WHERE salario_max > (SELECT AVG(salario_max) FROM ofertas)        -- un valor
+WHERE empresa_id IN (SELECT id FROM empresas WHERE pais = 'PY')    -- una lista
+WHERE NOT EXISTS (SELECT 1 FROM postulaciones p WHERE p.oferta_id = o.id)
+
+WITH remotas AS (SELECT * FROM ofertas WHERE modalidad = 'remoto'),
+     promedio AS (SELECT AVG(salario_max) AS valor FROM remotas)
+SELECT ... FROM remotas, promedio;
+
+WITH RECURSIVE n AS (SELECT 1 AS i UNION ALL SELECT i + 1 FROM n WHERE i < 10)
+SELECT i FROM n;
+
+-- El mejor de cada grupo
+WITH r AS (
+  SELECT *, ROW_NUMBER() OVER (PARTITION BY seniority ORDER BY salario_max DESC) AS puesto
+  FROM ofertas
+)
+SELECT * FROM r WHERE puesto = 1;
+
+SUM(x) OVER (ORDER BY fecha)                         -- acumulado
+AVG(x) OVER (PARTITION BY grupo)                     -- promedio del grupo en cada fila
+RANK() / DENSE_RANK() OVER (ORDER BY x DESC)         -- con empates
+LAG(x) OVER (ORDER BY fecha), LEAD(x) OVER (...)     -- fila anterior y siguiente
+```
+
+## Funciones útiles
+
+| Para | Funciones |
+| --- | --- |
+| Texto | `CONCAT`, `CONCAT_WS`, `UPPER`, `LOWER`, `TRIM`, `SUBSTRING`, `REPLACE`, `CHAR_LENGTH`, `LPAD` |
+| Números | `ROUND`, `FLOOR`, `CEIL`, `ABS`, `MOD`, `GREATEST`, `LEAST` |
+| Fechas | `NOW()`, `CURDATE()`, `DATE()`, `YEAR()`, `MONTH()`, `DATEDIFF(a, b)`, `DATE_ADD(f, INTERVAL 7 DAY)`, `f + INTERVAL 1 MONTH`, `DATE_FORMAT(f, '%d/%m/%Y')`, `TIMESTAMPDIFF(HOUR, a, b)` |
+| NULL | `IS NULL`, `COALESCE(a, b, …)`, `IFNULL(a, b)`, `NULLIF(a, b)`, `<=>` |
+| Condiciones | `CASE WHEN … THEN … ELSE … END`, `IF(cond, a, b)` |
+| Agregación | `COUNT(*)`, `COUNT(col)`, `COUNT(DISTINCT col)`, `SUM`, `AVG`, `MIN`, `MAX`, `GROUP_CONCAT(col ORDER BY col SEPARATOR ', ')` |
+| JSON | `JSON_OBJECT`, `JSON_ARRAYAGG`, `col->'$.campo'`, `col->>'$.campo'`, `JSON_LENGTH` |
+
+## Índices y planes
+
+```sql
+CREATE INDEX idx_empresa_fecha ON ofertas (empresa_id, publicada);  -- igualdad primero, rango después
+CREATE UNIQUE INDEX idx_email ON usuarios (email);
+DROP INDEX idx_empresa_fecha ON ofertas;
+SHOW INDEX FROM ofertas;
+
+EXPLAIN SELECT ...;           -- el plan: mirá type, key, rows y Extra
+EXPLAIN ANALYZE SELECT ...;   -- lo ejecuta y muestra tiempos reales
+```
+
+Rompen un índice: funciones sobre la columna (`YEAR(fecha) = 2026`), `LIKE '%texto'`, operaciones (`col * 12 > x`), saltearse la primera columna de un índice compuesto.
+
+## Transacciones y permisos
+
+```sql
+START TRANSACTION;
+UPDATE cuentas SET saldo = saldo - 100 WHERE id = 1;
+UPDATE cuentas SET saldo = saldo + 100 WHERE id = 2;
+COMMIT;                -- o ROLLBACK;
+
+SELECT ... FOR UPDATE; -- bloquea las filas leídas hasta el COMMIT
+
+CREATE USER 'app'@'%' IDENTIFIED BY '...';
+GRANT SELECT, INSERT, UPDATE, DELETE ON busqueda.* TO 'app'@'%';
+```
+
+## Ejercicios de entrevista
+
+Problemas típicos de una prueba técnica, resueltos sobre la base de la guía.
+
+**Las 3 empresas con más ofertas remotas.**
+
+<Consulta>
+
+```sql
+SELECT e.nombre, COUNT(*) AS remotas
+FROM empresas e
+JOIN ofertas o ON o.empresa_id = e.id
+WHERE o.modalidad = 'remoto'
+GROUP BY e.id, e.nombre
+ORDER BY remotas DESC, e.nombre
+LIMIT 3;
+```
+
+</Consulta>
+
+**Por cada tecnología: cuántas ofertas la piden y el mejor salario.** Incluí las que nadie pide.
+
+<Consulta>
+
+```sql
+SELECT t.nombre,
+       COUNT(o.id) AS ofertas,
+       MAX(o.salario_max) AS mejor_salario
+FROM tecnologias t
+LEFT JOIN oferta_tecnologia ot ON ot.tecnologia_id = t.id
+LEFT JOIN ofertas o ON o.id = ot.oferta_id
+GROUP BY t.id, t.nombre
+ORDER BY ofertas DESC, t.nombre;
+```
+
+</Consulta>
+
+**La oferta más reciente de cada empresa.**
+
+<Consulta>
+
+```sql
+WITH ordenadas AS (
+  SELECT o.*, ROW_NUMBER() OVER (PARTITION BY empresa_id ORDER BY publicada DESC) AS n
+  FROM ofertas o
+)
+SELECT e.nombre, ord.titulo, ord.publicada
+FROM ordenadas ord
+JOIN empresas e ON e.id = ord.empresa_id
+WHERE ord.n = 1
+ORDER BY ord.publicada DESC;
+```
+
+</Consulta>
+
+**Las empresas a las que no te postulaste nunca.**
+
+<Consulta>
+
+```sql
+SELECT e.nombre
+FROM empresas e
+WHERE NOT EXISTS (
+  SELECT 1
+  FROM ofertas o
+  JOIN postulaciones p ON p.oferta_id = o.id
+  WHERE o.empresa_id = e.id
+)
+ORDER BY e.nombre;
+```
+
+</Consulta>
+
+**El embudo: de tus postulaciones, qué porcentaje llegó a entrevista o más.**
+
+<Consulta>
+
+```sql
+SELECT COUNT(*) AS postulaciones,
+       SUM(estado IN ('entrevista', 'oferta')) AS avanzaron,
+       ROUND(100 * SUM(estado IN ('entrevista', 'oferta')) / COUNT(*), 1) AS porcentaje
+FROM postulaciones;
+```
+
+</Consulta>
+
+En MySQL una condición vale 1 o 0, así que `SUM(condición)` cuenta las filas que la cumplen. En otras bases se escribe `SUM(CASE WHEN … THEN 1 ELSE 0 END)`.
+
+**Los países con más de una empresa, y cuáles son.**
+
+<Consulta>
+
+```sql
+SELECT pais,
+       COUNT(*) AS empresas,
+       GROUP_CONCAT(nombre ORDER BY nombre SEPARATOR ', ') AS nombres
+FROM empresas
+GROUP BY pais
+HAVING COUNT(*) > 1
+ORDER BY empresas DESC, pais;
+```
+
+</Consulta>
+
+## Preguntas rápidas
+
+<Entrevista title="Preguntas frecuentes">
+
+- **¿Clave primaria vs clave foránea?** La primaria identifica cada fila (única, no nula, una por tabla). La foránea guarda la primaria de otra tabla y MySQL verifica que exista.
+- **¿WHERE vs HAVING?** `WHERE` filtra filas antes de agrupar; `HAVING` filtra grupos y puede usar agregaciones.
+- **¿INNER vs LEFT JOIN?** `INNER` solo devuelve filas con pareja; `LEFT` devuelve todas las de la izquierda, con `NULL` si no hay pareja.
+- **¿DELETE vs TRUNCATE vs DROP?** `DELETE` borra filas (con `WHERE`, dentro de una transacción); `TRUNCATE` vacía la tabla de una (más rápido, reinicia el `AUTO_INCREMENT`, no se puede deshacer); `DROP` borra la tabla entera.
+- **¿UNION vs UNION ALL?** `UNION` elimina duplicados (más lento); `UNION ALL` los deja.
+- **¿Por qué `= NULL` no funciona?** Cualquier comparación con `NULL` da `NULL` (desconocido), no verdadero. Se usa `IS NULL`.
+- **¿Qué es un índice y cuándo no conviene?** Una estructura ordenada (árbol B+) que evita leer toda la tabla. Hace más lentas las escrituras y ocupa espacio; no sirve en columnas con pocos valores distintos.
+- **¿Qué es ACID?** Atomicidad, Consistencia, Aislamiento y Durabilidad: las garantías de una transacción.
+- **¿Qué es la normalización?** Organizar las tablas para que cada dato viva en un solo lugar y evitar inconsistencias (1FN: valores atómicos; 2FN y 3FN: cada columna depende de toda la clave y solo de la clave).
+- **¿Qué es el SQL injection?** Meter código SQL a través de un dato del usuario que se concatena en la consulta. Se evita con consultas con parámetros.
+- **¿Qué es el problema N+1?** Hacer una consulta por cada elemento de una lista. Se resuelve con un `JOIN` o con `IN`.
+- **¿SQL o NoSQL?** SQL cuando los datos tienen relaciones y necesitás consistencia y transacciones (la mayoría de las apps). NoSQL (MongoDB, DynamoDB) cuando los datos son documentos sin relaciones fuertes o se necesita escalar escrituras horizontalmente.
+
+</Entrevista>

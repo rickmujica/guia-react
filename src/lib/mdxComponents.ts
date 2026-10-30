@@ -1,5 +1,6 @@
 import type { MDXComponents } from 'mdx/types'
 import { AntesAhora, Entrevista, Nota, Ojo, Probalo, Tip, Version } from '../components/Callouts'
+import { Consulta, Playground } from '../components/Consulta'
 import { Demo, Source } from '../components/Demo'
 import { Anchor, H2, H3, Pre, Table } from '../components/MdxElements'
 
@@ -19,4 +20,6 @@ export const mdxComponents: MDXComponents = {
   Entrevista,
   AntesAhora,
   Version,
+  Consulta,
+  Playground,
 }

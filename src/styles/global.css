@@ -1166,6 +1166,182 @@ code {
 }
 
 /* ==========================================================================
+   Consultas SQL con su resultado, y el playground (guía de MySQL)
+   ========================================================================== */
+.consulta {
+  margin: 24px 0;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--bg);
+  box-shadow: var(--shadow);
+}
+
+.compare-col .consulta {
+  margin: 6px 0 0;
+}
+
+.consulta-probar {
+  color: var(--accent-strong);
+  font-weight: 600;
+}
+
+.consulta-probar:hover {
+  background: var(--bg);
+}
+
+.consulta-salidas {
+  border-top: 1px solid var(--border);
+  padding: 10px 14px 12px;
+}
+
+.consulta-label {
+  margin: 0 0 4px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+.consulta-tabla {
+  margin: 8px 0;
+  background: var(--bg);
+}
+
+.consulta-tabla table {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+}
+
+.consulta-tabla th,
+.consulta-tabla td {
+  padding: 5px 10px;
+  white-space: nowrap;
+}
+
+.consulta-null {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.consulta-tabla .consulta-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.consulta-filas {
+  margin: 0;
+  padding: 4px 10px;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  border-top: 1px solid var(--border);
+  background: var(--bg-soft);
+}
+
+.consulta-ok {
+  margin: 6px 0;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--after);
+}
+
+.consulta-error {
+  margin: 8px 0;
+  padding: 8px 12px;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: var(--before);
+  background: var(--warn-bg);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--before);
+  border-radius: 8px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.consulta-falta {
+  margin: 0;
+  padding: 10px 14px;
+  border-top: 1px solid var(--border);
+  font-size: 0.85rem;
+  color: var(--warn);
+}
+
+.playground {
+  display: grid;
+  gap: 10px;
+  margin: 24px 0;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg-soft);
+}
+
+/* Adentro de una consulta, el playground es una sección más */
+.consulta .playground {
+  margin: 0;
+  border: none;
+  border-top: 1px solid var(--border);
+  border-radius: 0;
+}
+
+.playground-editor {
+  width: 100%;
+  padding: 10px 12px;
+  font-family: var(--font-mono);
+  font-size: 0.84rem;
+  line-height: 1.55;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  resize: vertical;
+  tab-size: 2;
+}
+
+.playground-editor:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.playground button {
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 6px 14px;
+  cursor: pointer;
+  font-size: 0.88rem;
+}
+
+.playground button:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+.playground button:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.playground button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.playground-nota {
+  font-size: 0.78rem;
+}
+
+.playground .consulta-tabla,
+.playground .consulta-error,
+.playground .consulta-ok {
+  margin: 0;
+}
+
+/* ==========================================================================
    Animaciones de <ViewTransition> al cambiar de capítulo
    ========================================================================== */
 ::view-transition-old(.page-exit) {
@@ -1409,6 +1585,43 @@ code {
   .table-wrap th,
   .table-wrap td {
     padding: 5px 6px;
+  }
+
+  /* Resultados de MySQL: letra chica y celdas que cortan, así entran hasta los EXPLAIN */
+  .consulta {
+    box-shadow: none;
+  }
+
+  .consulta-label {
+    break-after: avoid;
+  }
+
+  .consulta-tabla table {
+    font-size: 6.6pt;
+  }
+
+  .consulta-tabla th,
+  .consulta-tabla td {
+    padding: 2px 4px;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .consulta-error,
+  .consulta-ok {
+    font-size: 7.2pt;
+  }
+
+  .consulta-vertical th[scope='row'] {
+    width: 1%;
+    white-space: nowrap;
+    font-weight: 500;
+    background: none;
+  }
+
+  .consulta-vertical th[colspan] {
+    color: var(--text-muted);
+    font-weight: 500;
   }
 
   a {

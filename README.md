@@ -9,7 +9,7 @@ La home muestra todas las guías con su progreso. Cada guía recuerda **el últi
 | React moderno (hooks, React 19 a 19.3, React Compiler, puente a Next.js) | Lista | [`docs/guia-react-moderno.pdf`](docs/guia-react-moderno.pdf) |
 | TypeScript para React (el lenguaje y cómo tipar cada pieza de React, con ejemplos chequeados por el compilador) | Lista | [`docs/guia-typescript-react.pdf`](docs/guia-typescript-react.pdf) |
 | Redux, Redux Toolkit, Redux Saga y Zustand (con RTK Query y una comparación de las cuatro) | Lista | [`docs/guia-estado-global.pdf`](docs/guia-estado-global.pdf) |
-| MySQL (básico e intermedio) | Próximamente | |
+| MySQL, de cero a intermedio (con resultados de un MySQL real y un playground en el navegador) | Lista | [`docs/guia-mysql.pdf`](docs/guia-mysql.pdf) |
 | Node.js y Express | Próximamente | |
 
 ## Guía de React moderno
@@ -47,6 +47,38 @@ Los snippets son archivos reales en `src/demos/typescript/ejemplos/` y se cheque
 
 Cada demo crea su propio store (salvo Zustand, que es global como en una app real) y usa una API falsa con demoras (`src/demos/estado/api.ts`).
 
+## Guía de MySQL
+
+| Parte | Capítulos |
+| --- | --- |
+| Empezá acá | Cómo usar la guía |
+| 1 · Lo básico | Crear tablas · Insertar, actualizar y borrar · SELECT, WHERE y ORDER BY · Funciones y NULL · Agrupar: GROUP BY y HAVING · JOINs |
+| 2 · Intermedio | Subconsultas y CTE · Funciones de ventana · Índices y EXPLAIN · Transacciones y concurrencia · Diseño de tablas · Vistas, procedimientos, triggers y JSON · MySQL desde Node |
+| 3 · Repaso | Chuleta y ejercicios de entrevista |
+
+Toda la guía usa una base de ejemplo de una búsqueda laboral (`src/demos/mysql/schema.sql` y `datos.sql`). Cada consulta se escribe en el MDX así:
+
+````mdx
+<Consulta>
+
+```sql
+SELECT nombre FROM empresas WHERE pais = 'PY';
+```
+
+</Consulta>
+````
+
+y debajo se muestra **lo que devolvió MySQL**. Esos resultados están en `src/content/mysql/resultados.json` y los genera `npm run sql`, que corre cada consulta contra un MySQL 8 de verdad, sobre la base recién cargada. Con `<Consulta error>` la consulta tiene que fallar (el script avisa si no falla). El script también la corre en SQLite: si da lo mismo, la página ofrece **Probar en el navegador**, un editor que la ejecuta con SQLite compilado a WebAssembly (`sql.js`). `<Consulta soloMysql>` saca ese botón cuando la coincidencia es engañosa.
+
+Después de agregar o cambiar una consulta:
+
+```bash
+brew services start mysql   # si no está corriendo
+npm run sql                 # como root sin contraseña; si no: MYSQL_USER=yo MYSQL_PASSWORD=… npm run sql
+```
+
+El script importa un archivo `.ts` directamente, así que necesita Node 22.18 o superior.
+
 ## Cómo correrla
 
 Necesitás Node.js 20.19 o superior (o 22.12+).
@@ -75,6 +107,7 @@ y abrí desde el teléfono la dirección `Network` que aparece en la terminal. E
 | `npm run preview` | Sirve el build de `dist/`. |
 | `npm run lint` | Revisa el código con oxlint. |
 | `npm run pdf` | Build + genera el PDF de cada guía en `docs/` (`npm run pdf -- react` para una sola). |
+| `npm run sql` | Corre las consultas de la guía de MySQL contra tu MySQL local y guarda los resultados. |
 
 ## Los PDF
 
@@ -100,7 +133,8 @@ src/
   lib/           Rutas, progreso de lectura, lectura de los archivos fuente, tema, modo impresión
   App.tsx        Router mínimo con el hash de la URL (#/guía/capítulo) y <ViewTransition> entre páginas
 scripts/
-  export-pdf.mjs Genera los PDF
+  export-pdf.mjs      Genera los PDF
+  sql-resultados.mjs  Corre las consultas de la guía de MySQL y guarda sus resultados
 docs/            Un PDF por guía
 vite.config.ts   Vite con MDX y el React Compiler en modo "annotation"
 ```
@@ -122,4 +156,4 @@ Para una guía nueva, creá `src/guides/<guía>.ts` con su `GuideDef` y sumala a
 
 ## Versiones
 
-Escrita en octubre de 2026 con React 19.3, Vite 8, TypeScript 7 y React Compiler 1.0.
+Escrita en octubre de 2026 con React 19.3, Vite 8, TypeScript 7 y React Compiler 1.0. Los resultados de la guía de MySQL son de MySQL 8.0.

@@ -1,0 +1,209 @@
+Una **subconsulta** es un `SELECT` adentro de otro. Una **CTE** (`WITH`) es lo mismo pero con nombre, escrita arriba, y se lee mucho mejor. Con las dos se resuelven en una sola consulta cosas que si no harían falta dos.
+
+## Subconsulta que devuelve un valor
+
+Las ofertas que pagan más que el promedio:
+
+<Consulta>
+
+```sql
+SELECT titulo, salario_max
+FROM ofertas
+WHERE salario_max > (SELECT AVG(salario_max) FROM ofertas)
+ORDER BY salario_max DESC;
+```
+
+</Consulta>
+
+La subconsulta entre paréntesis se ejecuta y su resultado (un número) se usa en la comparación. Si devolviera más de una fila, sería un error:
+
+<Consulta error>
+
+```sql
+SELECT titulo
+FROM ofertas
+WHERE empresa_id = (SELECT id FROM empresas WHERE pais = 'PY');
+```
+
+</Consulta>
+
+## IN: una lista de valores
+
+Si la subconsulta devuelve una columna con varias filas, se usa con `IN`:
+
+<Consulta>
+
+```sql
+SELECT titulo, empresa_id
+FROM ofertas
+WHERE empresa_id IN (SELECT id FROM empresas WHERE pais = 'PY')
+ORDER BY id;
+```
+
+</Consulta>
+
+<Ojo title="NOT IN y los NULL">
+`NOT IN` con una subconsulta que devuelve algún `NULL` **no devuelve ninguna fila**: `x NOT IN (1, NULL)` es `x <> 1 AND x <> NULL`, y lo segundo nunca es verdadero. Por eso, para "lo que no está", es más seguro `NOT EXISTS` o el `LEFT JOIN … IS NULL`.
+
+<Consulta>
+
+```sql
+SELECT COUNT(*) AS empresas_sin_ese_tamanio
+FROM empresas
+WHERE empleados NOT IN (SELECT empleados FROM empresas WHERE pais = 'US');
+```
+
+</Consulta>
+
+Remoto.dev (la única de US) tiene `empleados` en `NULL`, así que la lista es `(NULL)` y el resultado es 0, cuando uno esperaría las otras 9 empresas.
+</Ojo>
+
+## EXISTS y subconsultas correlacionadas
+
+Una subconsulta **correlacionada** usa columnas de la consulta de afuera: conceptualmente, se evalúa una vez por cada fila. `EXISTS` pregunta si devuelve **al menos una fila**:
+
+<Consulta>
+
+```sql
+-- Empresas con al menos una oferta remota senior
+SELECT e.nombre
+FROM empresas e
+WHERE EXISTS (
+  SELECT 1
+  FROM ofertas o
+  WHERE o.empresa_id = e.id
+    AND o.modalidad = 'remoto'
+    AND o.seniority = 'senior'
+)
+ORDER BY e.nombre;
+```
+
+</Consulta>
+
+<Consulta>
+
+```sql
+-- Ofertas a las que no te postulaste (igual que el LEFT JOIN ... IS NULL)
+SELECT o.id, o.titulo
+FROM ofertas o
+WHERE NOT EXISTS (SELECT 1 FROM postulaciones p WHERE p.oferta_id = o.id)
+ORDER BY o.id;
+```
+
+</Consulta>
+
+El `SELECT 1` es una convención: a `EXISTS` no le importan las columnas, solo si hay filas.
+
+Una correlacionada también puede ir en el `SELECT`, para calcular un valor por fila:
+
+<Consulta>
+
+```sql
+SELECT e.nombre,
+       (SELECT COUNT(*) FROM ofertas o WHERE o.empresa_id = e.id) AS ofertas,
+       (SELECT MAX(o.salario_max) FROM ofertas o WHERE o.empresa_id = e.id) AS mejor_salario
+FROM empresas e
+WHERE e.pais IN ('AR', 'PY')
+ORDER BY e.nombre;
+```
+
+</Consulta>
+
+Funciona, pero con muchas filas suele ser más claro y rápido un `LEFT JOIN` con `GROUP BY`.
+
+## Subconsulta en el FROM (tabla derivada)
+
+El resultado de un `SELECT` se puede usar como si fuera una tabla. Necesita un alias:
+
+<Consulta>
+
+```sql
+SELECT seniority, ROUND(AVG(ofertas_por_empresa), 1) AS promedio
+FROM (
+  SELECT empresa_id, seniority, COUNT(*) AS ofertas_por_empresa
+  FROM ofertas
+  GROUP BY empresa_id, seniority
+) AS conteo
+GROUP BY seniority
+ORDER BY seniority;
+```
+
+</Consulta>
+
+## CTE: WITH
+
+Lo mismo, con nombre y arriba. Se lee de arriba hacia abajo, como pasos:
+
+<Consulta>
+
+```sql
+WITH por_empresa AS (
+  SELECT empresa_id,
+         COUNT(*) AS ofertas,
+         MAX(salario_max) AS mejor
+  FROM ofertas
+  WHERE modalidad = 'remoto'
+  GROUP BY empresa_id
+)
+SELECT e.nombre, pe.ofertas, pe.mejor
+FROM por_empresa pe
+JOIN empresas e ON e.id = pe.empresa_id
+WHERE pe.mejor >= 3500
+ORDER BY pe.mejor DESC;
+```
+
+</Consulta>
+
+Se pueden definir varias, separadas por coma, y cada una puede usar las anteriores:
+
+<Consulta>
+
+```sql
+WITH remotas AS (
+  SELECT * FROM ofertas WHERE modalidad = 'remoto'
+),
+promedio AS (
+  SELECT AVG(salario_max) AS valor FROM remotas
+)
+SELECT r.titulo, r.salario_max, ROUND(p.valor) AS promedio_remotas
+FROM remotas r
+CROSS JOIN promedio p
+WHERE r.salario_max > p.valor
+ORDER BY r.salario_max DESC;
+```
+
+</Consulta>
+
+<Tip title="Cuándo usar CTE">
+Siempre que una consulta tenga "pasos" (primero calculo esto, después lo uso para aquello). Es la forma más legible de escribir SQL complejo, y en una entrevista de live coding ayuda a explicar lo que vas haciendo. MySQL las tiene desde la versión 8.0.
+</Tip>
+
+## CTE recursiva
+
+Una CTE `RECURSIVE` se referencia a sí misma: arranca con una fila y va agregando filas hasta que la condición corta. Sirve para recorrer jerarquías (categorías, comentarios con respuestas, organigramas) o para **generar series**:
+
+<Consulta>
+
+```sql
+WITH RECURSIVE semanas AS (
+  SELECT DATE('2026-08-31') AS desde
+  UNION ALL
+  SELECT desde + INTERVAL 7 DAY
+  FROM semanas
+  WHERE desde < '2026-10-19'
+)
+SELECT s.desde, COUNT(p.id) AS postulaciones
+FROM semanas s
+LEFT JOIN postulaciones p
+       ON p.fecha >= s.desde AND p.fecha < s.desde + INTERVAL 7 DAY
+GROUP BY s.desde
+ORDER BY s.desde;
+```
+
+</Consulta>
+
+Las semanas sin postulaciones aparecen con 0 gracias al `LEFT JOIN` contra la serie. Sin la serie, esas semanas no estarían en el resultado: es un truco muy usado para reportes y gráficos.
+
+<Entrevista>
+"¿Subconsulta, JOIN o CTE?" → "Para traer columnas de otra tabla, JOIN. Para filtrar por existencia, EXISTS o NOT EXISTS (cuidado con NOT IN y los NULL). Para consultas con varios pasos, CTE, que es una subconsulta con nombre y se lee mejor. El optimizador de MySQL 8 muchas veces reescribe una forma en otra, así que primero escribo lo más claro y después miro el EXPLAIN si es lento."
+</Entrevista>

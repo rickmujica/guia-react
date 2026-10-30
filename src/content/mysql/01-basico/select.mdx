@@ -1,0 +1,123 @@
+`SELECT` es el 90% del SQL que vas a escribir. La estructura completa tiene este orden, y cada parte es opcional salvo `SELECT`:
+
+```sql
+SELECT    columnas
+FROM      tabla
+WHERE     condición sobre cada fila
+GROUP BY  columnas para agrupar
+HAVING    condición sobre cada grupo
+ORDER BY  orden
+LIMIT     cuántas filas
+```
+
+En este capítulo: `SELECT`, `WHERE`, `ORDER BY` y `LIMIT`. Agrupar viene [más adelante](#/agrupar).
+
+## Elegir columnas
+
+<Consulta>
+
+```sql
+SELECT titulo, salario_min, salario_max,
+       salario_max - salario_min AS rango
+FROM ofertas
+WHERE empresa_id = 1;
+```
+
+</Consulta>
+
+- `SELECT *` trae todas las columnas. Está bien para explorar, pero en el código de una app pedí solo las que usás.
+- `AS` le pone un **alias** a una columna (o a una expresión). El `AS` es opcional, pero se lee mejor.
+
+## Filtrar con WHERE
+
+<Consulta>
+
+```sql
+SELECT titulo, seniority, modalidad, salario_max
+FROM ofertas
+WHERE modalidad = 'remoto'
+  AND seniority = 'senior'
+  AND salario_max >= 4000;
+```
+
+</Consulta>
+
+| Operador | Ejemplo |
+| --- | --- |
+| `=`, `<>` (o `!=`), `<`, `>`, `<=`, `>=` | `salario_max >= 4000` |
+| `AND`, `OR`, `NOT` | `modalidad = 'remoto' AND NOT seniority = 'junior'` |
+| `BETWEEN a AND b` | `publicada BETWEEN '2026-10-01' AND '2026-10-31'` (incluye los extremos) |
+| `IN (...)` | `pais IN ('AR', 'PY', 'UY')` |
+| `LIKE` | `titulo LIKE '%React%'` (`%` = cualquier texto, `_` = un carácter) |
+| `IS NULL`, `IS NOT NULL` | `salario_max IS NULL` |
+
+<Consulta>
+
+```sql
+SELECT nombre, pais
+FROM empresas
+WHERE pais IN ('AR', 'PY', 'UY')
+  AND nombre LIKE '%a%'
+ORDER BY pais, nombre;
+```
+
+</Consulta>
+
+<Ojo title="AND va antes que OR">
+`WHERE pais = 'AR' OR pais = 'PY' AND empleados > 50` se lee como `pais = 'AR' OR (pais = 'PY' AND empleados > 50)`. Cuando mezcles, usá paréntesis siempre.
+</Ojo>
+
+## Ordenar y limitar
+
+<Consulta>
+
+```sql
+SELECT titulo, salario_max
+FROM ofertas
+WHERE salario_max IS NOT NULL
+ORDER BY salario_max DESC, titulo
+LIMIT 5;
+```
+
+</Consulta>
+
+- `ORDER BY` ordena por una o más columnas. `ASC` (por defecto) o `DESC`.
+- **Sin `ORDER BY` no hay orden garantizado**: MySQL puede devolver las filas en cualquier orden, y ese orden puede cambiar.
+- `LIMIT n` devuelve las primeras `n`. Con `LIMIT n OFFSET m` saltea `m` filas (paginación).
+
+<Consulta>
+
+```sql
+SELECT id, titulo
+FROM ofertas
+ORDER BY id
+LIMIT 3 OFFSET 6;
+```
+
+</Consulta>
+
+<Tip title="Paginación con OFFSET en tablas grandes">
+`OFFSET 100000` obliga a MySQL a leer y descartar 100.000 filas. Para listas largas (un feed, un scroll infinito) se usa **paginación por cursor**: `WHERE id > :ultimoIdVisto ORDER BY id LIMIT 20`, que con un índice es igual de rápida en cualquier página.
+</Tip>
+
+## Valores distintos
+
+<Consulta>
+
+```sql
+SELECT DISTINCT seniority, modalidad
+FROM ofertas
+ORDER BY seniority, modalidad;
+```
+
+</Consulta>
+
+`DISTINCT` elimina las filas repetidas **considerando todas las columnas elegidas**.
+
+<Ojo title="Los ENUM se ordenan por posición">
+Fijate el orden: `junior`, `semi`, `senior` y `remoto`, `hibrido`, `presencial`. No es alfabético: una columna `ENUM` se ordena por la **posición** de cada valor en la definición de la tabla. Es una particularidad de MySQL (en otras bases, o en el playground del navegador, el orden sería alfabético).
+</Ojo>
+
+<Entrevista>
+"¿En qué orden se ejecuta un SELECT?" → "Aunque se escribe SELECT primero, se evalúa FROM (y los JOIN), después WHERE, GROUP BY, HAVING, SELECT, DISTINCT, ORDER BY y al final LIMIT. Por eso en el WHERE no puedo usar un alias del SELECT, pero en el ORDER BY sí."
+</Entrevista>

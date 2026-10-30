@@ -1,0 +1,258 @@
+Los datos están repartidos en tablas: una oferta guarda `empresa_id`, no el nombre de la empresa. Un **JOIN** junta filas de dos tablas que se corresponden, para leerlas como si fueran una sola.
+
+## INNER JOIN
+
+<Consulta>
+
+```sql
+SELECT o.titulo, e.nombre AS empresa, e.pais
+FROM ofertas o
+JOIN empresas e ON e.id = o.empresa_id
+WHERE o.seniority = 'senior'
+ORDER BY e.nombre, o.titulo;
+```
+
+</Consulta>
+
+- `JOIN` (o `INNER JOIN`, es lo mismo) combina cada oferta con **la empresa cuyo `id` coincide** según la condición del `ON`.
+- `o` y `e` son **alias de tabla**: evitan escribir `ofertas.titulo` y desambiguan columnas con el mismo nombre (las dos tablas tienen `id`).
+- Una fila que **no tiene pareja** en la otra tabla **desaparece** del resultado. Acá no pasa porque toda oferta tiene empresa, pero mirá qué pasa al revés.
+
+## LEFT JOIN: quedarse con todas las filas de la izquierda
+
+¿Cuántas ofertas tiene cada empresa? Con `JOIN`, Quebracho AI (que no publicó ninguna) no aparece:
+
+<Consulta>
+
+```sql
+SELECT e.nombre, COUNT(*) AS ofertas
+FROM empresas e
+JOIN ofertas o ON o.empresa_id = e.id
+GROUP BY e.id, e.nombre
+ORDER BY ofertas DESC, e.nombre;
+```
+
+</Consulta>
+
+Con `LEFT JOIN` se conservan **todas** las filas de la tabla de la izquierda. Si no hay pareja, las columnas de la derecha vienen en `NULL`:
+
+<Consulta>
+
+```sql
+SELECT e.nombre, o.titulo
+FROM empresas e
+LEFT JOIN ofertas o ON o.empresa_id = e.id
+WHERE e.pais = 'PY'
+ORDER BY e.nombre;
+```
+
+</Consulta>
+
+<Ojo title="COUNT(*) vs COUNT(columna) con LEFT JOIN">
+Quebracho AI tiene **una** fila (con `titulo` en `NULL`), así que `COUNT(*)` da 1. Para contar ofertas reales, contá una columna de la derecha: `COUNT(o.id)` ignora los `NULL` y da 0.
+
+<Consulta>
+
+```sql
+SELECT e.nombre,
+       COUNT(*) AS mal,
+       COUNT(o.id) AS bien
+FROM empresas e
+LEFT JOIN ofertas o ON o.empresa_id = e.id
+WHERE e.pais = 'PY'
+GROUP BY e.id, e.nombre
+ORDER BY e.nombre;
+```
+
+</Consulta>
+</Ojo>
+
+## Buscar lo que falta
+
+Un patrón clásico de entrevista: **las filas que no tienen pareja**. `LEFT JOIN` + `WHERE derecha.id IS NULL` (un *anti-join*):
+
+<Consulta>
+
+```sql
+-- Ofertas remotas a las que todavía no te postulaste
+SELECT o.id, o.titulo
+FROM ofertas o
+LEFT JOIN postulaciones p ON p.oferta_id = o.id
+WHERE p.id IS NULL
+  AND o.modalidad = 'remoto'
+ORDER BY o.id;
+```
+
+</Consulta>
+
+<Consulta>
+
+```sql
+-- Tecnologías que ninguna oferta pide
+SELECT t.nombre
+FROM tecnologias t
+LEFT JOIN oferta_tecnologia ot ON ot.tecnologia_id = t.id
+WHERE ot.oferta_id IS NULL;
+```
+
+</Consulta>
+
+Lo mismo se puede escribir con `NOT EXISTS`, que se ve en [subconsultas](#/subconsultas).
+
+## ¿La condición va en el ON o en el WHERE?
+
+Con `INNER JOIN` da igual. Con `LEFT JOIN`, **no**. Queremos todas las empresas de Paraguay y México con su cantidad de ofertas **remotas**, aunque sea 0:
+
+<AntesAhora antes="En el WHERE: se pierden empresas" ahora="En el ON: se conservan todas">
+
+<Consulta>
+
+```sql
+SELECT e.nombre, COUNT(o.id) AS remotas
+FROM empresas e
+LEFT JOIN ofertas o ON o.empresa_id = e.id
+WHERE e.pais IN ('PY', 'MX')
+  AND o.modalidad = 'remoto'
+GROUP BY e.id, e.nombre
+ORDER BY remotas DESC, e.nombre;
+```
+
+</Consulta>
+
+<Consulta>
+
+```sql
+SELECT e.nombre, COUNT(o.id) AS remotas
+FROM empresas e
+LEFT JOIN ofertas o ON o.empresa_id = e.id
+                   AND o.modalidad = 'remoto'
+WHERE e.pais IN ('PY', 'MX')
+GROUP BY e.id, e.nombre
+ORDER BY remotas DESC, e.nombre;
+```
+
+</Consulta>
+
+</AntesAhora>
+
+En el `WHERE`, la condición se evalúa **después** del join: las dos ofertas de Cumbre Data son híbrida y presencial, así que se descartan; para Quebracho AI `o.modalidad` es `NULL`, y la fila también se descarta. El `LEFT JOIN` terminó funcionando como un `INNER JOIN`. En el `ON`, la condición decide **qué filas de la derecha se emparejan**: si ninguna cumple, la empresa queda igual, con `NULL` a la derecha y 0 en el conteo.
+
+**Regla:** en un `LEFT JOIN`, las condiciones sobre la tabla de la derecha van en el `ON`; las de la izquierda, en el `WHERE`.
+
+## Muchos a muchos
+
+Una oferta pide varias tecnologías y una tecnología aparece en varias ofertas. Eso se modela con una **tabla intermedia** (`oferta_tecnologia`), y para leerla hacen falta dos joins:
+
+<Consulta>
+
+```sql
+SELECT o.titulo, t.nombre AS tecnologia
+FROM ofertas o
+JOIN oferta_tecnologia ot ON ot.oferta_id = o.id
+JOIN tecnologias t ON t.id = ot.tecnologia_id
+WHERE o.empresa_id = 1
+ORDER BY o.titulo, t.nombre;
+```
+
+</Consulta>
+
+Con `GROUP_CONCAT`, una fila por oferta:
+
+<Consulta>
+
+```sql
+SELECT o.titulo,
+       GROUP_CONCAT(t.nombre ORDER BY t.nombre SEPARATOR ', ') AS stack
+FROM ofertas o
+JOIN oferta_tecnologia ot ON ot.oferta_id = o.id
+JOIN tecnologias t ON t.id = ot.tecnologia_id
+WHERE o.seniority = 'senior'
+GROUP BY o.id, o.titulo
+ORDER BY o.id;
+```
+
+</Consulta>
+
+Otra pregunta típica: **las ofertas que piden React _y_ TypeScript**. Un `WHERE t.nombre = 'React' AND t.nombre = 'TypeScript'` no devuelve nada (una fila no puede tener dos nombres). Se filtran las filas con cualquiera de las dos y se pide que el grupo tenga las dos:
+
+<Consulta>
+
+```sql
+SELECT o.id, o.titulo
+FROM ofertas o
+JOIN oferta_tecnologia ot ON ot.oferta_id = o.id
+JOIN tecnologias t ON t.id = ot.tecnologia_id
+WHERE t.nombre IN ('React', 'TypeScript')
+GROUP BY o.id, o.titulo
+HAVING COUNT(*) = 2
+ORDER BY o.id;
+```
+
+</Consulta>
+
+## Varios joins seguidos
+
+Se encadenan tantos como hagan falta. Tus postulaciones, con la oferta, la empresa y cuántas entrevistas tuviste:
+
+<Consulta>
+
+```sql
+SELECT e.nombre AS empresa,
+       o.titulo,
+       p.estado,
+       COUNT(en.id) AS entrevistas
+FROM postulaciones p
+JOIN ofertas o ON o.id = p.oferta_id
+JOIN empresas e ON e.id = o.empresa_id
+LEFT JOIN entrevistas en ON en.postulacion_id = p.id
+GROUP BY p.id, e.nombre, o.titulo, p.estado
+ORDER BY entrevistas DESC, empresa;
+```
+
+</Consulta>
+
+Fijate en el `LEFT JOIN entrevistas`: con `JOIN`, las postulaciones sin entrevistas no aparecerían.
+
+## Otros joins
+
+**Self join.** Una tabla unida consigo misma, con dos alias. Pares de ofertas de la misma empresa:
+
+<Consulta>
+
+```sql
+SELECT a.titulo AS oferta, b.titulo AS otra_de_la_misma_empresa
+FROM ofertas a
+JOIN ofertas b ON b.empresa_id = a.empresa_id
+              AND b.id > a.id
+ORDER BY a.id, b.id;
+```
+
+</Consulta>
+
+El `b.id > a.id` evita emparejar una oferta consigo misma y que cada par aparezca dos veces. El ejemplo clásico de self join es una tabla `empleados` con `jefe_id` que apunta a la misma tabla.
+
+**RIGHT JOIN** es un `LEFT JOIN` con las tablas al revés. Casi nadie lo usa: se da vuelta el orden y se escribe `LEFT JOIN`.
+
+**CROSS JOIN** combina todas las filas con todas (10 empresas × 10 tecnologías = 100 filas). Sirve para generar combinaciones, rara vez más.
+
+**FULL OUTER JOIN** (todas las filas de los dos lados) **no existe en MySQL**. Se emula con un `UNION` de un `LEFT JOIN` y un `RIGHT JOIN`.
+
+## UNION: apilar resultados
+
+`UNION` pone el resultado de una consulta **debajo** del de otra. Tienen que tener la misma cantidad de columnas:
+
+<Consulta>
+
+```sql
+SELECT 'empresa' AS tipo, nombre FROM empresas WHERE pais = 'UY'
+UNION ALL
+SELECT 'tecnologia', nombre FROM tecnologias WHERE nombre LIKE 'R%';
+```
+
+</Consulta>
+
+`UNION` elimina filas duplicadas (y para eso tiene que ordenarlas o compararlas); `UNION ALL` las deja. Si sabés que no hay duplicados o no te importan, `UNION ALL` es más rápido.
+
+<Entrevista>
+"¿Qué diferencia hay entre INNER JOIN y LEFT JOIN?" → "INNER JOIN devuelve solo las filas que tienen pareja en las dos tablas. LEFT JOIN devuelve todas las de la izquierda y, si no hay pareja, completa las columnas de la derecha con NULL. Con eso se buscan filas sin relación: LEFT JOIN y WHERE derecha.id IS NULL. Y en un LEFT JOIN, filtrar la tabla de la derecha en el WHERE lo convierte en un INNER JOIN: esa condición va en el ON."
+</Entrevista>

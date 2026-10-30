@@ -1,0 +1,141 @@
+En el `SELECT` y en el `WHERE` podés usar funciones para transformar valores, y `CASE` para escribir condiciones. Y hay que entender bien `NULL`, que es la fuente de bugs más común en SQL.
+
+## Texto
+
+<Consulta>
+
+```sql
+SELECT nombre,
+       UPPER(nombre) AS mayusculas,
+       LENGTH(nombre) AS bytes,
+       CHAR_LENGTH(nombre) AS letras,
+       CONCAT(nombre, ' (', pais, ')') AS etiqueta,
+       SUBSTRING(nombre, 1, 4) AS inicio
+FROM empresas
+WHERE pais = 'PY';
+```
+
+</Consulta>
+
+Fijate en Tereré Tech: `LENGTH` cuenta **bytes** (la `é` ocupa 2 en UTF-8) y `CHAR_LENGTH` cuenta **caracteres**. Otras útiles: `LOWER`, `TRIM`, `REPLACE(texto, 'a', 'b')`, `LEFT`/`RIGHT`, `LPAD`, `CONCAT_WS(', ', a, b)` (concatena con separador e ignora los `NULL`).
+
+## Números
+
+<Consulta>
+
+```sql
+SELECT titulo,
+       (salario_min + salario_max) / 2 AS promedio,
+       ROUND((salario_min + salario_max) / 2 / 1000, 1) AS miles,
+       salario_max * 12 AS anual,
+       MOD(salario_max, 1000) AS resto
+FROM ofertas
+WHERE empresa_id IN (1, 6);
+```
+
+</Consulta>
+
+La división `/` en MySQL siempre da decimal (`3500.0000`). Para división entera, `DIV`. También: `ROUND`, `CEIL`, `FLOOR`, `ABS`, `GREATEST(a, b, ...)`, `LEAST(...)`.
+
+## Fechas
+
+<Consulta>
+
+```sql
+SELECT titulo, publicada,
+       YEAR(publicada) AS anio,
+       MONTHNAME(publicada) AS mes,
+       DATE_FORMAT(publicada, '%d/%m/%Y') AS fecha_ar,
+       DATEDIFF('2026-10-30', publicada) AS dias_publicada,
+       DATE_ADD(publicada, INTERVAL 30 DAY) AS vence
+FROM ofertas
+WHERE empresa_id = 2;
+```
+
+</Consulta>
+
+| Función | Qué hace |
+| --- | --- |
+| `NOW()`, `CURDATE()` | Fecha y hora actual, fecha actual |
+| `DATE(datetime)` | Se queda con la fecha |
+| `YEAR()`, `MONTH()`, `DAY()`, `DAYOFWEEK()` | Partes de una fecha |
+| `DATE_ADD(f, INTERVAL n DAY)`, `DATE_SUB(...)` | Sumar o restar (`DAY`, `WEEK`, `MONTH`, `HOUR`…) |
+| `DATEDIFF(a, b)` | Días entre dos fechas |
+| `TIMESTAMPDIFF(MONTH, a, b)` | Diferencia en la unidad que digas |
+| `DATE_FORMAT(f, '%d/%m/%Y')` | Formatear |
+
+<Tip title="Filtrar por fechas">
+Para "las de octubre", preferí un rango: `publicada >= '2026-10-01' AND publicada < '2026-11-01'`. Con `MONTH(publicada) = 10` el resultado es el mismo, pero MySQL no puede usar un índice sobre `publicada` porque tiene que calcular la función fila por fila (lo vemos en [índices](#/indices)).
+</Tip>
+
+## CASE: un if dentro de la consulta
+
+<Consulta>
+
+```sql
+SELECT titulo, salario_max,
+       CASE
+         WHEN salario_max IS NULL THEN 'sin publicar'
+         WHEN salario_max >= 4000 THEN 'alto'
+         WHEN salario_max >= 2500 THEN 'medio'
+         ELSE 'bajo'
+       END AS rango
+FROM ofertas
+ORDER BY salario_max DESC;
+```
+
+</Consulta>
+
+`CASE` evalúa las condiciones en orden y devuelve la primera que se cumple. Sirve en el `SELECT`, en el `ORDER BY` y adentro de funciones de agregación (lo vemos en el capítulo siguiente). Para casos de dos opciones, MySQL tiene `IF(condición, si, no)`.
+
+## NULL: "no sé"
+
+`NULL` no es cero ni texto vacío: significa **valor desconocido** o ausente. Y cualquier comparación con algo desconocido da… desconocido.
+
+<Consulta>
+
+```sql
+SELECT NULL = NULL AS igual,
+       NULL <> 1 AS distinto,
+       NULL + 100 AS suma,
+       NULL IS NULL AS es_null,
+       COALESCE(NULL, NULL, 'primero no nulo') AS coalesce_;
+```
+
+</Consulta>
+
+Eso tiene una consecuencia que sorprende a todos:
+
+<Consulta>
+
+```sql
+SELECT COUNT(*) AS total,
+       SUM(salario_max > 3000) AS mas_de_3000,
+       SUM(salario_max <= 3000) AS hasta_3000,
+       SUM(salario_max IS NULL) AS sin_salario
+FROM ofertas;
+```
+
+</Consulta>
+
+Las dos ofertas sin salario **no están en ninguno de los dos grupos**: `NULL > 3000` no es verdadero ni falso. Un `WHERE salario_max <= 3000` tampoco las trae. (Este truco de `SUM(condición)` funciona porque en MySQL una condición vale 1 o 0.)
+
+| Para… | Usá | No |
+| --- | --- | --- |
+| Preguntar si es nulo | `col IS NULL` / `IS NOT NULL` | `col = NULL` (siempre da `NULL`) |
+| Reemplazar un nulo | `COALESCE(col, 'valor')` o `IFNULL(col, 'valor')` | |
+| Comparar contando nulos como iguales | `a <=> b` (operador de MySQL) | `a = b` |
+
+<Consulta>
+
+```sql
+SELECT titulo, COALESCE(salario_max, 0) AS salario, IFNULL(CAST(salario_max AS CHAR), 'a convenir') AS texto
+FROM ofertas
+WHERE empresa_id IN (3, 8);
+```
+
+</Consulta>
+
+<Entrevista>
+"¿Por qué WHERE col = NULL no trae nada?" → "Porque NULL significa desconocido y cualquier comparación con NULL da NULL, no verdadero. Hay que usar IS NULL o IS NOT NULL. Por lo mismo, un NOT IN con una subconsulta que tiene un NULL no devuelve filas."
+</Entrevista>

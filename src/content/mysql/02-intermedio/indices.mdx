@@ -1,0 +1,165 @@
+Con 15 filas todo es instantáneo. Con 5 millones, la misma consulta puede tardar segundos o milisegundos según haya o no un **índice**. Es el tema de performance que más preguntan en entrevistas de backend.
+
+## Qué es un índice
+
+Sin índice, para encontrar las ofertas publicadas después de cierta fecha, MySQL tiene que **leer todas las filas** y quedarse con las que cumplen (un *full table scan*). Un índice es una estructura aparte (un **árbol B+**) que guarda los valores de una columna **ordenados**, cada uno con la ubicación de su fila. Como el índice de un libro: en lugar de leer el libro entero, buscás la palabra en orden alfabético y vas a la página.
+
+- Buscar un valor en un árbol con un millón de valores toma unos pocos saltos, no un millón de lecturas.
+- Como está ordenado, también sirve para **rangos** (`>`, `BETWEEN`, `LIKE 'abc%'`) y para **ordenar** sin un paso extra.
+
+<Nota title="La clave primaria es especial">
+En InnoDB (el motor por defecto de MySQL), la tabla misma está guardada **ordenada por la clave primaria** (un *clustered index*). Los demás índices guardan el valor indexado más la clave primaria, y con ella van a buscar la fila. Por eso una PK chica (un `INT` o `BIGINT` autoincremental) hace más livianos a todos los índices.
+</Nota>
+
+## EXPLAIN: cómo piensa ejecutar MySQL
+
+`EXPLAIN` antes de un `SELECT` no lo ejecuta: muestra el **plan**.
+
+<Consulta>
+
+```sql
+EXPLAIN SELECT titulo FROM ofertas WHERE publicada >= '2026-10-20';
+```
+
+</Consulta>
+
+Las columnas que importan:
+
+| Columna | Qué dice |
+| --- | --- |
+| `type` | Cómo accede a la tabla. De peor a mejor: `ALL` (lee todo), `index` (lee todo el índice), `range` (un rango del índice), `ref` (busca un valor), `eq_ref` (una fila por join), `const` (una fila por PK o UNIQUE) |
+| `key` | El índice que eligió (`NULL`: ninguno) |
+| `rows` | Cuántas filas estima que va a leer |
+| `Extra` | Detalles: `Using where` (filtra después de leer), `Using index` (no necesita ir a la tabla), `Using filesort` (ordena aparte), `Using temporary` (tabla temporal) |
+
+Acá: `type: ALL` y `key: NULL`. Lee las 15 filas para devolver 3.
+
+## Crear un índice
+
+<Consulta>
+
+```sql
+CREATE INDEX idx_ofertas_publicada ON ofertas (publicada);
+
+EXPLAIN SELECT titulo FROM ofertas WHERE publicada >= '2026-10-20';
+```
+
+</Consulta>
+
+Ahora `type: range`, `key: idx_ofertas_publicada` y `rows: 3`: va directo al rango del índice. Con una tabla grande, esa es la diferencia entre segundos y milisegundos.
+
+Para ver los índices de una tabla: `SHOW INDEX FROM ofertas`, o más resumido:
+
+<Consulta>
+
+```sql
+SELECT index_name, column_name, seq_in_index, non_unique
+FROM information_schema.statistics
+WHERE table_schema = DATABASE()
+  AND table_name = 'ofertas'
+ORDER BY index_name, seq_in_index;
+```
+
+</Consulta>
+
+Hay dos que no creaste: `PRIMARY` (la clave primaria siempre tiene índice) y `empresa_id`, que InnoDB crea solo para la **clave foránea**. Las restricciones `UNIQUE` también crean un índice.
+
+## Índices compuestos: el orden importa
+
+Un índice puede tener varias columnas. Se ordena por la primera, y para valores iguales de la primera, por la segunda (como una guía telefónica: apellido y después nombre).
+
+<Consulta>
+
+```sql
+CREATE INDEX idx_modalidad_salario ON ofertas (modalidad, salario_max);
+
+EXPLAIN SELECT titulo FROM ofertas
+WHERE modalidad = 'remoto' AND salario_max > 4000;
+
+EXPLAIN SELECT titulo FROM ofertas
+WHERE salario_max > 4000;
+```
+
+</Consulta>
+
+La primera usa el índice. La segunda **no**: sin saber la modalidad, los salarios están desparramados por todo el índice, igual que en la guía telefónica no podés buscar a todos los que se llaman "Juan" sin leerla entera. Es la **regla del prefijo izquierdo**: un índice `(a, b, c)` sirve para filtrar por `a`, por `a, b` o por `a, b, c`, no por `b` ni por `c` solos.
+
+<Tip title="Cómo ordenar las columnas">
+Primero las que se comparan por **igualdad** (`=`, `IN`), después la del **rango** o la del **ORDER BY**. Un índice `(empresa_id, publicada)` resuelve `WHERE empresa_id = 8 ORDER BY publicada DESC` sin ordenar nada: lee el pedazo de la empresa 8, que ya está ordenado por fecha.
+</Tip>
+
+## Cómo se rompe un índice
+
+El índice guarda los valores de la columna **tal cual**. Si la consulta aplica una función sobre la columna, MySQL ya no puede buscar en el árbol:
+
+<AntesAhora antes="Función sobre la columna: ALL" ahora="Rango sobre la columna: range">
+
+<Consulta>
+
+```sql
+CREATE INDEX idx_ofertas_publicada ON ofertas (publicada);
+
+EXPLAIN SELECT titulo FROM ofertas
+WHERE YEAR(publicada) = 2026 AND MONTH(publicada) = 10;
+```
+
+</Consulta>
+
+<Consulta>
+
+```sql
+CREATE INDEX idx_ofertas_publicada ON ofertas (publicada);
+
+EXPLAIN SELECT titulo FROM ofertas
+WHERE publicada >= '2026-10-01' AND publicada < '2026-11-01';
+```
+
+</Consulta>
+
+</AntesAhora>
+
+Lo mismo pasa con:
+
+- `LIKE '%React%'`: un comodín al **principio** obliga a revisar todo. `LIKE 'React%'` sí usa el índice (es un rango). Para buscar palabras dentro de textos existe el índice `FULLTEXT`.
+- Operaciones: `WHERE salario_max * 12 > 50000` no usa el índice; `WHERE salario_max > 50000 / 12` sí.
+- Comparar un texto con un número (`WHERE titulo = 15`): MySQL convierte cada fila a número y no puede buscar.
+
+## Índice que cubre la consulta
+
+Si todas las columnas que pide la consulta están **en el índice**, MySQL no necesita ir a la tabla: responde leyendo solo el índice. `EXPLAIN` lo muestra como `Using index`.
+
+<Consulta>
+
+```sql
+CREATE INDEX idx_modalidad_salario ON ofertas (modalidad, salario_max);
+
+EXPLAIN SELECT modalidad, salario_max FROM ofertas
+WHERE modalidad = 'remoto';
+```
+
+</Consulta>
+
+## Los índices no son gratis
+
+- Cada `INSERT`, `UPDATE` y `DELETE` tiene que actualizar **todos** los índices de la tabla. Muchos índices hacen más lentas las escrituras.
+- Ocupan espacio (en disco y en la memoria del servidor).
+- Una columna con pocos valores distintos (como `modalidad`, con 3) sola es un mal índice: cada valor coincide con un tercio de la tabla y leerla entera puede ser igual de rápido. Combinada con otra en un índice compuesto, sí puede servir.
+- El optimizador decide. Con tablas chicas puede ignorar un índice porque leer todo es más barato.
+
+## Qué indexar
+
+1. Las columnas de las **claves foráneas** (InnoDB ya lo hace) y las que usás en los `JOIN`.
+2. Las columnas de los `WHERE` más frecuentes, y de los `ORDER BY` de listas paginadas.
+3. Lo que muestre el **slow query log** (MySQL puede registrar las consultas que tardan más de N segundos). No indexes "por las dudas": medí.
+
+`EXPLAIN ANALYZE` (MySQL 8.0.18+) **ejecuta** la consulta y muestra el plan con los tiempos y las filas reales de cada paso:
+
+```sql
+EXPLAIN ANALYZE SELECT titulo FROM ofertas WHERE publicada >= '2026-10-20';
+-- -> Index range scan on ofertas using idx_ofertas_publicada over ('2026-10-20' <= publicada)
+--    (cost=1.61 rows=3) (actual time=0.018..0.02 rows=3 loops=1)
+```
+
+<Entrevista>
+"Una consulta está lenta, ¿qué hacés?" → "Primero la reproduzco y miro el EXPLAIN (o EXPLAIN ANALYZE): si hay un type ALL sobre una tabla grande, rows muy alto, Using filesort o Using temporary. Después veo si falta un índice para el WHERE, el JOIN o el ORDER BY, o si la consulta rompe uno que existe (una función sobre la columna, un LIKE con % adelante). Si hace falta, creo un índice compuesto con las columnas de igualdad primero y la de rango o de orden al final, y vuelvo a medir. También reviso si trae columnas o filas de más: SELECT *, sin LIMIT, o un N+1 desde la aplicación."
+</Entrevista>

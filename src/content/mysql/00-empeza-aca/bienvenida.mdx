@@ -1,0 +1,77 @@
+Esta guía va de cero a un nivel intermedio de **MySQL**: crear tablas, cargar y consultar datos, unir tablas, agrupar, y después subconsultas, funciones de ventana, índices, transacciones y diseño. Es lo que te van a preguntar en una entrevista para un puesto fullstack y lo que vas a usar desde un backend en Node.
+
+## Una base de datos relacional en un párrafo
+
+Los datos viven en **tablas** (como hojas de cálculo con columnas de tipo fijo). Cada fila tiene un identificador único (la **clave primaria**) y las tablas se **relacionan** guardando el id de otra fila (una **clave foránea**). Con **SQL** describís *qué* datos querés, y el motor decide *cómo* buscarlos.
+
+## La base de ejemplo
+
+Toda la guía usa la misma base: una **búsqueda laboral**. Empresas que publican ofertas, las tecnologías que pide cada oferta, tus postulaciones y las entrevistas de cada una.
+
+```text
+empresas 1 ──── N ofertas N ──── N tecnologias        (a través de oferta_tecnologia)
+                    │
+                    1
+                    │
+                    1 postulaciones 1 ──── N entrevistas
+```
+
+<Source path="src/demos/mysql/schema.sql" />
+
+Los datos están en `src/demos/mysql/datos.sql`: 10 empresas, 15 ofertas, 10 tecnologías, 8 postulaciones y 9 entrevistas. Pocos, a propósito: así podés verificar a mano cada resultado.
+
+## Los resultados son de MySQL de verdad
+
+Cada consulta de la guía muestra abajo **lo que devolvió MySQL** al ejecutarla. No están escritos a mano: el script `npm run sql` corre todas las consultas contra un MySQL real (cada una sobre una base recién cargada) y guarda los resultados. Las consultas que **tienen** que fallar, para mostrar un error, también se comprueban: si un día dejaran de fallar, el script avisa.
+
+<Consulta>
+
+```sql
+SELECT nombre, pais, empleados
+FROM empresas
+ORDER BY empleados DESC
+LIMIT 3;
+```
+
+</Consulta>
+
+## Probar en el navegador
+
+MySQL no corre en un navegador, pero **SQLite** sí. Cuando una consulta da exactamente el mismo resultado en SQLite que en MySQL, aparece el botón **▶ Probar en el navegador**: abre un editor con la consulta, la podés cambiar y ejecutar. Cada ejecución arranca con los datos originales, así que no rompés nada.
+
+Las consultas que usan algo propio de MySQL (como `ENUM`, ciertas funciones de fecha o `EXPLAIN`) no tienen el botón: para esas, usá tu MySQL local.
+
+Este es un playground libre para lo que quieras probar:
+
+<Playground inicial={`SELECT o.titulo, e.nombre AS empresa, o.salario_max
+FROM ofertas o
+JOIN empresas e ON e.id = o.empresa_id
+WHERE o.modalidad = 'remoto'
+ORDER BY o.salario_max DESC;`} />
+
+## Instalar MySQL en la Mac
+
+```bash
+brew install mysql
+brew services start mysql      # lo deja corriendo (y arranca solo al prender la Mac)
+mysql -u root                  # entra a la consola, sin contraseña la primera vez
+```
+
+Para cargar la base de ejemplo, desde la carpeta del proyecto:
+
+```bash
+mysql -u root -e "CREATE DATABASE guia"
+mysql -u root guia < src/demos/mysql/schema.sql
+mysql -u root guia < src/demos/mysql/datos.sql
+mysql -u root guia             # y a consultar
+```
+
+Y para regenerar los resultados de la guía: `npm run sql` (con `MYSQL_USER` y `MYSQL_PASSWORD` si no usás root sin contraseña).
+
+<Tip title="Un cliente visual">
+La consola alcanza, pero un cliente gráfico ayuda a explorar: **MySQL Workbench** (el oficial), **DBeaver** (gratis, sirve para cualquier base) o **TablePlus**. En VS Code también hay extensiones para conectarte y ejecutar SQL.
+</Tip>
+
+<Nota title="Versiones">
+Escrita en octubre de 2026. Los resultados se generaron con MySQL 8.0; todo lo de la guía funciona igual en MySQL 8.4 LTS (la versión que instala `brew` hoy).
+</Nota>

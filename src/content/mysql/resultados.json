@@ -1,0 +1,3256 @@
+{
+ "version": "8.0.46-0ubuntu0.24.04.4",
+ "consultas": {
+  "SELECT e.nombre, COUNT(*) AS remotas\nFROM empresas e\nJOIN ofertas o ON o.empresa_id = e.id\nWHERE o.modalidad = 'remoto'\nGROUP BY e.id, e.nombre\nORDER BY remotas DESC, e.nombre\nLIMIT 3;": {
+   "salidas": [
+    {
+     "tipo": "filas",
+     "columnas": [
+      "nombre",
+      "remotas"
+     ],
+     "filas": [
+      [
+       "Delta Pay",
+       2
+      ],
+      [
+       "Nubelia",
+       2
+      ],
+      [
+       "Remoto.dev",
+       2
+      ]
+     ]
+    }
+   ],
+   "playground": true
+  },
+  "SELECT t.nombre,\n       COUNT(o.id) AS ofertas,\n       MAX(o.salario_max) AS mejor_salario\nFROM tecnologias t\nLEFT JOIN oferta_tecnologia ot ON ot.tecnologia_id = t.id\nLEFT JOIN ofertas o ON o.id = ot.oferta_id\nGROUP BY t.id, t.nombre\nORDER BY ofertas DESC, t.nombre;": {
+   "salidas": [
+    {
+     "tipo": "filas",
+     "columnas": [
+      "nombre",
+      "ofertas",
+      "mejor_salario"
+     ],
+     "filas": [
+      [
+       "React",
+       11,
+       6000
+      ],
+      [
+       "TypeScript",
+       8,
+       6000
+      ],
+      [
+       "Next.js",
+       4,
+       6000
+      ],
+      [
+       "Node.js",
+       4,
+       3500
+      ],
+      [
+       "AWS",
+       3,
+       5500
+      ],
+      [
+       "Redux",
+       3,
+       4000
+      ],
+      [
+       "MySQL",
+       2,
+       3000
+      ],
+      [
+       "PostgreSQL",
+       2,
+       4200
+      ],
+      [
+       "Python",
+       1,
+       4200
+      ],
+      [
+       "Vue",
+       0,
+       null
+      ]
+     ]
+    }
+   ],
+   "playground": true
+  },
+  "WITH ordenadas AS (\n  SELECT o.*, ROW_NUMBER() OVER (PARTITION BY empresa_id ORDER BY publicada DESC) AS n\n  FROM ofertas o\n)\nSELECT e.nombre, ord.titulo, ord.publicada\nFROM ordenadas ord\nJOIN empresas e ON e.id = ord.empresa_id\nWHERE ord.n = 1\nORDER BY ord.publicada DESC;": {
+   "salidas": [
+    {
+     "tipo": "filas",
+     "columnas": [
+      "nombre",
+      "titulo",
+      "publicada"
+     ],
+     "filas": [
+      [
+       "Remoto.dev",
+       "Junior Frontend",
+       "2026-10-25"
+      ],
+      [
+       "Delta Pay",
+       "Backend Node.js",
+       "2026-10-22"
+      ],
+      [
+       "Yerba Labs",
+       "Frontend React + TypeScript",
+       "2026-10-18"
+      ],
+      [
+       "Mate Cloud",
+       "Tech Lead Frontend",
+       "2026-10-12"
+      ],
+      [
+       "Pagos Sur",
+       "React Native Developer",
+       "2026-10-05"
+      ],
+      [
+       "Tereré Tech",
+       "Fullstack Next.js",
+       "2026-10-03"
+      ],
+      [
+       "Cumbre Data",
+       "Frontend Senior",
+       "2026-09-25"
+      ],
+      [
+       "Nubelia",
+       "Fullstack Node",
+       "2026-09-20"
+      ],
+      [
+       "Andes Labs",
+       "Desarrollador React",
+       "2026-09-15"
+      ]
+     ]
+    }
+   ],
+   "playground": true
+  },
+  "SELECT e.nombre\nFROM empresas e\nWHERE NOT EXISTS (\n  SELECT 1\n  FROM ofertas o\n  JOIN postulaciones p ON p.oferta_id = o.id\n  WHERE o.empresa_id = e.id\n)\nORDER BY e.nombre;": {
+   "salidas": [
+    {
+     "tipo": "filas",
+     "columnas": [
+      "nombre"
+     ],
+     "filas": [
+      [
+       "Cumbre Data"
+      ],
+      [
+       "Quebracho AI"
+      ]
+     ]
+    }
+   ],
+   "playground": true
+  },
+  "SELECT COUNT(*) AS postulaciones,\n       SUM(estado IN ('entrevista', 'oferta')) AS avanzaron,\n       ROUND(100 * SUM(estado IN ('entrevista', 'oferta')) / COUNT(*), 1) AS porcentaje\nFROM postulaciones;": {
+   "salidas": [
+    {
+     "tipo": "filas",
+     "columnas": [
+      "postulaciones",
+      "avanzaron",
+      "porcentaje"
+     ],
+     "filas": [
+      [
+       8,
+       "4",
+       "50.0"
+      ]
+     ]
+    }
+   ],
+   "playground": true
+  },
+  "SELECT pais,\n       COUNT(*) AS empresas,\n       GROUP_CONCAT(nombre ORDER BY nombre SEPARATOR ', ') AS nombres\nFROM empresas\nGROUP BY pais\nHAVING COUNT(*) > 1\nORDER BY empresas DESC, pais;": {
+   "salidas": [
+    {
+     "tipo": "filas",
+     "columnas": [
+      "pais",
+      "empresas",
+      "nombres"
+     ],
+     "filas": [
+      [
+       "PY",
+       3,
+       "Quebracho AI, Tereré Tech, Yerba Labs"
+      ],
+      [
+       "AR",
+       2,
+       "Mate Cloud, Nubelia"
+      ]
+     ]
+    }
+   ],
+   "playground": false
+  },
+  "SELECT titulo FROM ofertas WHERE titulo = '' OR '1'='1';": {
+   "salidas": [
+    {
+     "tipo": "filas",
+     "columnas": [
+      "titulo"
+     ],
+     "filas": [
+      [
+       "Frontend React Senior"
+      ],
+      [
+       "Fullstack Node"
+      ],
+      [
+       "Frontend Engineer"
+      ],
+      [
+       "React Native Developer"
+      ],
+      [
+       "Desarrollador React"
+      ],
+      [
+       "Frontend Junior"
+      ],
+      [
+       "Tech Lead Frontend"
+      ],
+      [
+       "Fullstack Next.js"
+      ],
+      [
+       "Frontend React + TypeScript"
+      ],
+      [
+       "Data Engineer"
+      ],
+      [
+       "Frontend Senior"
+      ],
+      [
+       "Senior Frontend Engineer"
+      ],
+      [
+       "Backend Node.js"
+      ],
+      [
+       "React Developer (LatAm)"
+      ],
+      [
+       "Junior Frontend"
+      ]
+     ]
+    }
+   ],
+   "playground": true
+  },
+  "SELECT titulo FROM ofertas WHERE titulo = '' UNION SELECT CONCAT(nombre, ' · ', pais) FROM empresas -- ';": {
+   "salidas": [
+    {
+     "tipo": "filas",
+     "columnas": [
+      "titulo"
+     ],
+     "filas": [
+      [
+       "Nubelia · AR"
+      ],
+      [
+       "Pagos Sur · UY"
+      ],
+      [
+       "Andes Labs · CL"
+      ],
+      [
+       "Mate Cloud · AR"
+      ],
+      [
+       "Tereré Tech · PY"
+      ],
+      [
+       "Yerba Labs · PY"
+      ],
+      [
+       "Cumbre Data · MX"
+      ],
+      [
+       "Delta Pay · BR"
+      ],
+      [
+       "Remoto.dev · US"
+      ],
+      [
+       "Quebracho AI · PY"
+      ]
+     ]
+    }
+   ],
+   "playground": true
+  },
+  "-- Ya hay una postulación para la oferta 1\nINSERT INTO postulaciones (oferta_id, fecha) VALUES (1, '2026-10-29');": {
+   "salidas": [
+    {
+     "tipo": "error",
+     "mensaje": "ERROR 1062 (23000): Duplicate entry '1' for key 'postulaciones.oferta_id'"
+    }
+   ],
+   "playground": false
+  },
+  "-- La oferta 1 tiene una postulación: RESTRICT no deja borrarla\nDELETE FROM ofertas WHERE id = 1;": {
+   "salidas": [
+    {
+     "tipo": "error",
+     "mensaje": "ERROR 1451 (23000): Cannot delete or update a parent row: a foreign key constraint fails (`guia_sql`.`postulaciones`, CONSTRAINT `postulaciones_ibfk_1` FOREIGN KEY (`oferta_id`) REFERENCES `ofertas` (`id`))"
+    }
+   ],
+   "playground": false
+  },
+  "-- La oferta 2 no tiene postulación: se borra, y sus tecnologías en cascada\nSELECT COUNT(*) AS tecnologias_de_la_2 FROM oferta_tecnologia WHERE oferta_id = 2;\nDELETE FROM ofertas WHERE id = 2;\nSELECT COUNT(*) AS tecnologias_de_la_2 FROM oferta_tecnologia WHERE oferta_id = 2;": {
+   "salidas": [
+    {
+     "tipo": "filas",
+     "columnas": [
+      "tecnologias_de_la_2"
+     ],
+     "filas": [
+      [
+       3
+      ]
+     ]
+    },
+    {
+     "tipo": "ok",
+     "afectadas": 1
+    },
+    {
+     "tipo": "filas",
+     "columnas": [
+      "tecnologias_de_la_2"
+     ],
+     "filas": [
+      [
+       0
+      ]
+     ]
+    }
+   ],
+   "playground": true
+  },
+  "SELECT CAST(0.1 AS DOUBLE) + CAST(0.2 AS DOUBLE) AS con_double,\n       CAST(0.1 AS DECIMAL(10, 2)) + CAST(0.2 AS DECIMAL(10, 2)) AS con_decimal;": {
+   "salidas": [
+    {
+     "tipo": "filas",
+     "columnas": [
+      "con_double",
+      "con_decimal"
+     ],
+     "filas": [
+      [
+       0.30000000000000004,
+       "0.30"
+      ]
+     ]
+    }
+   ],
+   "playground": false
+  },
+  "SELECT titulo,\n       seniority,\n       salario_max,\n       ROUND(AVG(salario_max) OVER (PARTITION BY seniority)) AS promedio_seniority,\n       MAX(salario_max) OVER () AS maximo_total\nFROM ofertas\nWHERE salario_max IS NOT NULL\nORDER BY seniority, salario_max DESC;": {
+   "salidas": [
+    {
+     "tipo": "filas",
+     "columnas": [
+      "titulo",
+      "seniority",
+      "salario_max",
+      "promedio_seniority",
+      "maximo_total"
+     ],
+     "filas": [
+      [
+       "Junior Frontend",
+       "junior",
+       2000,
+       "1800",
+       6000
+      ],
+      [
+       "Frontend Junior",
+       "junior",
+       1600,
+       "1800",
+       6000
+      ],
+      [
+       "React Developer (LatAm)",
+       "semi",
+       3500,
+       "3125",
+       6000
+      ],
+      [
+       "React Native Developer",
+       "semi",
+       3200,
+       "3125",
+       6000
+      ],
+      [
+       "Fullstack Node",
+       "semi",
+       3000,
+       "3125",
+       6000
+      ],
+      [
+       "Fullstack Next.js",
+       "semi",
+       2800,
+       "3125",
+       6000
+      ],
+      [
+       "Senior Frontend Engineer",
+       "senior",
+       6000,
+       "4414",
+       6000
+      ],
+      [
+       "Tech Lead Frontend",
+       "senior",
+       5500,
+       "4414",
+       6000
+      ],
+      [
+       "Frontend Engineer",
+       "senior",
+       4500,
+       "4414",
+       6000
+      ],
+      [
+       "Data Engineer",
+       "senior",
+       4200,
+       "4414",
+       6000
+      ],
+      [
+       "Frontend React Senior",
+       "senior",
+       4000,
+       "4414",
+       6000
+      ],
+      [
+       "Frontend Senior",
+       "senior",
+       3400,
+       "4414",
+       6000
+      ],
+      [
+       "Frontend React + TypeScript",
+       "senior",
+       3300,
+       "4414",
+       6000
+      ]
+     ]
+    }
+   ],
+   "playground": true
+  },
+  "SELECT titulo,\n       salario_min,\n       ROW_NUMBER() OVER (ORDER BY salario_min DESC) AS row_num,\n       RANK()       OVER (ORDER BY salario_min DESC) AS rnk,\n       DENSE_RANK() OVER (ORDER BY salario_min DESC) AS dense\nFROM ofertas\nWHERE salario_min >= 2500\nORDER BY salario_min DESC, row_num;": {
+   "salidas": [
+    {
+     "tipo": "filas",
+     "columnas": [
+      "titulo",
+      "salario_min",
+      "row_num",
+      "rnk",
+      "dense"
+     ],
+     "filas": [
+      [
+       "Tech Lead Frontend",
+       4500,
+       1,
+       1,
+       1
+      ],
+      [
+       "Senior Frontend Engineer",
+       4000,
+       2,
+       2,
+       2
+      ],
+      [
+       "Frontend Engineer",
+       3500,
+       3,
+       3,
+       3
+      ],
+      [
+       "Frontend React Senior",
+       3000,
+       4,
+       4,
+       4
+      ],
+      [
+       "Data Engineer",
+       3000,
+       5,
+       4,
+       4
+      ],
+      [
+       "Frontend React + TypeScript",
+       2800,
+       6,
+       6,
+       5
+      ],
+      [
+       "Frontend Senior",
+       2600,
+       7,
+       7,
+       6
+      ],
+      [
+       "React Native Developer",
+       2500,
+       8,
+       8,
+       7
+      ],
+      [
+       "React Developer (LatAm)",
+       2500,
+       9,
+       8,
+       7
+      ]
+     ]
+    }
+   ],
+   "playground": true
+  },
+  "SELECT titulo, seniority, salario_max\nFROM ofertas\nWHERE ROW_NUMBER() OVER (PARTITION BY seniority ORDER BY salario_max DESC) = 1;": {
+   "salidas": [
+    {
+     "tipo": "error",
+     "mensaje": "ERROR 3593 (HY000): You cannot use the window function 'row_number' in this context.'"
+    }
+   ],
+   "playground": false
+  },
+  "WITH ranking AS (\n  SELECT titulo,\n         seniority,\n         salario_max,\n         ROW_NUMBER() OVER (PARTITION BY seniority ORDER BY salario_max DESC) AS puesto\n  FROM ofertas\n  WHERE salario_max IS NOT NULL\n)\nSELECT seniority, titulo, salario_max\nFROM ranking\nWHERE puesto = 1\nORDER BY salario_max DESC;": {
+   "salidas": [
+    {
+     "tipo": "filas",
+     "columnas": [
+      "seniority",
+      "titulo",
+      "salario_max"
+     ],
+     "filas": [
+      [
+       "senior",
+       "Senior Frontend Engineer",
+       6000
+      ],
+      [
+       "semi",
+       "React Developer (LatAm)",
+       3500
+      ],
+      [
+       "junior",
+       "Junior Frontend",
+       2000
+      ]
+     ]
+    }
+   ],
+   "playground": true
+  },
+  "SELECT fecha,\n       estado,\n       COUNT(*) OVER (ORDER BY fecha) AS postulaciones_hasta_hoy\nFROM postulaciones\nORDER BY fecha;": {
+   "salidas": [
+    {
+     "tipo": "filas",
+     "columnas": [
+      "fecha",
+      "estado",
+      "postulaciones_hasta_hoy"
+     ],
+     "filas": [
+      [
+       "2026-09-05",
+       "entrevista",
+       1
+      ],
+      [
+       "2026-09-16",
+       "rechazado",
+       2
+      ],
+      [
+       "2026-10-02",
+       "oferta",
+       3
+      ],
+      [
+       "2026-10-04",
+       "entrevista",
+       4
+      ],
+      [
+       "2026-10-10",
+       "rechazado",
+       5
+      ],
+      [
+       "2026-10-13",
+       "postulado",
+       6
+      ],
+      [
+       "2026-10-19",
+       "entrevista",
+       7
+      ],
+      [
+       "2026-10-21",
+       "postulado",
+       8
+      ]
+     ]
+    }
+   ],
+   "playground": true
+  },
+  "SELECT postulacion_id,\n       tipo,\n       DATE(fecha) AS dia,\n       DATEDIFF(fecha, LAG(fecha) OVER (PARTITION BY postulacion_id ORDER BY fecha)) AS dias_desde_la_anterior,\n       LEAD(tipo) OVER (PARTITION BY postulacion_id ORDER BY fecha) AS siguiente\nFROM entrevistas\nORDER BY postulacion_id, fecha;": {
+   "salidas": [
+    {
+     "tipo": "filas",
+     "columnas": [
+      "postulacion_id",
+      "tipo",
+      "dia",
+      "dias_desde_la_anterior",
+      "siguiente"
+     ],
+     "filas": [
+      [
+       1,
+       "rrhh",
+       "2026-09-10",
+       null,
+       "tecnica"
+      ],
+      [
+       1,
+       "tecnica",
+       "2026-09-17",
+       7,
+       "live coding"
+      ],
+      [
+       1,
+       "live coding",
+       "2026-09-24",
+       7,
+       null
+      ],
+      [
+       2,
+       "rrhh",
+       "2026-10-06",
+       null,
+       "tecnica"
+      ],
+      [
+       2,
+       "tecnica",
+       "2026-10-09",
+       3,
+       "final"
+      ],
+      [
+       2,
+       "final",
+       "2026-10-14",
+       5,
+       null
+      ],
+      [
+       5,
+       "rrhh",
+       "2026-10-23",
+       null,
+       null
+      ],
+      [
+       8,
+       "rrhh",
+       "2026-10-07",
+       null,
+       "tecnica"
+      ],
+      [
+       8,
+       "tecnica",
+       "2026-10-15",
+       8,
+       null
+      ]
+     ]
+    }
+   ],
+   "playground": false
+  },
+  "SELECT titulo,\n       salario_max,\n       RANK() OVER w AS puesto,\n       salario_max - LAG(salario_max) OVER w AS diferencia\nFROM ofertas\nWHERE seniority = 'senior'\nWINDOW w AS (ORDER BY salario_max DESC)\nORDER BY puesto;": {
+   "salidas": [
+    {
+     "tipo": "filas",
+     "columnas": [
+      "titulo",
+      "salario_max",
+      "puesto",
+      "diferencia"
+     ],
+     "filas": [
+      [
+       "Senior Frontend Engineer",
+       6000,
+       1,
+       null
+      ],
+      [
+       "Tech Lead Frontend",
+       5500,
+       2,
+       -500
+      ],
+      [
+       "Frontend Engineer",
+       4500,
+       3,
+       -1000
+      ],
+      [
+       "Data Engineer",
+       4200,
+       4,
+       -300
+      ],
+      [
+       "Frontend React Senior",
+       4000,
+       5,
+       -200
+      ],
+      [
+       "Frontend Senior",
+       3400,
+       6,
+       -600
+      ],
+      [
+       "Frontend React + TypeScript",
+       3300,
+       7,
+       -100
+      ]
+     ]
+    }
+   ],
+   "playground": true
+  },
+  "EXPLAIN SELECT titulo FROM ofertas WHERE publicada >= '2026-10-20';": {
+   "salidas": [
+    {
+     "tipo": "filas",
+     "columnas": [
+      "id",
+      "select_type",
+      "table",
+      "partitions",
+      "type",
+      "possible_keys",
+      "key",
+      "key_len",
+      "ref",
+      "rows",
+      "filtered",
+      "Extra"
+     ],
+     "filas": [
+      [
+       1,
+       "SIMPLE",
+       "ofertas",
+       null,
+       "ALL",
+       null,
+       null,
+       null,
+       null,
+       15,
+       33.33,
+       "Using where"
+      ]
+     ]
+    }
+   ],
+   "playground": false
+  },
+  "CREATE INDEX idx_ofertas_publicada ON ofertas (publicada);\n\nEXPLAIN SELECT titulo FROM ofertas WHERE publicada >= '2026-10-20';": {
+   "salidas": [
+    {
+     "tipo": "ok",
+     "afectadas": 0,
+     "info": "Records: 0  Duplicates: 0  Warnings: 0"
+    },
+    {
+     "tipo": "filas",
+     "columnas": [
+      "id",
+      "select_type",
+      "table",
+      "partitions",
+      "type",
+      "possible_keys",
+      "key",
+      "key_len",
+      "ref",
+      "rows",
+      "filtered",
+      "Extra"
+     ],
+     "filas": [
+      [
+       1,
+       "SIMPLE",
+       "ofertas",
+       null,
+       "range",
+       "idx_ofertas_publicada",
+       "idx_ofertas_publicada",
+       "3",
+       null,
+       3,
+       100,
+       "Using index condition"
+      ]
+     ]
+    }
+   ],
+   "playground": false
+  },
+  "SELECT index_name, column_name, seq_in_index, non_unique\nFROM information_schema.statistics\nWHERE table_schema = DATABASE()\n  AND table_name = 'ofertas'\nORDER BY index_name, seq_in_index;": {
+   "salidas": [
+    {
+     "tipo": "filas",
+     "columnas": [
+      "INDEX_NAME",
+      "COLUMN_NAME",
+      "SEQ_IN_INDEX",
+      "NON_UNIQUE"
+     ],
+     "filas": [
+      [
+       "empresa_id",
+       "empresa_id",
+       1,
+       1
+      ],
+      [
+       "PRIMARY",
+       "id",
+       1,
+       0
+      ]
+     ]
+    }
+   ],
+   "playground": false
+  },
+  "CREATE INDEX idx_modalidad_salario ON ofertas (modalidad, salario_max);\n\nEXPLAIN SELECT titulo FROM ofertas\nWHERE modalidad = 'remoto' AND salario_max > 4000;\n\nEXPLAIN SELECT titulo FROM ofertas\nWHERE salario_max > 4000;": {
+   "salidas": [
+    {
+     "tipo": "ok",
+     "afectadas": 0,
+     "info": "Records: 0  Duplicates: 0  Warnings: 0"
+    },
+    {
+     "tipo": "filas",
+     "columnas": [
+      "id",
+      "select_type",
+      "table",
+      "partitions",
+      "type",
+      "possible_keys",
+      "key",
+      "key_len",
+      "ref",
+      "rows",
+      "filtered",
+      "Extra"
+     ],
+     "filas": [
+      [
+       1,
+       "SIMPLE",
+       "ofertas",
+       null,
+       "range",
+       "idx_modalidad_salario",
+       "idx_modalidad_salario",
+       "6",
+       null,
+       3,
+       100,
+       "Using index condition"
+      ]
+     ]
+    },
+    {
+     "tipo": "filas",
+     "columnas": [
+      "id",
+      "select_type",
+      "table",
+      "partitions",
+      "type",
+      "possible_keys",
+      "key",
+      "key_len",
+      "ref",
+      "rows",
+      "filtered",
+      "Extra"
+     ],
+     "filas": [
+      [
+       1,
+       "SIMPLE",
+       "ofertas",
+       null,
+       "ALL",
+       null,
+       null,
+       null,
+       null,
+       15,
+       33.33,
+       "Using where"
+      ]
+     ]
+    }
+   ],
+   "playground": false
+  },
+  "CREATE INDEX idx_ofertas_publicada ON ofertas (publicada);\n\nEXPLAIN SELECT titulo FROM ofertas\nWHERE YEAR(publicada) = 2026 AND MONTH(publicada) = 10;": {
+   "salidas": [
+    {
+     "tipo": "ok",
+     "afectadas": 0,
+     "info": "Records: 0  Duplicates: 0  Warnings: 0"
+    },
+    {
+     "tipo": "filas",
+     "columnas": [
+      "id",
+      "select_type",
+      "table",
+      "partitions",
+      "type",
+      "possible_keys",
+      "key",
+      "key_len",
+      "ref",
+      "rows",
+      "filtered",
+      "Extra"
+     ],
+     "filas": [
+      [
+       1,
+       "SIMPLE",
+       "ofertas",
+       null,
+       "ALL",
+       null,
+       null,
+       null,
+       null,
+       15,
+       100,
+       "Using where"
+      ]
+     ]
+    }
+   ],
+   "playground": false
+  },
+  "CREATE INDEX idx_ofertas_publicada ON ofertas (publicada);\n\nEXPLAIN SELECT titulo FROM ofertas\nWHERE publicada >= '2026-10-01' AND publicada < '2026-11-01';": {
+   "salidas": [
+    {
+     "tipo": "ok",
+     "afectadas": 0,
+     "info": "Records: 0  Duplicates: 0  Warnings: 0"
+    },
+    {
+     "tipo": "filas",
+     "columnas": [
+      "id",
+      "select_type",
+      "table",
+      "partitions",
+      "type",
+      "possible_keys",
+      "key",
+      "key_len",
+      "ref",
+      "rows",
+      "filtered",
+      "Extra"
+     ],
+     "filas": [
+      [
+       1,
+       "SIMPLE",
+       "ofertas",
+       null,
+       "range",
+       "idx_ofertas_publicada",
+       "idx_ofertas_publicada",
+       "3",
+       null,
+       9,
+       100,
+       "Using index condition"
+      ]
+     ]
+    }
+   ],
+   "playground": false
+  },
+  "CREATE INDEX idx_modalidad_salario ON ofertas (modalidad, salario_max);\n\nEXPLAIN SELECT modalidad, salario_max FROM ofertas\nWHERE modalidad = 'remoto';": {
+   "salidas": [
+    {
+     "tipo": "ok",
+     "afectadas": 0,
+     "info": "Records: 0  Duplicates: 0  Warnings: 0"
+    },
+    {
+     "tipo": "filas",
+     "columnas": [
+      "id",
+      "select_type",
+      "table",
+      "partitions",
+      "type",
+      "possible_keys",
+      "key",
+      "key_len",
+      "ref",
+      "rows",
+      "filtered",
+      "Extra"
+     ],
+     "filas": [
+      [
+       1,
+       "SIMPLE",
+       "ofertas",
+       null,
+       "ref",
+       "idx_modalidad_salario",
+       "idx_modalidad_salario",
+       "1",
+       "const",
+       11,
+       100,
+       "Using where; Using index"
+      ]
+     ]
+    }
+   ],
+   "playground": false
+  },
+  "SELECT titulo, salario_max\nFROM ofertas\nWHERE salario_max > (SELECT AVG(salario_max) FROM ofertas)\nORDER BY salario_max DESC;": {
+   "salidas": [
+    {
+     "tipo": "filas",
+     "columnas": [
+      "titulo",
+      "salario_max"
+     ],
+     "filas": [
+      [
+       "Senior Frontend Engineer",
+       6000
+      ],
+      [
+       "Tech Lead Frontend",
+       5500
+      ],
+      [
+       "Frontend Engineer",
+       4500
+      ],
+      [
+       "Data Engineer",
+       4200
+      ],
+      [
+       "Frontend React Senior",
+       4000
+      ]
+     ]
+    }
+   ],
+   "playground": true
+  },
+  "SELECT titulo\nFROM ofertas\nWHERE empresa_id = (SELECT id FROM empresas WHERE pais = 'PY');": {
+   "salidas": [
+    {
+     "tipo": "error",
+     "mensaje": "ERROR 1242 (21000): Subquery returns more than 1 row"
+    }
+   ],
+   "playground": false
+  },
+  "SELECT titulo, empresa_id\nFROM ofertas\nWHERE empresa_id IN (SELECT id FROM empresas WHERE pais = 'PY')\nORDER BY id;": {
+   "salidas": [
+    {
+     "tipo": "filas",
+     "columnas": [
+      "titulo",
+      "empresa_id"
+     ],
+     "filas": [
+      [
+       "Fullstack Next.js",
+       5
+      ],
+      [
+       "Frontend React + TypeScript",
+       6
+      ]
+     ]
+    }
+   ],
+   "playground": true
+  },
+  "SELECT COUNT(*) AS empresas_sin_ese_tamanio\nFROM empresas\nWHERE empleados NOT IN (SELECT empleados FROM empresas WHERE pais = 'US');": {
+   "salidas": [
+    {
+     "tipo": "filas",
+     "columnas": [
+      "empresas_sin_ese_tamanio"
+     ],
+     "filas": [
+      [
+       0
+      ]
+     ]
+    }
+   ],
+   "playground": true
+  },
+  "-- Empresas con al menos una oferta remota senior\nSELECT e.nombre\nFROM empresas e\nWHERE EXISTS (\n  SELECT 1\n  FROM ofertas o\n  WHERE o.empresa_id = e.id\n    AND o.modalidad = 'remoto'\n    AND o.seniority = 'senior'\n)\nORDER BY e.nombre;": {
+   "salidas": [
+    {
+     "tipo": "filas",
+     "columnas": [
+      "nombre"
+     ],
+     "filas": [
+      [
+       "Delta Pay"
+      ],
+      [
+       "Mate Cloud"
+      ],
+      [
+       "Nubelia"
+      ],
+      [
+       "Pagos Sur"
+      ],
+      [
+       "Yerba Labs"
+      ]
+     ]
+    }
+   ],
+   "playground": true
+  },
+  "-- Ofertas a las que no te postulaste (igual que el LEFT JOIN ... IS NULL)\nSELECT o.id, o.titulo\nFROM ofertas o\nWHERE NOT EXISTS (SELECT 1 FROM postulaciones p WHERE p.oferta_id = o.id)\nORDER BY o.id;": {
+   "salidas": [
+    {
+     "tipo": "filas",
+     "columnas": [
+      "id",
+      "titulo"
+     ],
+     "filas": [
+      [
+       2,
+       "Fullstack Node"
+      ],
+      [
+       4,
+       "React Native Developer"
+      ],
+      [
+       6,
+       "Frontend Junior"
+      ],
+      [
+       10,
+       "Data Engineer"
+      ],
+      [
+       11,
+       "Frontend Senior"
+      ],
+      [
+       13,
+       "Backend Node.js"
+      ],
+      [
+       15,
+       "Junior Frontend"
+      ]
+     ]
+    }
+   ],
+   "playground": true
+  },
+  "SELECT e.nombre,\n       (SELECT COUNT(*) FROM ofertas o WHERE o.empresa_id = e.id) AS ofertas,\n       (SELECT MAX(o.salario_max) FROM ofertas o WHERE o.empresa_id = e.id) AS mejor_salario\nFROM empresas e\nWHERE e.pais IN ('AR', 'PY')\nORDER BY e.nombre;": {
+   "salidas": [
+    {
+     "tipo": "filas",
+     "columnas": [
+      "nombre",
+      "ofertas",
+      "mejor_salario"
+     ],
+     "filas": [
+      [
+       "Mate Cloud",
+       2,
+       5500
+      ],
+      [
+       "Nubelia",
+       2,
+       4000
+      ],
+      [
+       "Quebracho AI",
+       0,
+       null
+      ],
+      [
+       "Tereré Tech",
+       1,
+       2800
+      ],
+      [
+       "Yerba Labs",
+       1,
+       3300
+      ]
+     ]
+    }
+   ],
+   "playground": true
+  },
+  "SELECT seniority, ROUND(AVG(ofertas_por_empresa), 1) AS promedio\nFROM (\n  SELECT empresa_id, seniority, COUNT(*) AS ofertas_por_empresa\n  FROM ofertas\n  GROUP BY empresa_id, seniority\n) AS conteo\nGROUP BY seniority\nORDER BY seniority;": {
+   "salidas": [
+    {
+     "tipo": "filas",
+     "columnas": [
+      "seniority",
+      "promedio"
+     ],
+     "filas": [
+      [
+       "junior",
+       "1.0"
+      ],
+      [
+       "semi",
+       "1.0"
+      ],
+      [
+       "senior",
+       "1.2"
+      ]
+     ]
+    }
+   ],
+   "playground": true
+  },
+  "WITH por_empresa AS (\n  SELECT empresa_id,\n         COUNT(*) AS ofertas,\n         MAX(salario_max) AS mejor\n  FROM ofertas\n  WHERE modalidad = 'remoto'\n  GROUP BY empresa_id\n)\nSELECT e.nombre, pe.ofertas, pe.mejor\nFROM por_empresa pe\nJOIN empresas e ON e.id = pe.empresa_id\nWHERE pe.mejor >= 3500\nORDER BY pe.mejor DESC;": {
+   "salidas": [
+    {
+     "tipo": "filas",
+     "columnas": [
+      "nombre",
+      "ofertas",
+      "mejor"
+     ],
+     "filas": [
+      [
+       "Delta Pay",
+       2,
+       6000
+      ],
+      [
+       "Mate Cloud",
+       1,
+       5500
+      ],
+      [
+       "Pagos Sur",
+       1,
+       4500
+      ],
+      [
+       "Nubelia",
+       2,
+       4000
+      ],
+      [
+       "Remoto.dev",
+       2,
+       3500
+      ]
+     ]
+    }
+   ],
+   "playground": true
+  },
+  "WITH remotas AS (\n  SELECT * FROM ofertas WHERE modalidad = 'remoto'\n),\npromedio AS (\n  SELECT AVG(salario_max) AS valor FROM remotas\n)\nSELECT r.titulo, r.salario_max, ROUND(p.valor) AS promedio_remotas\nFROM remotas r\nCROSS JOIN promedio p\nWHERE r.salario_max > p.valor\nORDER BY r.salario_max DESC;": {
+   "salidas": [
+    {
+     "tipo": "filas",
+     "columnas": [
+      "titulo",
+      "salario_max",
+      "promedio_remotas"
+     ],
+     "filas": [
+      [
+       "Senior Frontend Engineer",
+       6000,
+       "3844"
+      ],
+      [
+       "Tech Lead Frontend",
+       5500,
+       "3844"
+      ],
+      [
+       "Frontend Engineer",
+       4500,
+       "3844"
+      ],
+      [
+       "Frontend React Senior",
+       4000,
+       "3844"
+      ]
+     ]
+    }
+   ],
+   "playground": true
+  },
+  "WITH RECURSIVE semanas AS (\n  SELECT DATE('2026-08-31') AS desde\n  UNION ALL\n  SELECT desde + INTERVAL 7 DAY\n  FROM semanas\n  WHERE desde < '2026-10-19'\n)\nSELECT s.desde, COUNT(p.id) AS postulaciones\nFROM semanas s\nLEFT JOIN postulaciones p\n       ON p.fecha >= s.desde AND p.fecha < s.desde + INTERVAL 7 DAY\nGROUP BY s.desde\nORDER BY s.desde;": {
+   "salidas": [
+    {
+     "tipo": "filas",
+     "columnas": [
+      "desde",
+      "postulaciones"
+     ],
+     "filas": [
+      [
+       "2026-08-31",
+       1
+      ],
+      [
+       "2026-09-07",
+       0
+      ],
+      [
+       "2026-09-14",
+       1
+      ],
+      [
+       "2026-09-21",
+       0
+      ],
+      [
+       "2026-09-28",
+       2
+      ],
+      [
+       "2026-10-05",
+       1
+      ],
+      [
+       "2026-10-12",
+       1
+      ],
+      [
+       "2026-10-19",
+       2
+      ]
+     ]
+    }
+   ],
+   "playground": false
+  },
+  "START TRANSACTION;\n\nUPDATE postulaciones SET estado = 'oferta' WHERE id = 1;\nUPDATE entrevistas SET resultado = 'paso'\nWHERE postulacion_id = 1 AND resultado = 'pendiente';\n\nCOMMIT;\n\nSELECT p.estado, COUNT(*) AS entrevistas, SUM(en.resultado = 'paso') AS pasadas\nFROM postulaciones p\nJOIN entrevistas en ON en.postulacion_id = p.id\nWHERE p.id = 1\nGROUP BY p.id, p.estado;": {
+   "salidas": [
+    {
+     "tipo": "ok",
+     "afectadas": 0
+    },
+    {
+     "tipo": "ok",
+     "afectadas": 1,
+     "info": "Rows matched: 1  Changed: 1  Warnings: 0"
+    },
+    {
+     "tipo": "ok",
+     "afectadas": 1,
+     "info": "Rows matched: 1  Changed: 1  Warnings: 0"
+    },
+    {
+     "tipo": "ok",
+     "afectadas": 0
+    },
+    {
+     "tipo": "filas",
+     "columnas": [
+      "estado",
+      "entrevistas",
+      "pasadas"
+     ],
+     "filas": [
+      [
+       "oferta",
+       3,
+       "3"
+      ]
+     ]
+    }
+   ],
+   "playground": false
+  },
+  "START TRANSACTION;\n\nDELETE FROM entrevistas WHERE postulacion_id = 1;\nSELECT COUNT(*) AS entrevistas FROM entrevistas;\n\nROLLBACK;\n\nSELECT COUNT(*) AS entrevistas FROM entrevistas;": {
+   "salidas": [
+    {
+     "tipo": "ok",
+     "afectadas": 0
+    },
+    {
+     "tipo": "ok",
+     "afectadas": 3
+    },
+    {
+     "tipo": "filas",
+     "columnas": [
+      "entrevistas"
+     ],
+     "filas": [
+      [
+       6
+      ]
+     ]
+    },
+    {
+     "tipo": "ok",
+     "afectadas": 0
+    },
+    {
+     "tipo": "filas",
+     "columnas": [
+      "entrevistas"
+     ],
+     "filas": [
+      [
+       9
+      ]
+     ]
+    }
+   ],
+   "playground": false
+  },
+  "SELECT @@transaction_isolation;": {
+   "salidas": [
+    {
+     "tipo": "filas",
+     "columnas": [
+      "@@transaction_isolation"
+     ],
+     "filas": [
+      [
+       "REPEATABLE-READ"
+      ]
+     ]
+    }
+   ],
+   "playground": false
+  },
+  "CREATE VIEW ofertas_detalle AS\nSELECT o.id, o.titulo, o.seniority, o.modalidad, o.salario_max,\n       e.nombre AS empresa, e.pais\nFROM ofertas o\nJOIN empresas e ON e.id = o.empresa_id;\n\nSELECT titulo, empresa, salario_max\nFROM ofertas_detalle\nWHERE pais = 'PY' AND modalidad = 'remoto';": {
+   "salidas": [
+    {
+     "tipo": "ok",
+     "afectadas": 0
+    },
+    {
+     "tipo": "filas",
+     "columnas": [
+      "titulo",
+      "empresa",
+      "salario_max"
+     ],
+     "filas": [
+      [
+       "Fullstack Next.js",
+       "Tereré Tech",
+       2800
+      ],
+      [
+       "Frontend React + TypeScript",
+       "Yerba Labs",
+       3300
+      ]
+     ]
+    }
+   ],
+   "playground": true
+  },
+  "CREATE PROCEDURE ofertas_remotas_desde(IN p_minimo INT)\n  SELECT titulo, salario_max\n  FROM ofertas\n  WHERE modalidad = 'remoto' AND salario_max >= p_minimo\n  ORDER BY salario_max DESC;\n\nCALL ofertas_remotas_desde(4000);": {
+   "salidas": [
+    {
+     "tipo": "ok",
+     "afectadas": 0
+    },
+    {
+     "tipo": "filas",
+     "columnas": [
+      "titulo",
+      "salario_max"
+     ],
+     "filas": [
+      [
+       "Senior Frontend Engineer",
+       6000
+      ],
+      [
+       "Tech Lead Frontend",
+       5500
+      ],
+      [
+       "Frontend Engineer",
+       4500
+      ],
+      [
+       "Frontend React Senior",
+       4000
+      ]
+     ]
+    }
+   ],
+   "playground": false
+  },
+  "CREATE TABLE historial_estados (\n  id               INT AUTO_INCREMENT PRIMARY KEY,\n  postulacion_id   INT NOT NULL,\n  estado_anterior  VARCHAR(20) NOT NULL,\n  estado_nuevo     VARCHAR(20) NOT NULL,\n  cambiado_en      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP\n);\n\nCREATE TRIGGER postulaciones_historial\nAFTER UPDATE ON postulaciones\nFOR EACH ROW\n  INSERT INTO historial_estados (postulacion_id, estado_anterior, estado_nuevo)\n  VALUES (OLD.id, OLD.estado, NEW.estado);\n\nUPDATE postulaciones SET estado = 'rechazado' WHERE id = 1;\nUPDATE postulaciones SET estado = 'oferta' WHERE id = 5;\n\nSELECT postulacion_id, estado_anterior, estado_nuevo\nFROM historial_estados\nORDER BY id;": {
+   "salidas": [
+    {
+     "tipo": "ok",
+     "afectadas": 0
+    },
+    {
+     "tipo": "ok",
+     "afectadas": 0
+    },
+    {
+     "tipo": "ok",
+     "afectadas": 1,
+     "info": "Rows matched: 1  Changed: 1  Warnings: 0"
+    },
+    {
+     "tipo": "ok",
+     "afectadas": 1,
+     "info": "Rows matched: 1  Changed: 1  Warnings: 0"
+    },
+    {
+     "tipo": "filas",
+     "columnas": [
+      "postulacion_id",
+      "estado_anterior",
+      "estado_nuevo"
+     ],
+     "filas": [
+      [
+       1,
+       "entrevista",
+       "rechazado"
+      ],
+      [
+       5,
+       "entrevista",
+       "oferta"
+      ]
+     ]
+    }
+   ],
+   "playground": false
+  },
+  "ALTER TABLE ofertas ADD COLUMN extra JSON NULL;\n\nUPDATE ofertas\nSET extra = '{\"beneficios\": [\"prepaga\", \"equipo\"], \"zona_horaria\": \"UTC-3\"}'\nWHERE id = 1;\n\nSELECT titulo,\n       extra->>'$.zona_horaria' AS zona,\n       JSON_LENGTH(extra->'$.beneficios') AS beneficios\nFROM ofertas\nWHERE extra IS NOT NULL;": {
+   "salidas": [
+    {
+     "tipo": "ok",
+     "afectadas": 0,
+     "info": "Records: 0  Duplicates: 0  Warnings: 0"
+    },
+    {
+     "tipo": "ok",
+     "afectadas": 1,
+     "info": "Rows matched: 1  Changed: 1  Warnings: 0"
+    },
+    {
+     "tipo": "filas",
+     "columnas": [
+      "titulo",
+      "zona",
+      "beneficios"
+     ],
+     "filas": [
+      [
+       "Frontend React Senior",
+       "UTC-3",
+       2
+      ]
+     ]
+    }
+   ],
+   "playground": false
+  },
+  "SELECT e.nombre,\n       JSON_ARRAYAGG(JSON_OBJECT('titulo', o.titulo, 'salario', o.salario_max)) AS ofertas\nFROM empresas e\nJOIN ofertas o ON o.empresa_id = e.id\nWHERE e.pais = 'UY'\nGROUP BY e.id, e.nombre;": {
+   "salidas": [
+    {
+     "tipo": "filas",
+     "columnas": [
+      "nombre",
+      "ofertas"
+     ],
+     "filas": [
+      [
+       "Pagos Sur",
+       "[{\"titulo\": \"Frontend Engineer\", \"salario\": 4500}, {\"titulo\": \"React Native Developer\", \"salario\": 3200}]"
+      ]
+     ]
+    }
+   ],
+   "playground": false
+  },
+  "SELECT COUNT(*) AS ofertas,\n       COUNT(salario_max) AS con_salario,\n       MIN(salario_min) AS minimo,\n       MAX(salario_max) AS maximo,\n       AVG(salario_max) AS promedio_max,\n       SUM(salario_max) AS suma\nFROM ofertas;": {
+   "salidas": [
+    {
+     "tipo": "filas",
+     "columnas": [
+      "ofertas",
+      "con_salario",
+      "minimo",
+      "maximo",
+      "promedio_max",
+      "suma"
+     ],
+     "filas": [
+      [
+       15,
+       13,
+       1200,
+       6000,
+       "3615.3846",
+       "47000"
+      ]
+     ]
+    }
+   ],
+   "playground": true
+  },
+  "SELECT seniority,\n       COUNT(*) AS ofertas,\n       ROUND(AVG(salario_max)) AS promedio_max\nFROM ofertas\nGROUP BY seniority\nORDER BY promedio_max DESC;": {
+   "salidas": [
+    {
+     "tipo": "filas",
+     "columnas": [
+      "seniority",
+      "ofertas",
+      "promedio_max"
+     ],
+     "filas": [
+      [
+       "senior",
+       7,
+       "4414"
+      ],
+      [
+       "semi",
+       6,
+       "3125"
+      ],
+      [
+       "junior",
+       2,
+       "1800"
+      ]
+     ]
+    }
+   ],
+   "playground": true
+  },
+  "SELECT seniority, modalidad, COUNT(*) AS ofertas\nFROM ofertas\nGROUP BY seniority, modalidad\nORDER BY seniority, ofertas DESC;": {
+   "salidas": [
+    {
+     "tipo": "filas",
+     "columnas": [
+      "seniority",
+      "modalidad",
+      "ofertas"
+     ],
+     "filas": [
+      [
+       "junior",
+       "presencial",
+       1
+      ],
+      [
+       "junior",
+       "remoto",
+       1
+      ],
+      [
+       "semi",
+       "remoto",
+       5
+      ],
+      [
+       "semi",
+       "hibrido",
+       1
+      ],
+      [
+       "senior",
+       "remoto",
+       5
+      ],
+      [
+       "senior",
+       "hibrido",
+       1
+      ],
+      [
+       "senior",
+       "presencial",
+       1
+      ]
+     ]
+    }
+   ],
+   "playground": true
+  },
+  "SELECT seniority, titulo, COUNT(*)\nFROM ofertas\nGROUP BY seniority;": {
+   "salidas": [
+    {
+     "tipo": "error",
+     "mensaje": "ERROR 1055 (42000): Expression #2 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'guia_sql.ofertas.titulo' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by"
+    }
+   ],
+   "playground": false
+  },
+  "SELECT empresa_id,\n       COUNT(*) AS ofertas,\n       MAX(salario_max) AS mejor\nFROM ofertas\nWHERE modalidad = 'remoto'\nGROUP BY empresa_id\nHAVING COUNT(*) >= 2\nORDER BY mejor DESC;": {
+   "salidas": [
+    {
+     "tipo": "filas",
+     "columnas": [
+      "empresa_id",
+      "ofertas",
+      "mejor"
+     ],
+     "filas": [
+      [
+       8,
+       2,
+       6000
+      ],
+      [
+       1,
+       2,
+       4000
+      ],
+      [
+       9,
+       2,
+       3500
+      ]
+     ]
+    }
+   ],
+   "playground": true
+  },
+  "SELECT estado,\n       COUNT(*) AS postulaciones,\n       MIN(fecha) AS primera,\n       MAX(fecha) AS ultima\nFROM postulaciones\nGROUP BY estado\nORDER BY postulaciones DESC;": {
+   "salidas": [
+    {
+     "tipo": "filas",
+     "columnas": [
+      "estado",
+      "postulaciones",
+      "primera",
+      "ultima"
+     ],
+     "filas": [
+      [
+       "entrevista",
+       3,
+       "2026-09-05",
+       "2026-10-19"
+      ],
+      [
+       "rechazado",
+       2,
+       "2026-09-16",
+       "2026-10-10"
+      ],
+      [
+       "postulado",
+       2,
+       "2026-10-13",
+       "2026-10-21"
+      ],
+      [
+       "oferta",
+       1,
+       "2026-10-02",
+       "2026-10-02"
+      ]
+     ]
+    }
+   ],
+   "playground": true
+  },
+  "SELECT COUNT(*) AS total,\n       SUM(CASE WHEN modalidad = 'remoto' THEN 1 ELSE 0 END) AS remotas,\n       SUM(CASE WHEN modalidad <> 'remoto' THEN 1 ELSE 0 END) AS no_remotas,\n       ROUND(100 * SUM(CASE WHEN modalidad = 'remoto' THEN 1 ELSE 0 END) / COUNT(*)) AS porcentaje_remoto\nFROM ofertas;": {
+   "salidas": [
+    {
+     "tipo": "filas",
+     "columnas": [
+      "total",
+      "remotas",
+      "no_remotas",
+      "porcentaje_remoto"
+     ],
+     "filas": [
+      [
+       15,
+       "11",
+       "4",
+       "73"
+      ]
+     ]
+    }
+   ],
+   "playground": true
+  },
+  "SELECT pais,\n       COUNT(*) AS empresas,\n       GROUP_CONCAT(nombre ORDER BY nombre SEPARATOR ', ') AS nombres\nFROM empresas\nGROUP BY pais\nORDER BY empresas DESC, pais;": {
+   "salidas": [
+    {
+     "tipo": "filas",
+     "columnas": [
+      "pais",
+      "empresas",
+      "nombres"
+     ],
+     "filas": [
+      [
+       "PY",
+       3,
+       "Quebracho AI, Tereré Tech, Yerba Labs"
+      ],
+      [
+       "AR",
+       2,
+       "Mate Cloud, Nubelia"
+      ],
+      [
+       "BR",
+       1,
+       "Delta Pay"
+      ],
+      [
+       "CL",
+       1,
+       "Andes Labs"
+      ],
+      [
+       "MX",
+       1,
+       "Cumbre Data"
+      ],
+      [
+       "US",
+       1,
+       "Remoto.dev"
+      ],
+      [
+       "UY",
+       1,
+       "Pagos Sur"
+      ]
+     ]
+    }
+   ],
+   "playground": false
+  },
+  "SELECT nombre,\n       UPPER(nombre) AS mayusculas,\n       LENGTH(nombre) AS bytes,\n       CHAR_LENGTH(nombre) AS letras,\n       CONCAT(nombre, ' (', pais, ')') AS etiqueta,\n       SUBSTRING(nombre, 1, 4) AS inicio\nFROM empresas\nWHERE pais = 'PY';": {
+   "salidas": [
+    {
+     "tipo": "filas",
+     "columnas": [
+      "nombre",
+      "mayusculas",
+      "bytes",
+      "letras",
+      "etiqueta",
+      "inicio"
+     ],
+     "filas": [
+      [
+       "Tereré Tech",
+       "TERERÉ TECH",
+       12,
+       11,
+       "Tereré Tech (PY)",
+       "Tere"
+      ],
+      [
+       "Yerba Labs",
+       "YERBA LABS",
+       10,
+       10,
+       "Yerba Labs (PY)",
+       "Yerb"
+      ],
+      [
+       "Quebracho AI",
+       "QUEBRACHO AI",
+       12,
+       12,
+       "Quebracho AI (PY)",
+       "Queb"
+      ]
+     ]
+    }
+   ],
+   "playground": false
+  },
+  "SELECT titulo,\n       (salario_min + salario_max) / 2 AS promedio,\n       ROUND((salario_min + salario_max) / 2 / 1000, 1) AS miles,\n       salario_max * 12 AS anual,\n       MOD(salario_max, 1000) AS resto\nFROM ofertas\nWHERE empresa_id IN (1, 6);": {
+   "salidas": [
+    {
+     "tipo": "filas",
+     "columnas": [
+      "titulo",
+      "promedio",
+      "miles",
+      "anual",
+      "resto"
+     ],
+     "filas": [
+      [
+       "Frontend React Senior",
+       "3500.0000",
+       "3.5",
+       48000,
+       0
+      ],
+      [
+       "Fullstack Node",
+       "2600.0000",
+       "2.6",
+       36000,
+       0
+      ],
+      [
+       "Frontend React + TypeScript",
+       "3050.0000",
+       "3.1",
+       39600,
+       300
+      ]
+     ]
+    }
+   ],
+   "playground": false
+  },
+  "SELECT titulo, publicada,\n       YEAR(publicada) AS anio,\n       MONTHNAME(publicada) AS mes,\n       DATE_FORMAT(publicada, '%d/%m/%Y') AS fecha_ar,\n       DATEDIFF('2026-10-30', publicada) AS dias_publicada,\n       DATE_ADD(publicada, INTERVAL 30 DAY) AS vence\nFROM ofertas\nWHERE empresa_id = 2;": {
+   "salidas": [
+    {
+     "tipo": "filas",
+     "columnas": [
+      "titulo",
+      "publicada",
+      "anio",
+      "mes",
+      "fecha_ar",
+      "dias_publicada",
+      "vence"
+     ],
+     "filas": [
+      [
+       "Frontend Engineer",
+       "2026-10-01",
+       2026,
+       "October",
+       "01/10/2026",
+       29,
+       "2026-10-31"
+      ],
+      [
+       "React Native Developer",
+       "2026-10-05",
+       2026,
+       "October",
+       "05/10/2026",
+       25,
+       "2026-11-04"
+      ]
+     ]
+    }
+   ],
+   "playground": false
+  },
+  "SELECT titulo, salario_max,\n       CASE\n         WHEN salario_max IS NULL THEN 'sin publicar'\n         WHEN salario_max >= 4000 THEN 'alto'\n         WHEN salario_max >= 2500 THEN 'medio'\n         ELSE 'bajo'\n       END AS rango\nFROM ofertas\nORDER BY salario_max DESC;": {
+   "salidas": [
+    {
+     "tipo": "filas",
+     "columnas": [
+      "titulo",
+      "salario_max",
+      "rango"
+     ],
+     "filas": [
+      [
+       "Senior Frontend Engineer",
+       6000,
+       "alto"
+      ],
+      [
+       "Tech Lead Frontend",
+       5500,
+       "alto"
+      ],
+      [
+       "Frontend Engineer",
+       4500,
+       "alto"
+      ],
+      [
+       "Data Engineer",
+       4200,
+       "alto"
+      ],
+      [
+       "Frontend React Senior",
+       4000,
+       "alto"
+      ],
+      [
+       "React Developer (LatAm)",
+       3500,
+       "medio"
+      ],
+      [
+       "Frontend Senior",
+       3400,
+       "medio"
+      ],
+      [
+       "Frontend React + TypeScript",
+       3300,
+       "medio"
+      ],
+      [
+       "React Native Developer",
+       3200,
+       "medio"
+      ],
+      [
+       "Fullstack Node",
+       3000,
+       "medio"
+      ],
+      [
+       "Fullstack Next.js",
+       2800,
+       "medio"
+      ],
+      [
+       "Junior Frontend",
+       2000,
+       "bajo"
+      ],
+      [
+       "Frontend Junior",
+       1600,
+       "bajo"
+      ],
+      [
+       "Desarrollador React",
+       null,
+       "sin publicar"
+      ],
+      [
+       "Backend Node.js",
+       null,
+       "sin publicar"
+      ]
+     ]
+    }
+   ],
+   "playground": true
+  },
+  "SELECT NULL = NULL AS igual,\n       NULL <> 1 AS distinto,\n       NULL + 100 AS suma,\n       NULL IS NULL AS es_null,\n       COALESCE(NULL, NULL, 'primero no nulo') AS coalesce_;": {
+   "salidas": [
+    {
+     "tipo": "filas",
+     "columnas": [
+      "igual",
+      "distinto",
+      "suma",
+      "es_null",
+      "coalesce_"
+     ],
+     "filas": [
+      [
+       null,
+       null,
+       null,
+       1,
+       "primero no nulo"
+      ]
+     ]
+    }
+   ],
+   "playground": true
+  },
+  "SELECT COUNT(*) AS total,\n       SUM(salario_max > 3000) AS mas_de_3000,\n       SUM(salario_max <= 3000) AS hasta_3000,\n       SUM(salario_max IS NULL) AS sin_salario\nFROM ofertas;": {
+   "salidas": [
+    {
+     "tipo": "filas",
+     "columnas": [
+      "total",
+      "mas_de_3000",
+      "hasta_3000",
+      "sin_salario"
+     ],
+     "filas": [
+      [
+       15,
+       "9",
+       "4",
+       "2"
+      ]
+     ]
+    }
+   ],
+   "playground": true
+  },
+  "SELECT titulo, COALESCE(salario_max, 0) AS salario, IFNULL(CAST(salario_max AS CHAR), 'a convenir') AS texto\nFROM ofertas\nWHERE empresa_id IN (3, 8);": {
+   "salidas": [
+    {
+     "tipo": "filas",
+     "columnas": [
+      "titulo",
+      "salario",
+      "texto"
+     ],
+     "filas": [
+      [
+       "Desarrollador React",
+       0,
+       "a convenir"
+      ],
+      [
+       "Senior Frontend Engineer",
+       6000,
+       "6000"
+      ],
+      [
+       "Backend Node.js",
+       0,
+       "a convenir"
+      ]
+     ]
+    }
+   ],
+   "playground": true
+  },
+  "INSERT INTO empresas (nombre, pais, empleados)\nVALUES ('Lapacho Soft', 'PY', 40);\n\nINSERT INTO tecnologias (nombre)\nVALUES ('Docker'), ('GraphQL'), ('Tailwind');\n\nSELECT * FROM empresas WHERE pais = 'PY';": {
+   "salidas": [
+    {
+     "tipo": "ok",
+     "afectadas": 1
+    },
+    {
+     "tipo": "ok",
+     "afectadas": 3,
+     "info": "Records: 3  Duplicates: 0  Warnings: 0"
+    },
+    {
+     "tipo": "filas",
+     "columnas": [
+      "id",
+      "nombre",
+      "pais",
+      "empleados"
+     ],
+     "filas": [
+      [
+       5,
+       "Tereré Tech",
+       "PY",
+       25
+      ],
+      [
+       6,
+       "Yerba Labs",
+       "PY",
+       12
+      ],
+      [
+       10,
+       "Quebracho AI",
+       "PY",
+       8
+      ],
+      [
+       11,
+       "Lapacho Soft",
+       "PY",
+       40
+      ]
+     ]
+    }
+   ],
+   "playground": true
+  },
+  "INSERT INTO ofertas (empresa_id, titulo, seniority, publicada)\nVALUES (99, 'Frontend', 'senior', '2026-10-30');": {
+   "salidas": [
+    {
+     "tipo": "error",
+     "mensaje": "ERROR 1452 (23000): Cannot add or update a child row: a foreign key constraint fails (`guia_sql`.`ofertas`, CONSTRAINT `ofertas_ibfk_1` FOREIGN KEY (`empresa_id`) REFERENCES `empresas` (`id`))"
+    }
+   ],
+   "playground": false
+  },
+  "UPDATE postulaciones\nSET estado = 'entrevista', notas = 'Me escribieron por mail'\nWHERE id = 4;\n\nSELECT id, estado, notas FROM postulaciones WHERE id = 4;": {
+   "salidas": [
+    {
+     "tipo": "ok",
+     "afectadas": 1,
+     "info": "Rows matched: 1  Changed: 1  Warnings: 0"
+    },
+    {
+     "tipo": "filas",
+     "columnas": [
+      "id",
+      "estado",
+      "notas"
+     ],
+     "filas": [
+      [
+       4,
+       "entrevista",
+       "Me escribieron por mail"
+      ]
+     ]
+    }
+   ],
+   "playground": true
+  },
+  "UPDATE ofertas\nSET salario_min = salario_min + 200,\n    salario_max = salario_max + 200\nWHERE empresa_id = 6;\n\nSELECT titulo, salario_min, salario_max FROM ofertas WHERE empresa_id = 6;": {
+   "salidas": [
+    {
+     "tipo": "ok",
+     "afectadas": 1,
+     "info": "Rows matched: 1  Changed: 1  Warnings: 0"
+    },
+    {
+     "tipo": "filas",
+     "columnas": [
+      "titulo",
+      "salario_min",
+      "salario_max"
+     ],
+     "filas": [
+      [
+       "Frontend React + TypeScript",
+       3000,
+       3500
+      ]
+     ]
+    }
+   ],
+   "playground": true
+  },
+  "DELETE FROM entrevistas WHERE resultado = 'pendiente';\nSELECT COUNT(*) AS quedan FROM entrevistas;": {
+   "salidas": [
+    {
+     "tipo": "ok",
+     "afectadas": 3
+    },
+    {
+     "tipo": "filas",
+     "columnas": [
+      "quedan"
+     ],
+     "filas": [
+      [
+       6
+      ]
+     ]
+    }
+   ],
+   "playground": true
+  },
+  "DELETE FROM empresas WHERE id = 1;": {
+   "salidas": [
+    {
+     "tipo": "error",
+     "mensaje": "ERROR 1451 (23000): Cannot delete or update a parent row: a foreign key constraint fails (`guia_sql`.`ofertas`, CONSTRAINT `ofertas_ibfk_1` FOREIGN KEY (`empresa_id`) REFERENCES `empresas` (`id`))"
+    }
+   ],
+   "playground": false
+  },
+  "INSERT INTO empresas (nombre, pais, empleados)\nVALUES ('Nubelia', 'AR', 150), ('Lapacho Soft', 'PY', 40) AS nueva\nON DUPLICATE KEY UPDATE empleados = nueva.empleados;\n\nSELECT nombre, empleados FROM empresas WHERE nombre IN ('Nubelia', 'Lapacho Soft');": {
+   "salidas": [
+    {
+     "tipo": "ok",
+     "afectadas": 3,
+     "info": "Records: 2  Duplicates: 1  Warnings: 0"
+    },
+    {
+     "tipo": "filas",
+     "columnas": [
+      "nombre",
+      "empleados"
+     ],
+     "filas": [
+      [
+       "Lapacho Soft",
+       40
+      ],
+      [
+       "Nubelia",
+       150
+      ]
+     ]
+    }
+   ],
+   "playground": false
+  },
+  "SELECT o.titulo, e.nombre AS empresa, e.pais\nFROM ofertas o\nJOIN empresas e ON e.id = o.empresa_id\nWHERE o.seniority = 'senior'\nORDER BY e.nombre, o.titulo;": {
+   "salidas": [
+    {
+     "tipo": "filas",
+     "columnas": [
+      "titulo",
+      "empresa",
+      "pais"
+     ],
+     "filas": [
+      [
+       "Data Engineer",
+       "Cumbre Data",
+       "MX"
+      ],
+      [
+       "Frontend Senior",
+       "Cumbre Data",
+       "MX"
+      ],
+      [
+       "Senior Frontend Engineer",
+       "Delta Pay",
+       "BR"
+      ],
+      [
+       "Tech Lead Frontend",
+       "Mate Cloud",
+       "AR"
+      ],
+      [
+       "Frontend React Senior",
+       "Nubelia",
+       "AR"
+      ],
+      [
+       "Frontend Engineer",
+       "Pagos Sur",
+       "UY"
+      ],
+      [
+       "Frontend React + TypeScript",
+       "Yerba Labs",
+       "PY"
+      ]
+     ]
+    }
+   ],
+   "playground": true
+  },
+  "SELECT e.nombre, COUNT(*) AS ofertas\nFROM empresas e\nJOIN ofertas o ON o.empresa_id = e.id\nGROUP BY e.id, e.nombre\nORDER BY ofertas DESC, e.nombre;": {
+   "salidas": [
+    {
+     "tipo": "filas",
+     "columnas": [
+      "nombre",
+      "ofertas"
+     ],
+     "filas": [
+      [
+       "Cumbre Data",
+       2
+      ],
+      [
+       "Delta Pay",
+       2
+      ],
+      [
+       "Mate Cloud",
+       2
+      ],
+      [
+       "Nubelia",
+       2
+      ],
+      [
+       "Pagos Sur",
+       2
+      ],
+      [
+       "Remoto.dev",
+       2
+      ],
+      [
+       "Andes Labs",
+       1
+      ],
+      [
+       "Tereré Tech",
+       1
+      ],
+      [
+       "Yerba Labs",
+       1
+      ]
+     ]
+    }
+   ],
+   "playground": true
+  },
+  "SELECT e.nombre, o.titulo\nFROM empresas e\nLEFT JOIN ofertas o ON o.empresa_id = e.id\nWHERE e.pais = 'PY'\nORDER BY e.nombre;": {
+   "salidas": [
+    {
+     "tipo": "filas",
+     "columnas": [
+      "nombre",
+      "titulo"
+     ],
+     "filas": [
+      [
+       "Quebracho AI",
+       null
+      ],
+      [
+       "Tereré Tech",
+       "Fullstack Next.js"
+      ],
+      [
+       "Yerba Labs",
+       "Frontend React + TypeScript"
+      ]
+     ]
+    }
+   ],
+   "playground": true
+  },
+  "SELECT e.nombre,\n       COUNT(*) AS mal,\n       COUNT(o.id) AS bien\nFROM empresas e\nLEFT JOIN ofertas o ON o.empresa_id = e.id\nWHERE e.pais = 'PY'\nGROUP BY e.id, e.nombre\nORDER BY e.nombre;": {
+   "salidas": [
+    {
+     "tipo": "filas",
+     "columnas": [
+      "nombre",
+      "mal",
+      "bien"
+     ],
+     "filas": [
+      [
+       "Quebracho AI",
+       1,
+       0
+      ],
+      [
+       "Tereré Tech",
+       1,
+       1
+      ],
+      [
+       "Yerba Labs",
+       1,
+       1
+      ]
+     ]
+    }
+   ],
+   "playground": true
+  },
+  "-- Ofertas remotas a las que todavía no te postulaste\nSELECT o.id, o.titulo\nFROM ofertas o\nLEFT JOIN postulaciones p ON p.oferta_id = o.id\nWHERE p.id IS NULL\n  AND o.modalidad = 'remoto'\nORDER BY o.id;": {
+   "salidas": [
+    {
+     "tipo": "filas",
+     "columnas": [
+      "id",
+      "titulo"
+     ],
+     "filas": [
+      [
+       2,
+       "Fullstack Node"
+      ],
+      [
+       13,
+       "Backend Node.js"
+      ],
+      [
+       15,
+       "Junior Frontend"
+      ]
+     ]
+    }
+   ],
+   "playground": true
+  },
+  "-- Tecnologías que ninguna oferta pide\nSELECT t.nombre\nFROM tecnologias t\nLEFT JOIN oferta_tecnologia ot ON ot.tecnologia_id = t.id\nWHERE ot.oferta_id IS NULL;": {
+   "salidas": [
+    {
+     "tipo": "filas",
+     "columnas": [
+      "nombre"
+     ],
+     "filas": [
+      [
+       "Vue"
+      ]
+     ]
+    }
+   ],
+   "playground": true
+  },
+  "SELECT e.nombre, COUNT(o.id) AS remotas\nFROM empresas e\nLEFT JOIN ofertas o ON o.empresa_id = e.id\nWHERE e.pais IN ('PY', 'MX')\n  AND o.modalidad = 'remoto'\nGROUP BY e.id, e.nombre\nORDER BY remotas DESC, e.nombre;": {
+   "salidas": [
+    {
+     "tipo": "filas",
+     "columnas": [
+      "nombre",
+      "remotas"
+     ],
+     "filas": [
+      [
+       "Tereré Tech",
+       1
+      ],
+      [
+       "Yerba Labs",
+       1
+      ]
+     ]
+    }
+   ],
+   "playground": true
+  },
+  "SELECT e.nombre, COUNT(o.id) AS remotas\nFROM empresas e\nLEFT JOIN ofertas o ON o.empresa_id = e.id\n                   AND o.modalidad = 'remoto'\nWHERE e.pais IN ('PY', 'MX')\nGROUP BY e.id, e.nombre\nORDER BY remotas DESC, e.nombre;": {
+   "salidas": [
+    {
+     "tipo": "filas",
+     "columnas": [
+      "nombre",
+      "remotas"
+     ],
+     "filas": [
+      [
+       "Tereré Tech",
+       1
+      ],
+      [
+       "Yerba Labs",
+       1
+      ],
+      [
+       "Cumbre Data",
+       0
+      ],
+      [
+       "Quebracho AI",
+       0
+      ]
+     ]
+    }
+   ],
+   "playground": true
+  },
+  "SELECT o.titulo, t.nombre AS tecnologia\nFROM ofertas o\nJOIN oferta_tecnologia ot ON ot.oferta_id = o.id\nJOIN tecnologias t ON t.id = ot.tecnologia_id\nWHERE o.empresa_id = 1\nORDER BY o.titulo, t.nombre;": {
+   "salidas": [
+    {
+     "tipo": "filas",
+     "columnas": [
+      "titulo",
+      "tecnologia"
+     ],
+     "filas": [
+      [
+       "Frontend React Senior",
+       "React"
+      ],
+      [
+       "Frontend React Senior",
+       "Redux"
+      ],
+      [
+       "Frontend React Senior",
+       "TypeScript"
+      ],
+      [
+       "Fullstack Node",
+       "MySQL"
+      ],
+      [
+       "Fullstack Node",
+       "Node.js"
+      ],
+      [
+       "Fullstack Node",
+       "TypeScript"
+      ]
+     ]
+    }
+   ],
+   "playground": true
+  },
+  "SELECT o.titulo,\n       GROUP_CONCAT(t.nombre ORDER BY t.nombre SEPARATOR ', ') AS stack\nFROM ofertas o\nJOIN oferta_tecnologia ot ON ot.oferta_id = o.id\nJOIN tecnologias t ON t.id = ot.tecnologia_id\nWHERE o.seniority = 'senior'\nGROUP BY o.id, o.titulo\nORDER BY o.id;": {
+   "salidas": [
+    {
+     "tipo": "filas",
+     "columnas": [
+      "titulo",
+      "stack"
+     ],
+     "filas": [
+      [
+       "Frontend React Senior",
+       "React, Redux, TypeScript"
+      ],
+      [
+       "Frontend Engineer",
+       "Next.js, React, TypeScript"
+      ],
+      [
+       "Tech Lead Frontend",
+       "AWS, Next.js, React, TypeScript"
+      ],
+      [
+       "Frontend React + TypeScript",
+       "React, TypeScript"
+      ],
+      [
+       "Data Engineer",
+       "AWS, PostgreSQL, Python"
+      ],
+      [
+       "Frontend Senior",
+       "React, Redux"
+      ],
+      [
+       "Senior Frontend Engineer",
+       "Next.js, React, TypeScript"
+      ]
+     ]
+    }
+   ],
+   "playground": false
+  },
+  "SELECT o.id, o.titulo\nFROM ofertas o\nJOIN oferta_tecnologia ot ON ot.oferta_id = o.id\nJOIN tecnologias t ON t.id = ot.tecnologia_id\nWHERE t.nombre IN ('React', 'TypeScript')\nGROUP BY o.id, o.titulo\nHAVING COUNT(*) = 2\nORDER BY o.id;": {
+   "salidas": [
+    {
+     "tipo": "filas",
+     "columnas": [
+      "id",
+      "titulo"
+     ],
+     "filas": [
+      [
+       1,
+       "Frontend React Senior"
+      ],
+      [
+       3,
+       "Frontend Engineer"
+      ],
+      [
+       4,
+       "React Native Developer"
+      ],
+      [
+       7,
+       "Tech Lead Frontend"
+      ],
+      [
+       9,
+       "Frontend React + TypeScript"
+      ],
+      [
+       12,
+       "Senior Frontend Engineer"
+      ],
+      [
+       14,
+       "React Developer (LatAm)"
+      ]
+     ]
+    }
+   ],
+   "playground": true
+  },
+  "SELECT e.nombre AS empresa,\n       o.titulo,\n       p.estado,\n       COUNT(en.id) AS entrevistas\nFROM postulaciones p\nJOIN ofertas o ON o.id = p.oferta_id\nJOIN empresas e ON e.id = o.empresa_id\nLEFT JOIN entrevistas en ON en.postulacion_id = p.id\nGROUP BY p.id, e.nombre, o.titulo, p.estado\nORDER BY entrevistas DESC, empresa;": {
+   "salidas": [
+    {
+     "tipo": "filas",
+     "columnas": [
+      "empresa",
+      "titulo",
+      "estado",
+      "entrevistas"
+     ],
+     "filas": [
+      [
+       "Nubelia",
+       "Frontend React Senior",
+       "entrevista",
+       3
+      ],
+      [
+       "Pagos Sur",
+       "Frontend Engineer",
+       "oferta",
+       3
+      ],
+      [
+       "Tereré Tech",
+       "Fullstack Next.js",
+       "entrevista",
+       2
+      ],
+      [
+       "Yerba Labs",
+       "Frontend React + TypeScript",
+       "entrevista",
+       1
+      ],
+      [
+       "Andes Labs",
+       "Desarrollador React",
+       "rechazado",
+       0
+      ],
+      [
+       "Delta Pay",
+       "Senior Frontend Engineer",
+       "postulado",
+       0
+      ],
+      [
+       "Mate Cloud",
+       "Tech Lead Frontend",
+       "postulado",
+       0
+      ],
+      [
+       "Remoto.dev",
+       "React Developer (LatAm)",
+       "rechazado",
+       0
+      ]
+     ]
+    }
+   ],
+   "playground": true
+  },
+  "SELECT a.titulo AS oferta, b.titulo AS otra_de_la_misma_empresa\nFROM ofertas a\nJOIN ofertas b ON b.empresa_id = a.empresa_id\n              AND b.id > a.id\nORDER BY a.id, b.id;": {
+   "salidas": [
+    {
+     "tipo": "filas",
+     "columnas": [
+      "oferta",
+      "otra_de_la_misma_empresa"
+     ],
+     "filas": [
+      [
+       "Frontend React Senior",
+       "Fullstack Node"
+      ],
+      [
+       "Frontend Engineer",
+       "React Native Developer"
+      ],
+      [
+       "Frontend Junior",
+       "Tech Lead Frontend"
+      ],
+      [
+       "Data Engineer",
+       "Frontend Senior"
+      ],
+      [
+       "Senior Frontend Engineer",
+       "Backend Node.js"
+      ],
+      [
+       "React Developer (LatAm)",
+       "Junior Frontend"
+      ]
+     ]
+    }
+   ],
+   "playground": true
+  },
+  "SELECT 'empresa' AS tipo, nombre FROM empresas WHERE pais = 'UY'\nUNION ALL\nSELECT 'tecnologia', nombre FROM tecnologias WHERE nombre LIKE 'R%';": {
+   "salidas": [
+    {
+     "tipo": "filas",
+     "columnas": [
+      "tipo",
+      "nombre"
+     ],
+     "filas": [
+      [
+       "empresa",
+       "Pagos Sur"
+      ],
+      [
+       "tecnologia",
+       "React"
+      ],
+      [
+       "tecnologia",
+       "Redux"
+      ]
+     ]
+    }
+   ],
+   "playground": true
+  },
+  "SELECT titulo, salario_min, salario_max,\n       salario_max - salario_min AS rango\nFROM ofertas\nWHERE empresa_id = 1;": {
+   "salidas": [
+    {
+     "tipo": "filas",
+     "columnas": [
+      "titulo",
+      "salario_min",
+      "salario_max",
+      "rango"
+     ],
+     "filas": [
+      [
+       "Frontend React Senior",
+       3000,
+       4000,
+       1000
+      ],
+      [
+       "Fullstack Node",
+       2200,
+       3000,
+       800
+      ]
+     ]
+    }
+   ],
+   "playground": true
+  },
+  "SELECT titulo, seniority, modalidad, salario_max\nFROM ofertas\nWHERE modalidad = 'remoto'\n  AND seniority = 'senior'\n  AND salario_max >= 4000;": {
+   "salidas": [
+    {
+     "tipo": "filas",
+     "columnas": [
+      "titulo",
+      "seniority",
+      "modalidad",
+      "salario_max"
+     ],
+     "filas": [
+      [
+       "Frontend React Senior",
+       "senior",
+       "remoto",
+       4000
+      ],
+      [
+       "Frontend Engineer",
+       "senior",
+       "remoto",
+       4500
+      ],
+      [
+       "Tech Lead Frontend",
+       "senior",
+       "remoto",
+       5500
+      ],
+      [
+       "Senior Frontend Engineer",
+       "senior",
+       "remoto",
+       6000
+      ]
+     ]
+    }
+   ],
+   "playground": true
+  },
+  "SELECT nombre, pais\nFROM empresas\nWHERE pais IN ('AR', 'PY', 'UY')\n  AND nombre LIKE '%a%'\nORDER BY pais, nombre;": {
+   "salidas": [
+    {
+     "tipo": "filas",
+     "columnas": [
+      "nombre",
+      "pais"
+     ],
+     "filas": [
+      [
+       "Mate Cloud",
+       "AR"
+      ],
+      [
+       "Nubelia",
+       "AR"
+      ],
+      [
+       "Quebracho AI",
+       "PY"
+      ],
+      [
+       "Yerba Labs",
+       "PY"
+      ],
+      [
+       "Pagos Sur",
+       "UY"
+      ]
+     ]
+    }
+   ],
+   "playground": true
+  },
+  "SELECT titulo, salario_max\nFROM ofertas\nWHERE salario_max IS NOT NULL\nORDER BY salario_max DESC, titulo\nLIMIT 5;": {
+   "salidas": [
+    {
+     "tipo": "filas",
+     "columnas": [
+      "titulo",
+      "salario_max"
+     ],
+     "filas": [
+      [
+       "Senior Frontend Engineer",
+       6000
+      ],
+      [
+       "Tech Lead Frontend",
+       5500
+      ],
+      [
+       "Frontend Engineer",
+       4500
+      ],
+      [
+       "Data Engineer",
+       4200
+      ],
+      [
+       "Frontend React Senior",
+       4000
+      ]
+     ]
+    }
+   ],
+   "playground": true
+  },
+  "SELECT id, titulo\nFROM ofertas\nORDER BY id\nLIMIT 3 OFFSET 6;": {
+   "salidas": [
+    {
+     "tipo": "filas",
+     "columnas": [
+      "id",
+      "titulo"
+     ],
+     "filas": [
+      [
+       7,
+       "Tech Lead Frontend"
+      ],
+      [
+       8,
+       "Fullstack Next.js"
+      ],
+      [
+       9,
+       "Frontend React + TypeScript"
+      ]
+     ]
+    }
+   ],
+   "playground": true
+  },
+  "SELECT DISTINCT seniority, modalidad\nFROM ofertas\nORDER BY seniority, modalidad;": {
+   "salidas": [
+    {
+     "tipo": "filas",
+     "columnas": [
+      "seniority",
+      "modalidad"
+     ],
+     "filas": [
+      [
+       "junior",
+       "remoto"
+      ],
+      [
+       "junior",
+       "presencial"
+      ],
+      [
+       "semi",
+       "remoto"
+      ],
+      [
+       "semi",
+       "hibrido"
+      ],
+      [
+       "senior",
+       "remoto"
+      ],
+      [
+       "senior",
+       "hibrido"
+      ],
+      [
+       "senior",
+       "presencial"
+      ]
+     ]
+    }
+   ],
+   "playground": true
+  },
+  "CREATE TABLE contactos (\n  id        INT AUTO_INCREMENT PRIMARY KEY,\n  nombre    VARCHAR(100) NOT NULL,\n  email     VARCHAR(255) NOT NULL UNIQUE,\n  empresa_id INT NULL,\n  creado    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,\n  FOREIGN KEY (empresa_id) REFERENCES empresas (id)\n);\nDESCRIBE contactos;": {
+   "salidas": [
+    {
+     "tipo": "ok",
+     "afectadas": 0
+    },
+    {
+     "tipo": "filas",
+     "columnas": [
+      "Field",
+      "Type",
+      "Null",
+      "Key",
+      "Default",
+      "Extra"
+     ],
+     "filas": [
+      [
+       "id",
+       "int",
+       "NO",
+       "PRI",
+       null,
+       "auto_increment"
+      ],
+      [
+       "nombre",
+       "varchar(100)",
+       "NO",
+       "",
+       null,
+       ""
+      ],
+      [
+       "email",
+       "varchar(255)",
+       "NO",
+       "UNI",
+       null,
+       ""
+      ],
+      [
+       "empresa_id",
+       "int",
+       "YES",
+       "MUL",
+       null,
+       ""
+      ],
+      [
+       "creado",
+       "datetime",
+       "NO",
+       "",
+       "CURRENT_TIMESTAMP",
+       "DEFAULT_GENERATED"
+      ]
+     ]
+    }
+   ],
+   "playground": false
+  },
+  "INSERT INTO empresas (nombre, pais, empleados)\nVALUES ('Nubelia', 'AR', 50);": {
+   "salidas": [
+    {
+     "tipo": "error",
+     "mensaje": "ERROR 1062 (23000): Duplicate entry 'Nubelia' for key 'empresas.nombre'"
+    }
+   ],
+   "playground": false
+  },
+  "ALTER TABLE ofertas ADD COLUMN link VARCHAR(255) NULL AFTER titulo;\nALTER TABLE ofertas MODIFY COLUMN titulo VARCHAR(200) NOT NULL;\nALTER TABLE ofertas RENAME COLUMN link TO url;\nSELECT id, titulo, url FROM ofertas LIMIT 2;": {
+   "salidas": [
+    {
+     "tipo": "ok",
+     "afectadas": 0,
+     "info": "Records: 0  Duplicates: 0  Warnings: 0"
+    },
+    {
+     "tipo": "ok",
+     "afectadas": 0,
+     "info": "Records: 0  Duplicates: 0  Warnings: 0"
+    },
+    {
+     "tipo": "ok",
+     "afectadas": 0,
+     "info": "Records: 0  Duplicates: 0  Warnings: 0"
+    },
+    {
+     "tipo": "filas",
+     "columnas": [
+      "id",
+      "titulo",
+      "url"
+     ],
+     "filas": [
+      [
+       1,
+       "Frontend React Senior",
+       null
+      ],
+      [
+       2,
+       "Fullstack Node",
+       null
+      ]
+     ]
+    }
+   ],
+   "playground": false
+  },
+  "SELECT nombre, pais, empleados\nFROM empresas\nORDER BY empleados DESC\nLIMIT 3;": {
+   "salidas": [
+    {
+     "tipo": "filas",
+     "columnas": [
+      "nombre",
+      "pais",
+      "empleados"
+     ],
+     "filas": [
+      [
+       "Delta Pay",
+       "BR",
+       1500
+      ],
+      [
+       "Cumbre Data",
+       "MX",
+       600
+      ],
+      [
+       "Pagos Sur",
+       "UY",
+       300
+      ]
+     ]
+    }
+   ],
+   "playground": true
+  }
+ }
+}

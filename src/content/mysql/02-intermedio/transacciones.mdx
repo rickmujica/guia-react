@@ -1,0 +1,152 @@
+Una **transacción** agrupa varias operaciones para que se apliquen **todas o ninguna**. El ejemplo de manual es una transferencia: restar de una cuenta y sumar en otra. Si el servidor se cae entre las dos, no puede quedar la plata restada y no sumada.
+
+## START TRANSACTION, COMMIT y ROLLBACK
+
+<Consulta>
+
+```sql
+START TRANSACTION;
+
+UPDATE postulaciones SET estado = 'oferta' WHERE id = 1;
+UPDATE entrevistas SET resultado = 'paso'
+WHERE postulacion_id = 1 AND resultado = 'pendiente';
+
+COMMIT;
+
+SELECT p.estado, COUNT(*) AS entrevistas, SUM(en.resultado = 'paso') AS pasadas
+FROM postulaciones p
+JOIN entrevistas en ON en.postulacion_id = p.id
+WHERE p.id = 1
+GROUP BY p.id, p.estado;
+```
+
+</Consulta>
+
+- `START TRANSACTION` (o `BEGIN`) abre la transacción.
+- Los cambios se van haciendo, pero **nadie más los ve** hasta el `COMMIT`, que los confirma de una vez.
+- `ROLLBACK` los deshace todos:
+
+<Consulta>
+
+```sql
+START TRANSACTION;
+
+DELETE FROM entrevistas WHERE postulacion_id = 1;
+SELECT COUNT(*) AS entrevistas FROM entrevistas;
+
+ROLLBACK;
+
+SELECT COUNT(*) AS entrevistas FROM entrevistas;
+```
+
+</Consulta>
+
+Adentro de la transacción ya se ven 6 entrevistas; después del `ROLLBACK` vuelven a ser 9.
+
+<Nota title="autocommit">
+Fuera de una transacción explícita, MySQL trabaja en modo **autocommit**: cada sentencia es su propia transacción y se confirma sola al terminar. Por eso un `UPDATE` suelto se guarda sin escribir `COMMIT`.
+</Nota>
+
+<Ojo title="Un error no deshace la transacción">
+Si una sentencia falla adentro de una transacción, MySQL descarta **esa** sentencia, pero las anteriores siguen pendientes y la transacción sigue abierta. Tu código tiene que hacer `ROLLBACK` (en Node, en el `catch`). Y las sentencias de estructura (`CREATE`, `ALTER`, `DROP`, `TRUNCATE`) hacen un **COMMIT implícito**: no se pueden deshacer ni meter en una transacción.
+</Ojo>
+
+`SAVEPOINT nombre` marca un punto intermedio y `ROLLBACK TO nombre` vuelve hasta ahí sin deshacer todo. Se usa poco.
+
+## ACID
+
+Las cuatro garantías de una transacción, una pregunta clásica:
+
+| | Qué garantiza |
+| --- | --- |
+| **A**tomicidad | Se aplican todas las operaciones o ninguna. |
+| **C**onsistencia | La base pasa de un estado válido a otro: se respetan claves, `UNIQUE`, `CHECK` y claves foráneas. |
+| **I**solation (aislamiento) | Las transacciones que corren al mismo tiempo no se pisan (con matices: ver niveles abajo). |
+| **D**urabilidad | Lo confirmado con `COMMIT` sobrevive a un corte de luz: ya está escrito en el log en disco. |
+
+## Concurrencia: cuando dos transacciones tocan lo mismo
+
+Con muchos usuarios a la vez, dos transacciones pueden leer y escribir las mismas filas. Los problemas posibles:
+
+| Problema | Qué pasa |
+| --- | --- |
+| *Dirty read* | Leés un cambio de otra transacción que **todavía no hizo commit** (y quizás nunca lo haga). |
+| *Non-repeatable read* | Leés una fila dos veces en tu transacción y cambió en el medio. |
+| *Phantom read* | Repetís una consulta y aparecen filas nuevas que insertó otra transacción. |
+| *Lost update* | Dos transacciones leen el mismo valor, calculan y escriben: el último pisa al primero. |
+
+El **nivel de aislamiento** decide cuáles se evitan:
+
+| Nivel | Dirty | Non-repeatable | Phantom |
+| --- | --- | --- | --- |
+| `READ UNCOMMITTED` | puede pasar | puede pasar | puede pasar |
+| `READ COMMITTED` | — | puede pasar | puede pasar |
+| `REPEATABLE READ` (**default de MySQL**) | — | — | casi nunca (InnoDB lo evita en la mayoría de los casos) |
+| `SERIALIZABLE` | — | — | — |
+
+<Consulta>
+
+```sql
+SELECT @@transaction_isolation;
+```
+
+</Consulta>
+
+En `REPEATABLE READ`, cada transacción ve una **foto** de los datos tomada en su primera lectura: lo que otras confirmen después no le aparece. Es cómodo, pero no evita el *lost update*.
+
+## El lost update y cómo evitarlo
+
+Dos personas reservan el último lugar de un taller (`cupos = 1`) al mismo tiempo:
+
+```sql
+-- Sesión A                                  -- Sesión B
+START TRANSACTION;                           START TRANSACTION;
+SELECT cupos FROM talleres WHERE id = 7;     SELECT cupos FROM talleres WHERE id = 7;
+-- ve 1: hay lugar                           -- ve 1: hay lugar
+UPDATE talleres SET cupos = 0 WHERE id = 7;
+COMMIT;                                      UPDATE talleres SET cupos = 0 WHERE id = 7;
+                                             COMMIT;
+-- Las dos reservaron el mismo lugar.
+```
+
+Tres soluciones, de la más simple a la más general:
+
+**1. Que la base haga la cuenta en un solo `UPDATE` atómico**, con la condición adentro:
+
+```sql
+UPDATE talleres SET cupos = cupos - 1 WHERE id = 7 AND cupos > 0;
+-- filas afectadas: 1 → reservaste; 0 → no quedaba lugar
+```
+
+**2. Bloquear la fila al leerla con `SELECT … FOR UPDATE`.** La segunda sesión se queda **esperando** en su `SELECT` hasta que la primera termine, y entonces lee el valor nuevo:
+
+```sql
+START TRANSACTION;
+SELECT cupos FROM talleres WHERE id = 7 FOR UPDATE;   -- bloquea la fila
+-- ... lógica de la app: si cupos > 0, reservar ...
+UPDATE talleres SET cupos = cupos - 1 WHERE id = 7;
+COMMIT;                                               -- libera el bloqueo
+```
+
+**3. Bloqueo optimista con una columna `version`.** No bloquea nada: al escribir, se verifica que nadie haya cambiado la fila desde que la leíste. Es lo que usan muchos ORMs.
+
+```sql
+SELECT cupos, version FROM talleres WHERE id = 7;     -- 1, version 4
+UPDATE talleres SET cupos = 0, version = version + 1
+WHERE id = 7 AND version = 4;
+-- 0 filas afectadas → alguien la cambió antes: volver a leer y reintentar
+```
+
+## Deadlocks
+
+Un **deadlock** pasa cuando la transacción A espera una fila que tiene bloqueada B, y B espera una que tiene A. Ninguna puede seguir. InnoDB lo detecta al instante, **cancela una** de las dos y le devuelve:
+
+```text
+ERROR 1213 (40001): Deadlock found when trying to get lock; try restarting transaction
+```
+
+No es un bug de MySQL: es esperable con concurrencia. Para tenerlos menos, transacciones **cortas** y que bloqueen las filas **siempre en el mismo orden**; y la aplicación tiene que **reintentar** la transacción cuando recibe ese error.
+
+<Entrevista>
+"¿Qué es una transacción y para qué sirve?" → "Un grupo de operaciones que se aplican todas o ninguna: si algo falla en el medio, ROLLBACK y la base queda como estaba. Garantiza ACID. Por ejemplo, crear un pedido y descontar el stock: si falla lo segundo, no puede quedar el pedido creado. Para la concurrencia, MySQL usa REPEATABLE READ por defecto; cuando leo un valor para después escribirlo, uso un UPDATE atómico con la condición adentro, SELECT FOR UPDATE o bloqueo optimista con una columna version."
+</Entrevista>

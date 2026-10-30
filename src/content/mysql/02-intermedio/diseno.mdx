@@ -1,0 +1,130 @@
+Escribir consultas es la mitad del trabajo. La otra mitad es **decidir qué tablas hay**: un mal diseño se paga en cada consulta, con datos duplicados que se contradicen. Este capítulo es lo que se pregunta en una entrevista cuando te dan un dominio ("diseñá la base de un e-commerce").
+
+## El problema: una planilla
+
+Si la búsqueda laboral estuviera en una sola tabla, como en una planilla de cálculo:
+
+| oferta | empresa | pais_empresa | tecnologias | estado |
+| --- | --- | --- | --- | --- |
+| Frontend React Senior | Nubelia | AR | React, TypeScript, Redux | entrevista |
+| Fullstack Node | Nubelia | Argentina | Node.js, TypeScript, MySQL | |
+| Frontend Engineer | Pagos Sur | UY | React, TypeScript, Next.js | oferta |
+
+Aparecen los problemas que la **normalización** evita:
+
+- **Datos repetidos que se contradicen**: el país de Nubelia está dos veces, y ya dice `AR` en una y `Argentina` en otra. Para cambiarlo hay que tocar todas sus filas (*anomalía de actualización*).
+- **No se puede guardar algo sin lo otro**: una empresa sin ofertas no tiene dónde ir (*anomalía de inserción*). Y si borrás la única oferta de una empresa, perdés la empresa (*anomalía de borrado*).
+- **Listas en un texto**: buscar "las ofertas que piden TypeScript" con `LIKE '%TypeScript%'` es lento, no usa índices y confunde "Java" con "JavaScript".
+
+## Formas normales, en la práctica
+
+Hay una teoría formal; para el día a día alcanza con tres reglas:
+
+1. **Primera forma normal (1FN)**: cada celda tiene **un solo valor**. Nada de `'React, TypeScript'`: una lista es otra tabla.
+2. **Segunda (2FN)**: en una tabla con clave compuesta, cada columna depende de **toda** la clave. En `oferta_tecnologia (oferta_id, tecnologia_id)` no va el nombre de la tecnología: depende solo de `tecnologia_id`.
+3. **Tercera (3FN)**: cada columna depende **de la clave y de nada más**. `pais_empresa` en `ofertas` depende de la empresa, no de la oferta: va en `empresas`.
+
+El resumen que se suele citar: cada dato vive **en un solo lugar**, y el resto lo referencia por su id.
+
+## Las relaciones y cómo se modelan
+
+**Uno a muchos (1:N).** Una empresa tiene muchas ofertas. La clave foránea va del lado de los "muchos": `ofertas.empresa_id`.
+
+**Muchos a muchos (N:M).** Una oferta pide muchas tecnologías y viceversa. Se modela con una **tabla intermedia** con las dos claves foráneas, y la combinación como clave primaria (así no se repite un par):
+
+```sql
+CREATE TABLE oferta_tecnologia (
+  oferta_id      INT NOT NULL,
+  tecnologia_id  INT NOT NULL,
+  PRIMARY KEY (oferta_id, tecnologia_id),
+  FOREIGN KEY (oferta_id) REFERENCES ofertas (id) ON DELETE CASCADE,
+  FOREIGN KEY (tecnologia_id) REFERENCES tecnologias (id)
+);
+```
+
+La tabla intermedia puede tener sus propias columnas (por ejemplo, `nivel` requerido, o `es_excluyente`).
+
+**Uno a uno (1:1).** Cada oferta tiene como mucho una postulación. Es una clave foránea con `UNIQUE`:
+
+<Consulta error>
+
+```sql
+-- Ya hay una postulación para la oferta 1
+INSERT INTO postulaciones (oferta_id, fecha) VALUES (1, '2026-10-29');
+```
+
+</Consulta>
+
+## Qué pasa al borrar: ON DELETE
+
+La clave foránea decide qué pasa con las filas "hijas" cuando se borra la "madre":
+
+| Opción | Al borrar la fila referenciada |
+| --- | --- |
+| `RESTRICT` / `NO ACTION` (**por defecto**) | Error: no se puede borrar mientras tenga hijas. |
+| `CASCADE` | Se borran también las hijas. |
+| `SET NULL` | En las hijas, la clave foránea pasa a `NULL` (la columna tiene que aceptar `NULL`). |
+
+En la base de ejemplo, `postulaciones.oferta_id` no dice nada (es `RESTRICT`) y `oferta_tecnologia.oferta_id` es `CASCADE`:
+
+<Consulta error>
+
+```sql
+-- La oferta 1 tiene una postulación: RESTRICT no deja borrarla
+DELETE FROM ofertas WHERE id = 1;
+```
+
+</Consulta>
+
+<Consulta>
+
+```sql
+-- La oferta 2 no tiene postulación: se borra, y sus tecnologías en cascada
+SELECT COUNT(*) AS tecnologias_de_la_2 FROM oferta_tecnologia WHERE oferta_id = 2;
+DELETE FROM ofertas WHERE id = 2;
+SELECT COUNT(*) AS tecnologias_de_la_2 FROM oferta_tecnologia WHERE oferta_id = 2;
+```
+
+</Consulta>
+
+Elegí a propósito: `CASCADE` en lo que no tiene sentido sin la madre (las tecnologías de una oferta, los ítems de un pedido) y `RESTRICT` en lo que no querés perder por accidente (tus postulaciones, los pagos).
+
+## Elegir los tipos
+
+| Para | Usá | Evitá |
+| --- | --- | --- |
+| Ids | `INT` o `BIGINT` `AUTO_INCREMENT` (o `BINARY(16)` para UUID) | `VARCHAR` como clave primaria |
+| Plata | `DECIMAL(12, 2)` (o centavos en un `BIGINT`) | `FLOAT` / `DOUBLE` |
+| Texto corto con límite | `VARCHAR(n)` | `TEXT` para todo |
+| Texto largo | `TEXT` | |
+| Fecha y hora | `DATETIME` (guardala en UTC) o `TIMESTAMP` | Fechas en `VARCHAR` |
+| Sí/no | `BOOLEAN` (es un `TINYINT(1)`) | `'S'` / `'N'` |
+| Conjunto fijo de valores | `ENUM`, o una tabla de referencia si puede crecer | |
+| Texto en general | charset `utf8mb4` (el default de MySQL 8; incluye emojis) | `utf8` / `utf8mb3`, que no los tiene |
+
+¿Por qué no `FLOAT` para la plata? Porque guarda los números en binario y muchos decimales no tienen representación exacta:
+
+<Consulta soloMysql>
+
+```sql
+SELECT CAST(0.1 AS DOUBLE) + CAST(0.2 AS DOUBLE) AS con_double,
+       CAST(0.1 AS DECIMAL(10, 2)) + CAST(0.2 AS DECIMAL(10, 2)) AS con_decimal;
+```
+
+</Consulta>
+
+<Tip title="ENUM o tabla de referencia">
+`ENUM` es compacto y valida los valores, pero agregar uno nuevo es un `ALTER TABLE`, y ordena por la posición en la lista, no alfabéticamente. Si los valores cambian seguido o tienen datos propios (un nombre para mostrar, un color), usá una tabla aparte con una clave foránea.
+</Tip>
+
+## Decisiones típicas
+
+- **AUTO_INCREMENT o UUID.** El autoincremental es chico, rápido y ordenado, pero revela cuántos registros tenés (`/pedidos/1042`) y depende de la base para generarse. El UUID se puede generar en el cliente y no se adivina, pero ocupa más y, si es aleatorio, desordena el índice de la clave primaria: si lo usás, que sea un UUID v7 (ordenado por tiempo) guardado en `BINARY(16)`.
+- **Borrado lógico** (*soft delete*): en lugar de `DELETE`, una columna `eliminado_en DATETIME NULL`. Permite recuperar y auditar, pero cada consulta tiene que acordarse del `WHERE eliminado_en IS NULL`.
+- **Desnormalizar a propósito.** A veces se duplica un dato para leer más rápido (un `cantidad_ofertas` en `empresas`, actualizado al insertar). Está bien si es una decisión medida y sabés quién lo mantiene sincronizado.
+- **Columnas de auditoría.** `creado_en DATETIME DEFAULT CURRENT_TIMESTAMP` y `actualizado_en DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP`, en casi todas las tablas.
+- **Nombres.** Elegí una convención y mantenela: tablas en plural, columnas en `snake_case`, claves foráneas `<tabla_en_singular>_id`.
+
+<Entrevista>
+"Diseñá la base de un e-commerce." → Empezá por las entidades (usuarios, productos, categorías, pedidos, ítems del pedido, pagos) y las relaciones: un usuario tiene muchos pedidos (1:N), un pedido tiene muchos productos y un producto está en muchos pedidos (N:M, con la tabla `pedido_items` que guarda la cantidad y **el precio al momento de la compra**, porque el del producto cambia). Después: claves primarias, claves foráneas con su `ON DELETE`, `DECIMAL` para la plata, índices para las búsquedas frecuentes, y qué operaciones van en una transacción (crear el pedido y descontar el stock).
+</Entrevista>

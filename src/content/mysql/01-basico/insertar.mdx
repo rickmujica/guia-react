@@ -1,0 +1,118 @@
+La parte de SQL que cambia datos se llama **DML** (*Data Manipulation Language*): `INSERT`, `UPDATE` y `DELETE`. Junto con `SELECT`, es el famoso **CRUD**: *Create, Read, Update, Delete*.
+
+## INSERT
+
+<Consulta>
+
+```sql
+INSERT INTO empresas (nombre, pais, empleados)
+VALUES ('Lapacho Soft', 'PY', 40);
+
+INSERT INTO tecnologias (nombre)
+VALUES ('Docker'), ('GraphQL'), ('Tailwind');
+
+SELECT * FROM empresas WHERE pais = 'PY';
+```
+
+</Consulta>
+
+- Escribí siempre la **lista de columnas**: si mañana alguien agrega una columna, tu `INSERT` sigue funcionando.
+- Las que no nombrás toman su `DEFAULT` (o `NULL`). El `id` lo pone `AUTO_INCREMENT`.
+- Varias filas en un solo `INSERT` es mucho más rápido que muchos `INSERT` separados.
+
+Si una fila viola una restricción, MySQL la rechaza:
+
+<Consulta error>
+
+```sql
+INSERT INTO ofertas (empresa_id, titulo, seniority, publicada)
+VALUES (99, 'Frontend', 'senior', '2026-10-30');
+```
+
+</Consulta>
+
+## UPDATE
+
+<Consulta>
+
+```sql
+UPDATE postulaciones
+SET estado = 'entrevista', notas = 'Me escribieron por mail'
+WHERE id = 4;
+
+SELECT id, estado, notas FROM postulaciones WHERE id = 4;
+```
+
+</Consulta>
+
+<Ojo title="Siempre con WHERE">
+Un `UPDATE` o un `DELETE` **sin `WHERE`** cambia o borra **todas** las filas. Antes de ejecutarlo, probá el mismo `WHERE` con un `SELECT` para ver qué filas toca. En la consola, `mysql --safe-updates` rechaza los `UPDATE`/`DELETE` sin un `WHERE` por clave.
+</Ojo>
+
+Se puede actualizar a partir del valor actual:
+
+<Consulta>
+
+```sql
+UPDATE ofertas
+SET salario_min = salario_min + 200,
+    salario_max = salario_max + 200
+WHERE empresa_id = 6;
+
+SELECT titulo, salario_min, salario_max FROM ofertas WHERE empresa_id = 6;
+```
+
+</Consulta>
+
+## DELETE
+
+<Consulta>
+
+```sql
+DELETE FROM entrevistas WHERE resultado = 'pendiente';
+SELECT COUNT(*) AS quedan FROM entrevistas;
+```
+
+</Consulta>
+
+Si otra tabla apunta a la fila con una clave foránea, MySQL no te deja borrarla (a menos que la relación tenga `ON DELETE CASCADE`):
+
+<Consulta error>
+
+```sql
+DELETE FROM empresas WHERE id = 1;
+```
+
+</Consulta>
+
+| Comando | Qué hace |
+| --- | --- |
+| `DELETE FROM t WHERE ...` | Borra las filas que cumplen la condición. Se puede deshacer en una transacción. |
+| `DELETE FROM t` | Borra todas, fila por fila. |
+| `TRUNCATE TABLE t` | Vacía la tabla de golpe y reinicia el `AUTO_INCREMENT`. Es DDL: no se deshace. |
+
+## Insertar o actualizar (upsert)
+
+Un caso muy común: "si existe, actualizalo; si no, crealo". MySQL lo resuelve con `ON DUPLICATE KEY UPDATE`, que se activa cuando el `INSERT` choca con una `PRIMARY KEY` o un `UNIQUE`:
+
+<Consulta>
+
+```sql
+INSERT INTO empresas (nombre, pais, empleados)
+VALUES ('Nubelia', 'AR', 150), ('Lapacho Soft', 'PY', 40) AS nueva
+ON DUPLICATE KEY UPDATE empleados = nueva.empleados;
+
+SELECT nombre, empleados FROM empresas WHERE nombre IN ('Nubelia', 'Lapacho Soft');
+```
+
+</Consulta>
+
+Nubelia ya existía (el nombre es `UNIQUE`), así que se actualizó; Lapacho Soft no, así que se insertó. `AS nueva` le pone un nombre a la fila que se intentó insertar, para usar sus valores en el `UPDATE`. Fijate en el resultado: MySQL cuenta 2 filas afectadas por cada actualización y 1 por cada inserción.
+
+<Nota title="La forma vieja: VALUES()">
+En código anterior a MySQL 8.0.19 vas a ver `ON DUPLICATE KEY UPDATE empleados = VALUES(empleados)`. Hace lo mismo, pero está deprecado (MySQL devuelve un *warning*). Otra alternativa, `REPLACE INTO`, borra la fila vieja e inserta una nueva: cambia el id y dispara las claves foráneas, así que casi nunca es lo que querés.
+</Nota>
+
+<Entrevista>
+"¿Qué diferencia hay entre DELETE y TRUNCATE?" → "DELETE borra fila por fila, acepta WHERE, dispara triggers y se puede deshacer en una transacción. TRUNCATE vacía la tabla entera de una, es mucho más rápido, reinicia el AUTO_INCREMENT y es DDL, así que no se puede deshacer."
+</Entrevista>

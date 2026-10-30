@@ -1,0 +1,151 @@
+Las **funciones de ventana** calculan algo sobre un grupo de filas, como `GROUP BY`, pero **sin juntar las filas**: cada fila se queda en el resultado y gana una columna con el cálculo. Son la herramienta para rankings, "el mejor de cada grupo", acumulados y comparar una fila con la anterior. MySQL las tiene desde la 8.0.
+
+## OVER: agregar sin agrupar
+
+<Consulta>
+
+```sql
+SELECT titulo,
+       seniority,
+       salario_max,
+       ROUND(AVG(salario_max) OVER (PARTITION BY seniority)) AS promedio_seniority,
+       MAX(salario_max) OVER () AS maximo_total
+FROM ofertas
+WHERE salario_max IS NOT NULL
+ORDER BY seniority, salario_max DESC;
+```
+
+</Consulta>
+
+- `OVER (...)` convierte una agregación (`AVG`, `MAX`, `SUM`, `COUNT`…) en función de ventana.
+- `PARTITION BY seniority` define la **ventana**: las filas con el mismo seniority. Es el equivalente al `GROUP BY`, pero cada fila sigue estando.
+- `OVER ()` vacío: la ventana es todo el resultado.
+
+Con eso se compara cada fila contra su grupo sin subconsultas: "cuánto se aleja esta oferta del promedio de su seniority".
+
+## Rankings: ROW_NUMBER, RANK y DENSE_RANK
+
+Las tres numeran filas según un `ORDER BY` dentro de la ventana. La diferencia está en los **empates** (hay dos ofertas con salario mínimo 3000 y dos con 2500):
+
+<Consulta>
+
+```sql
+SELECT titulo,
+       salario_min,
+       ROW_NUMBER() OVER (ORDER BY salario_min DESC) AS row_num,
+       RANK()       OVER (ORDER BY salario_min DESC) AS rnk,
+       DENSE_RANK() OVER (ORDER BY salario_min DESC) AS dense
+FROM ofertas
+WHERE salario_min >= 2500
+ORDER BY salario_min DESC, row_num;
+```
+
+</Consulta>
+
+| Función | Con empate | Ejemplo |
+| --- | --- | --- |
+| `ROW_NUMBER()` | Números distintos (el orden entre empatados es arbitrario) | 1, 2, 3, 4, 5 |
+| `RANK()` | Mismo número, y **salta** los siguientes | 1, 2, 3, 3, 5 |
+| `DENSE_RANK()` | Mismo número, **sin saltos** | 1, 2, 3, 3, 4 |
+
+## El mejor de cada grupo
+
+La pregunta de entrevista más común con ventanas: **la oferta mejor paga de cada seniority** (o "el último pedido de cada cliente", "el empleado que más gana por departamento"). Las funciones de ventana no se pueden usar en el `WHERE`:
+
+<Consulta error>
+
+```sql
+SELECT titulo, seniority, salario_max
+FROM ofertas
+WHERE ROW_NUMBER() OVER (PARTITION BY seniority ORDER BY salario_max DESC) = 1;
+```
+
+</Consulta>
+
+Porque el `WHERE` se evalúa **antes** que las ventanas. La solución: calcular el número en una CTE y filtrar afuera.
+
+<Consulta>
+
+```sql
+WITH ranking AS (
+  SELECT titulo,
+         seniority,
+         salario_max,
+         ROW_NUMBER() OVER (PARTITION BY seniority ORDER BY salario_max DESC) AS puesto
+  FROM ofertas
+  WHERE salario_max IS NOT NULL
+)
+SELECT seniority, titulo, salario_max
+FROM ranking
+WHERE puesto = 1
+ORDER BY salario_max DESC;
+```
+
+</Consulta>
+
+Cambiando `puesto = 1` por `puesto <= 2` tenés el **top 2 de cada grupo**. Si querés que los empates entren todos, usá `RANK()` en lugar de `ROW_NUMBER()`.
+
+## Acumulados
+
+Con `ORDER BY` adentro del `OVER`, `SUM` y `COUNT` se vuelven **acumulados**: suman desde la primera fila hasta la actual.
+
+<Consulta>
+
+```sql
+SELECT fecha,
+       estado,
+       COUNT(*) OVER (ORDER BY fecha) AS postulaciones_hasta_hoy
+FROM postulaciones
+ORDER BY fecha;
+```
+
+</Consulta>
+
+Y con `PARTITION BY`, el acumulado se reinicia en cada grupo.
+
+<Nota title="El marco de la ventana">
+Cuando hay `ORDER BY`, la ventana por defecto va "desde el principio hasta la fila actual". Se puede cambiar con un **marco**: por ejemplo, un promedio móvil de las últimas 3 filas es `AVG(x) OVER (ORDER BY fecha ROWS BETWEEN 2 PRECEDING AND CURRENT ROW)`.
+</Nota>
+
+## LAG y LEAD: la fila anterior y la siguiente
+
+`LAG(columna)` trae el valor de la fila **anterior** de la ventana; `LEAD(columna)`, el de la **siguiente**. Cuántos días pasaron entre cada entrevista de un mismo proceso:
+
+<Consulta>
+
+```sql
+SELECT postulacion_id,
+       tipo,
+       DATE(fecha) AS dia,
+       DATEDIFF(fecha, LAG(fecha) OVER (PARTITION BY postulacion_id ORDER BY fecha)) AS dias_desde_la_anterior,
+       LEAD(tipo) OVER (PARTITION BY postulacion_id ORDER BY fecha) AS siguiente
+FROM entrevistas
+ORDER BY postulacion_id, fecha;
+```
+
+</Consulta>
+
+La primera entrevista de cada postulación no tiene anterior, y la última no tiene siguiente: dan `NULL`.
+
+## Una ventana con nombre
+
+Si varias columnas usan la misma ventana, se define una vez con `WINDOW`:
+
+<Consulta>
+
+```sql
+SELECT titulo,
+       salario_max,
+       RANK() OVER w AS puesto,
+       salario_max - LAG(salario_max) OVER w AS diferencia
+FROM ofertas
+WHERE seniority = 'senior'
+WINDOW w AS (ORDER BY salario_max DESC)
+ORDER BY puesto;
+```
+
+</Consulta>
+
+<Entrevista>
+"Traeme el segundo salario más alto." → Con ventanas: `DENSE_RANK() OVER (ORDER BY salario DESC)` en una CTE y filtrar `= 2` (con `DENSE_RANK` los empates en el primero no corren el segundo). Sin ventanas: `SELECT MAX(salario) FROM t WHERE salario < (SELECT MAX(salario) FROM t)`. Y si piden "el N-ésimo", la de ventanas es la que escala.
+</Entrevista>
