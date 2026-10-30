@@ -1,0 +1,139 @@
+Todo en una página, para repasar antes de una entrevista o tener a mano en un proyecto.
+
+## Node
+
+```ts
+// Módulos
+import { readFile } from 'node:fs/promises'
+import { conIva } from './precios.ts'         // con extensión
+export function f() {}                         // export con nombre
+export default function g() {}                 // export por defecto
+import.meta.dirname; import.meta.filename      // ex __dirname / __filename
+if (import.meta.main) { /* solo si se ejecuta este archivo */ }
+
+// Archivos y rutas
+const texto = await readFile(path.join(import.meta.dirname, 'datos.json'), 'utf8')
+await writeFile(ruta, JSON.stringify(datos, null, 2))
+await mkdir(carpeta, { recursive: true })
+await rm(carpeta, { recursive: true, force: true })
+
+// Streams
+await pipeline(createReadStream(origen), createGzip(), createWriteStream(destino))
+for await (const linea of createInterface({ input: createReadStream(ruta) })) {}
+
+// Asincronía
+const [a, b] = await Promise.all([pedirA(), pedirB()])        // en paralelo
+const resultados = await Promise.allSettled(tareas)           // sin cortar por un error
+await fetch(url, { signal: AbortSignal.timeout(5000) })       // con timeout
+import { setTimeout as esperar } from 'node:timers/promises'  // await esperar(100)
+
+// Proceso
+process.argv.slice(2); parseArgs({ options: { ... } })   // argumentos
+process.env.DB_HOST                                       // siempre string | undefined
+process.exitCode = 1                                      // terminar con error
+process.on('SIGTERM', apagar)
+
+// Eventos
+emisor.on('evento', fn); emisor.once('evento', fn); emisor.emit('evento', datos)
+const [datos] = await once(emisor, 'evento')
+```
+
+```bash
+node archivo.ts                      # ejecuta (TypeScript sin compilar desde Node 22.18)
+node --watch archivo.ts              # reinicia al guardar
+node --env-file=.env archivo.ts      # carga variables de entorno
+node --test                          # corre los tests
+npm ci --omit=dev                    # instalación de producción
+```
+
+## Express
+
+```ts
+const app = express()
+app.use(express.json())                          // req.body
+app.use(cors({ origin: ['http://localhost:5173'] }))
+app.use(helmet())
+
+app.get('/ofertas', async (req, res) => {        // req.query, siempre strings
+  res.json(await servicio.listar(Filtros.parse(req.query)))
+})
+app.get('/ofertas/:id', async (req, res) => {    // req.params.id
+  const oferta = await servicio.obtener(Number(req.params.id))
+  if (!oferta) return res.status(404).json({ error: 'No existe' })
+  res.json(oferta)
+})
+app.post('/ofertas', autenticar, async (req, res) => {
+  const oferta = await servicio.publicar(OfertaNueva.parse(req.body))
+  res.status(201).location(`/ofertas/${oferta.id}`).json(oferta)
+})
+app.delete('/ofertas/:id', autenticar, soloAdmin, async (req, res) => {
+  await servicio.borrar(Number(req.params.id))
+  res.status(204).end()
+})
+
+const router = express.Router()                  // app.use('/api/ofertas', router)
+
+// Middleware
+const autenticar: RequestHandler = (req, res, next) => {
+  if (!req.get('authorization')) return res.status(401).json({ error: 'Falta el token' })
+  next()
+}
+
+// Al final: 404 y errores (4 parámetros)
+app.use((req, res) => res.status(404).json({ error: 'No existe' }))
+app.use(((error, req, res, next) => {
+  if (error instanceof ZodError) return res.status(400).json({ detalles: error.issues })
+  res.status(error.status ?? 500).json({ error: 'Error interno' })
+}) satisfies ErrorRequestHandler)
+
+if (import.meta.main) app.listen(3000)
+```
+
+## De Express 4 a Express 5
+
+Express 5 (estable desde 2024) es casi igual. Lo que cambió y vas a notar en un proyecto viejo:
+
+| | Express 4 | Express 5 |
+| --- | --- | --- |
+| Errores en rutas async | Hay que atraparlos y llamar a `next(error)` (o usar `express-async-errors`) | Express los pasa solo al manejador de errores |
+| Comodines en rutas | `app.get('*', ...)`, `'/archivos/*'` | Con nombre: `'/*todo'`, `'/archivos/*ruta'`; opcionales con llaves: `'/ofertas{/:id}'` |
+| `req.query` | Se podía reasignar | De solo lectura (un getter) |
+| `req.body` sin parser | `{}` | `undefined` |
+| Métodos viejos | `res.send(status)`, `res.json(obj, status)`, `req.param()`, `app.del()` | Eliminados: `res.status(201).json(obj)` |
+| `res.redirect('back')` | Existía | `res.redirect(req.get('Referrer') ?? '/')` |
+| Query anidada (`?a[b]=1`) | Se parseaba por defecto | No, salvo `app.set('query parser', 'extended')` |
+| Node mínimo | 0.10 | 18 |
+
+## Preguntas de entrevista
+
+<Entrevista title="Node.js">
+
+- **¿Qué es Node?** Un entorno para ejecutar JavaScript fuera del navegador: el motor V8 más libuv, que le da I/O asincrónico (archivos, red, timers).
+- **¿Es single-threaded?** Tu JavaScript corre en un solo hilo; el I/O lo hacen el sistema operativo y el thread pool de libuv. Para CPU pesado: worker threads.
+- **¿Qué es el event loop?** El mecanismo que ejecuta los callbacks pendientes (timers, I/O, setImmediate) de a uno cuando el call stack está vacío. Entre cada uno se vacían las microtareas (promesas, nextTick).
+- **¿Qué bloquea el event loop?** Código sincrónico largo: cálculos pesados, las funciones `Sync`, `JSON.parse` de algo enorme, regex catastróficas.
+- **¿process.nextTick vs setImmediate vs setTimeout(0)?** nextTick corre antes de seguir con el loop (junto con las microtareas); setTimeout(0) en la fase de timers; setImmediate en la fase check, después del I/O.
+- **¿CommonJS vs ES modules?** `require`/`module.exports`, sincrónico, vs `import`/`export`, el estándar, con top-level await y análisis estático.
+- **¿Qué es un stream?** Datos procesados de a pedazos sin cargar todo en memoria; se conectan con `pipeline`, que maneja errores y backpressure.
+- **¿Qué es un EventEmitter?** Un objeto que emite eventos con nombre a los que se suscriben oyentes; la base de streams, servidores y procesos.
+- **¿dependencies vs devDependencies?** Las que se necesitan para correr vs las que solo se usan para desarrollar (tipos, tests, build).
+- **¿Para qué es el package-lock.json?** Fija la versión exacta de todo el árbol de dependencias, para que todos (y el CI) instalen lo mismo.
+- **¿Cómo usás todos los núcleos?** Varios procesos: cluster, PM2 o varias réplicas del contenedor detrás de un balanceador.
+
+</Entrevista>
+
+<Entrevista title="Express y APIs">
+
+- **¿Qué es un middleware?** Una función `(req, res, next)` en la cadena del pedido; responde o llama a `next()`. Los de error tienen 4 parámetros.
+- **¿params, query y body?** Segmentos de la ruta, lo que va después del `?`, y el cuerpo (con `express.json()`). Todo viene del cliente: se valida.
+- **¿PUT vs PATCH?** PUT reemplaza el recurso entero (idempotente); PATCH cambia una parte.
+- **¿401 vs 403?** 401: no sé quién sos (falta o es inválido el token). 403: sé quién sos y no tenés permiso.
+- **¿Qué es CORS?** Una protección del navegador: solo deja que una página lea respuestas de otro origen si el servidor lo autoriza con `Access-Control-Allow-Origin`.
+- **¿Sesiones o JWT?** Sesión: el servidor guarda el estado, fácil de revocar. JWT: firmado, sin estado, difícil de revocar, por eso vida corta. En web, en cookie `httpOnly`.
+- **¿Cómo se guardan las contraseñas?** Con un hash lento y con sal: bcrypt, argon2 o scrypt.
+- **¿Cómo estructurás una API?** Por feature y en capas: rutas, servicio, repositorio, con las dependencias inyectadas.
+- **¿Cómo manejás los errores?** Errores de negocio con su status, un único middleware que los traduce, un 500 genérico para lo inesperado y el detalle en los logs.
+- **¿Cómo la testeás?** Unit tests de los servicios con mocks; integración con supertest o `listen(0)` y `fetch`.
+- **¿Qué hacés en un deploy?** Variables validadas, logs estructurados, apagado prolijo con SIGTERM, health check, `npm ci --omit=dev`, `NODE_ENV=production`.
+
+</Entrevista>

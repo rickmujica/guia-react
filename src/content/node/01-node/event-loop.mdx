@@ -1,0 +1,63 @@
+Node ejecuta tu JavaScript en **un solo hilo**. Aun así, un servidor de Node atiende miles de conexiones a la vez. El truco es el **event loop**: Node nunca espera sentado una operación lenta (disco, red, un timer); la delega, sigue con otra cosa, y cuando la operación termina, ejecuta tu callback.
+
+## La idea
+
+1. Tu código corre en el **call stack**, de un tirón, hasta que termina.
+2. Lo lento (leer un archivo, una consulta a MySQL, un `fetch`) lo hace **libuv** por fuera de tu JavaScript: con el sistema operativo o con un grupo de hilos propio.
+3. Cuando una de esas operaciones termina, su callback queda **en una cola**.
+4. El event loop toma callbacks de las colas, de a uno, **cuando el call stack está vacío**.
+
+Un mozo que toma el pedido de una mesa, lo lleva a la cocina y atiende otra mesa mientras cocinan: no se queda parado al lado del horno.
+
+## En qué orden corre cada cosa
+
+<Salida archivo="node/01-node/event-loop/orden.ts" />
+
+1. **El código sincrónico** corre primero, entero. Ningún callback interrumpe una función que se está ejecutando.
+2. Después, las **microtareas**: los `.then` de promesas resueltas (y lo que sigue a un `await`), `queueMicrotask` y `process.nextTick`. Se vacían **todas** antes de seguir.
+3. Después, el loop recorre sus **fases**, cada una con su cola:
+
+| Fase | Qué ejecuta |
+| --- | --- |
+| **timers** | Los `setTimeout` y `setInterval` cuyo tiempo ya pasó |
+| **poll** | Los callbacks de I/O terminado (archivos, red) y espera nuevos |
+| **check** | Los `setImmediate` |
+| **close** | Los eventos `close` (un socket que se cerró) |
+
+Entre callback y callback, el loop vuelve a vaciar las microtareas. Por eso una promesa resuelta siempre se adelanta a cualquier timer.
+
+<Ojo title="Los detalles que caen en una entrevista">
+- `setTimeout(fn, 0)` no es "ahora": es "en la próxima fase de timers, como pronto".
+- **`setTimeout(0)` vs `setImmediate`** en el código principal: el orden **no está garantizado** (depende de cuánto tardó en arrancar el proceso). Adentro de un callback de I/O, `setImmediate` siempre va primero, como en el ejemplo.
+- **`process.nextTick`** es una cola propia de Node que corre antes que las promesas… en CommonJS. En un módulo ES (como este ejemplo), el archivo se ejecuta adentro de una microtarea, así que las promesas que creó se vacían antes. Es un detalle fino: lo importante es que las dos corren antes que cualquier timer o I/O.
+</Ojo>
+
+## No bloquees el event loop
+
+Si un callback tarda mucho **en tu código** (un cálculo pesado, un `JSON.parse` de 200 MB, un `readFileSync` de un archivo enorme), no hay nadie más para atender lo demás: los timers se atrasan y el servidor deja de responder a **todos** los usuarios.
+
+<Salida archivo="node/01-node/event-loop/bloquear.ts" />
+
+El timer pedía 100 ms y corrió a los 500: el loop estaba ocupado con el `while`. En un servidor, eso son 500 ms en los que ningún pedido avanza.
+
+Lo que bloquea, y qué hacer:
+
+- **Las versiones `Sync`** (`readFileSync`, `execSync`, `scryptSync`…): bien en un script o al arrancar la app; nunca adentro de un pedido HTTP.
+- **Cálculos pesados** (procesar imágenes, generar PDFs, cifrado): a un **worker thread**, a otro proceso o a una cola de trabajos.
+- **Expresiones regulares** que explotan con ciertos textos (*ReDoS*) y bucles sobre listas enormes: partir el trabajo o mover el procesamiento.
+
+## Worker threads
+
+Un **worker** es otro hilo con su propio event loop y su propia memoria. Se comunican con mensajes:
+
+<Salida archivo="node/01-node/event-loop/worker.ts" extra={['node/01-node/event-loop/fibonacci.ts']} />
+
+El hilo principal siguió con su `setInterval` mientras el worker calculaba. Crear un worker cuesta (unos milisegundos y memoria): para muchas tareas chicas se usa un **pool** de workers (la librería **Piscina**).
+
+<Nota title="¿Y para usar todos los núcleos?">
+Un proceso de Node usa un núcleo para tu JavaScript. Para aprovechar una máquina con 8 núcleos se levantan **varios procesos** de la app: con el módulo `node:cluster`, con PM2, o (lo más común hoy) con varias réplicas del contenedor detrás de un balanceador.
+</Nota>
+
+<Entrevista>
+"¿Cómo hace Node para atender muchos pedidos con un solo hilo?" → "El JavaScript corre en un hilo, pero el I/O no lo hace ese hilo: Node lo delega al sistema operativo o al thread pool de libuv y sigue atendiendo otros pedidos. Cuando el I/O termina, el callback entra en una cola y el event loop lo ejecuta cuando el call stack está vacío. Por eso Node es muy bueno para aplicaciones con mucho I/O (APIs, tiempo real) y malo para trabajo pesado de CPU, que bloquea el loop: eso va a worker threads o a otro servicio."
+</Entrevista>

@@ -1,5 +1,6 @@
-import { isValidElement, useState, type ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import resultadosJson from '../content/mysql/resultados.json'
+import { textoDe } from '../lib/children'
 import { IS_PRINT } from '../lib/print'
 import { dedent, type Resultados, type Salida } from '../lib/sql'
 import { ejecutarEnSqlite } from '../lib/sqlite'
@@ -15,14 +16,6 @@ type ConsultaProps = {
   error?: boolean
   /** Sin playground aunque SQLite dé "lo mismo" (por ejemplo, solo por redondeo). Lo lee `npm run sql`. */
   soloMysql?: boolean
-}
-
-// El texto de un bloque de código de MDX, que llega como <pre><code>…</code></pre>.
-function textoDe(nodo: ReactNode): string {
-  if (typeof nodo === 'string') return nodo
-  if (Array.isArray(nodo)) return nodo.map(textoDe).join('')
-  if (isValidElement<{ children?: ReactNode }>(nodo)) return textoDe(nodo.props.children)
-  return ''
 }
 
 /**

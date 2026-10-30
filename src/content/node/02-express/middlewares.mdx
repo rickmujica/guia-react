@@ -1,0 +1,103 @@
+Un **middleware** es una función que se ejecuta **en el camino** entre que llega el pedido y la ruta que responde. Express es, básicamente, una cadena de middlewares: `express.json()` es uno, `cors()` es otro, y una ruta es un middleware que responde.
+
+```ts
+function miMiddleware(req, res, next) {
+  // 1. Hacer algo con el pedido (leer un header, medir, verificar)
+  // 2. O responder y cortar la cadena: res.status(401).json(...)
+  // 3. O pasarle el pedido al siguiente:
+  next()
+}
+```
+
+## La cadena en acción
+
+<Api archivo="node/02-express/middlewares.ts" extra={['node/02-express/datos.ts']}>
+
+```http
+GET /ofertas
+DELETE /ofertas/1
+DELETE /ofertas/1 [x-api-key: clave-de-prueba]
+DELETE /ofertas/1 [x-api-key: clave-de-prueba]
+GET /postulaciones
+POST /ofertas {"titulo": "sin cerrar"
+GET /no-existe
+```
+
+</Api>
+
+Cada pedido recorre los `app.use` y las rutas **en el orden en que se registraron**:
+
+1. **El logger** se registra primero para ver todos los pedidos. Escucha el evento `finish` de la respuesta para loguear el status final.
+2. **`express.json()`** parsea el cuerpo. Si el JSON viene mal, llama a `next(error)` con un status 400.
+3. **`requiereApiKey`** está solo en la ruta del `DELETE`: se pasan varios handlers y corren en orden. Sin la clave, responde 401 y **no llama a `next()`**: la ruta nunca se ejecuta.
+4. **La ruta async que falla**: en Express 5, si una función async lanza un error (o su promesa se rechaza), Express lo pasa solo al manejador de errores.
+5. **El 404**: un middleware sin ruta, al final. Si llegó hasta acá, nadie respondió.
+6. **El manejador de errores** se reconoce porque tiene **cuatro parámetros** `(error, req, res, next)`. Va último.
+
+<Ojo title="Los errores típicos">
+- **Olvidarse de `next()`** (y no responder): el pedido queda colgado hasta que el cliente se cansa.
+- **Responder dos veces** (un `res.json` y después otro, por un `return` que falta): `Error [ERR_HTTP_HEADERS_SENT]: Cannot set headers after they are sent`.
+- **El orden**: un middleware registrado **después** de las rutas no corre para esas rutas. `express.json()` va antes que las rutas que leen `req.body`; el 404 y el manejador de errores, al final.
+</Ojo>
+
+<AntesAhora antes="Express 4" ahora="Express 5">
+
+```ts
+// Express 4 no atrapa errores de funciones async:
+// sin try/catch, la promesa rechazada queda sin manejar
+app.get('/postulaciones', async (req, res, next) => {
+  try {
+    res.json(await repo.listar())
+  } catch (error) {
+    next(error)
+  }
+})
+```
+
+```ts
+// Express 5 pasa el error a next() solo
+app.get('/postulaciones', async (req, res) => {
+  res.json(await repo.listar())
+})
+```
+
+</AntesAhora>
+
+En proyectos con Express 4 vas a ver el paquete **express-async-errors** o un wrapper `asyncHandler(fn)` que hace exactamente eso.
+
+## CORS
+
+Si tu front (en `localhost:5173` o `mi-front.vercel.app`) llama a tu API (en `localhost:3000` o `api.midominio.com`), son **orígenes distintos**. El navegador manda el pedido, pero **no deja que el JavaScript lea la respuesta** salvo que el servidor diga que ese origen está permitido:
+
+<Api archivo="node/02-express/cors.ts" headers="access-control-allow-origin,access-control-allow-methods,access-control-allow-headers">
+
+```http
+GET /ofertas [origin: http://localhost:5173]
+GET /ofertas [origin: https://sitio-malicioso.com]
+OPTIONS /ofertas [origin: http://localhost:5173] [access-control-request-method: DELETE]
+```
+
+</Api>
+
+- Al origen permitido le devuelve `Access-Control-Allow-Origin`. Al otro no: el servidor **igual responde**, pero el navegador bloquea la lectura. CORS es una protección **del navegador**: `curl`, Postman u otro servidor no la aplican.
+- Para un `PUT`, un `DELETE` o un pedido con headers propios (`Authorization`, `Content-Type: application/json`), el navegador primero pregunta con un **preflight** `OPTIONS`.
+
+En un proyecto se usa el paquete **cors**: `app.use(cors({ origin: ['http://localhost:5173'], credentials: true }))`. Evitá `origin: '*'` en una API con usuarios logueados.
+
+## Middlewares que vas a encontrar
+
+| Paquete | Para qué |
+| --- | --- |
+| `express.json()`, `express.urlencoded()` | Parsear el cuerpo (vienen con Express) |
+| `express.static('public')` | Servir archivos estáticos (viene con Express) |
+| `cors` | CORS |
+| `helmet` | Headers de seguridad (lo vemos en [autenticación](#/auth)) |
+| `express-rate-limit` | Limitar pedidos por IP |
+| `cookie-parser` | Leer cookies en `req.cookies` |
+| `morgan`, `pino-http` | Logs de cada pedido |
+| `multer` | Subida de archivos (`multipart/form-data`) |
+| `compression` | Comprimir las respuestas con gzip |
+
+<Entrevista>
+"¿Qué es un middleware en Express?" → "Una función (req, res, next) que se ejecuta en el camino del pedido, en el orden en que se registró. Puede modificar el pedido, responder y cortar la cadena, o llamar a next() para pasar al siguiente. Se usan para todo lo transversal: parsear el body, CORS, logs, autenticación, rate limiting. Los de manejo de errores tienen cuatro parámetros y van al final; en Express 5, los errores de las rutas async les llegan solos."
+</Entrevista>

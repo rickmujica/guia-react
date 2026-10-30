@@ -23,6 +23,6 @@
     "noFallthroughCasesInSwitch": true
   },
   "include": ["src"],
-  // Los ejemplos de la guía de TypeScript se chequean con su propia config (tsconfig.ejemplos.json).
-  "exclude": ["src/demos/typescript/ejemplos"]
+  // Los ejemplos de la guía de TypeScript y los de Node se chequean con su propia config.
+  "exclude": ["src/demos/typescript/ejemplos", "src/demos/node"]
 }

@@ -1,0 +1,80 @@
+Todo lo que llega en un pedido lo escribió **alguien de afuera**: tu front, pero también cualquiera con `curl`. TypeScript no ayuda acá: `req.body` es `any`, y aunque le pongas un tipo, en ejecución puede venir cualquier cosa. Hay que **validar en el servidor**, siempre, aunque el front ya valide el formulario.
+
+**Zod** es la librería más usada para eso: definís un esquema una vez y te da la validación en ejecución **y** el tipo de TypeScript. (La viste en la guía de TypeScript para validar respuestas de APIs; acá es el mismo uso, del otro lado.)
+
+## Validar body y query
+
+<Api archivo="node/02-express/validacion.ts" extra={['node/02-express/datos.ts']}>
+
+```http
+POST /ofertas {"titulo": "Backend Node", "empresa": "Delta Pay", "salarioMax": 4500}
+POST /ofertas {"titulo": "QA", "modalidad": "en la luna", "salarioMax": -10}
+POST /ofertas {"titulo": "  Data Engineer  ", "empresa": "Cumbre Data", "esAdmin": true}
+GET /ofertas?modalidad=remoto&minimo=3500
+GET /ofertas?minimo=mucho
+```
+
+</Api>
+
+- **`Esquema.parse(datos)`** devuelve los datos validados (y **limpios**: con los valores por defecto, el `trim` aplicado y **sin los campos que no están en el esquema**, como el `esAdmin` del tercer pedido). Si no son válidos, lanza un `ZodError`.
+- **`z.infer<typeof Esquema>`** es el tipo de TypeScript. Un solo lugar define la forma de los datos.
+- **`z.coerce.number()`**: la query y los params siempre llegan como texto; `coerce` los convierte antes de validar.
+- **Un manejador de errores** convierte cualquier `ZodError` en un 400 con el detalle de cada campo. Las rutas no tienen que acordarse.
+
+<Ojo title="Mass assignment">
+Sin validación, `{ id, ...req.body }` copia **todo** lo que manden. Si el objeto termina en la base de datos, alguien puede mandar `"esAdmin": true`, `"empresaId": 7` o `"aprobada": true`. Zod, por defecto, **descarta** los campos que no están en el esquema (con `z.strictObject` hace que fallen).
+</Ojo>
+
+## safeParse y un middleware
+
+`parse` lanza un error; **`safeParse`** devuelve un resultado que hay que mirar:
+
+```ts
+const resultado = OfertaNueva.safeParse(req.body)
+if (!resultado.success) {
+  return res.status(400).json({ error: 'Datos inválidos', detalles: resultado.error.issues })
+}
+const oferta = resultado.data // tipada
+```
+
+Otra forma común es un middleware que valida antes de la ruta:
+
+```ts
+function validarBody(esquema: z.ZodType): RequestHandler {
+  return (req, res, next) => {
+    const resultado = esquema.safeParse(req.body)
+    if (!resultado.success) return res.status(400).json({ detalles: resultado.error.issues })
+    req.body = resultado.data // el body limpio
+    next()
+  }
+}
+
+app.post('/ofertas', validarBody(OfertaNueva), crearOferta)
+```
+
+<Nota title="req.query en Express 5">
+En Express 5, `req.query` es de solo lectura: `req.query = datosValidados` tira un error. Para la query, validá adentro de la ruta (como en el ejemplo) o guardá el resultado en `res.locals`.
+</Nota>
+
+## Esquemas que vas a escribir
+
+```ts
+z.string().trim().min(1).max(150)
+z.email()                                  // también z.url(), z.uuid(), z.iso.date()
+z.number().int().positive()
+z.coerce.number().int().min(1).default(1)  // de la query
+z.enum(['remoto', 'hibrido', 'presencial'])
+z.boolean().default(false)
+z.array(z.string()).min(1)
+z.object({ ... }).partial()                // todo opcional: el esquema de un PATCH
+OfertaNueva.extend({ id: z.number() })     // agregar campos
+OfertaNueva.pick({ titulo: true })         // quedarse con algunos
+z.object({ desde: z.iso.date(), hasta: z.iso.date() })
+  .refine((r) => r.desde <= r.hasta, 'desde tiene que ser anterior a hasta')
+```
+
+Un mismo esquema puede vivir en un paquete compartido entre el front y el back (en un monorepo): el formulario de React y la API validan exactamente lo mismo.
+
+<Entrevista>
+"Si el front ya valida el formulario, ¿hace falta validar en el back?" → "Sí, siempre. La validación del front es para la experiencia del usuario; la del back es la que protege los datos, porque cualquiera puede llamar a la API sin pasar por el front. En el servidor valido body, query y params con un esquema (Zod), descarto los campos que no espero para evitar mass assignment, y devuelvo un 400 con el detalle de qué campo falló. TypeScript no alcanza: los tipos desaparecen en ejecución."
+</Entrevista>

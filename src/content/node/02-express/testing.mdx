@@ -1,0 +1,46 @@
+Node trae su propio **test runner** (`node:test`) y una librería de aserciones (`node:assert`). Para una API alcanzan: no hace falta instalar Jest ni Vitest (aunque los vas a encontrar en muchos proyectos, y se escriben casi igual).
+
+## Tests unitarios
+
+Una función, sus casos y sus bordes:
+
+<Salida archivo="node/02-express/testing/precios.test.ts" flags="--test" extra={['node/02-express/testing/precios.ts']} />
+
+- `node --test` busca y ejecuta los archivos de test (los que terminan en `.test.ts`, `.test.js`, o están en una carpeta `test/`). Con un archivo, ejecuta ese.
+- `describe` agrupa y `test` (o `it`) define un caso.
+- `assert/strict`: `equal` (===), `deepEqual` (compara objetos y arrays por contenido), `throws` y `rejects` (que lance un error, sincrónico o async), `match` (contra una regex).
+- `node --test --watch` vuelve a correr al guardar, y `--experimental-test-coverage` muestra la cobertura.
+
+## Tests con mocks
+
+Para testear el servicio **sin base de datos**, se le pasa un repositorio falso. Gracias a la [inyección de dependencias](#/capas), no hace falta ningún truco:
+
+<Salida archivo="node/02-express/testing/servicio.test.ts" flags="--test" extra={['node/02-express/capas/servicio.ts']} />
+
+`mock.fn(implementación)` crea una función que registra cada llamada: `mock.callCount()` y `mock.calls[i].arguments` permiten verificar **cómo** se usó la dependencia (que se llamó a `crear`, o que **no** se llamó, en el caso del título repetido). Para reemplazar un método de un objeto existente está `t.mock.method(objeto, 'metodo')`, y para el reloj, `t.mock.timers`.
+
+## Tests de la API
+
+Un test de integración levanta la app de verdad (en un puerto libre, con `listen(0)`) y le hace pedidos HTTP con `fetch`. Prueba juntas las rutas, la validación, el servicio y el manejo de errores:
+
+<Salida archivo="node/02-express/testing/app.test.ts" flags="--test" />
+
+- `before` y `after` preparan y limpian (levantar y cerrar el servidor). También hay `beforeEach` y `afterEach`.
+- Como `crearApp()` usa un repositorio en memoria por defecto, cada archivo de test arranca con datos conocidos.
+- En muchos proyectos vas a ver **supertest**, que hace lo mismo sin levantar el puerto a mano: `await request(app).post('/ofertas').send({...}).expect(201)`.
+
+<Nota title="¿Y la base de datos en los tests?">
+Los tests del repositorio de MySQL necesitan un MySQL de verdad. Lo habitual es levantar uno en Docker para los tests (a mano con `docker compose`, o con **Testcontainers**, que lo levanta desde el código), cargar el esquema, y limpiar las tablas entre tests. Son más lentos: se escriben menos y para lo que importa (las consultas complicadas).
+</Nota>
+
+## Qué testear
+
+- **Mucho** test unitario de la lógica de negocio (los servicios): rápidos y precisos.
+- **Algunos** tests de la API (integración): los caminos principales y los errores (400, 401, 404, 409).
+- **Pocos** tests de punta a punta con base de datos y todo.
+
+Y lo de siempre: un test que nunca falla no prueba nada. Mirá que falle cuando rompés el código.
+
+<Entrevista>
+"¿Cómo testearías una API de Express?" → "Separo la app del listen para poder importarla. La lógica de negocio va en servicios que reciben sus dependencias, y los testeo con unit tests y repositorios falsos o mocks. Después, tests de integración que levantan la app (con supertest o con listen(0) y fetch) y verifican status, body y headers de los casos principales y de error. Para la base, unos pocos tests contra un MySQL en Docker. Uso node:test o Vitest, y todo corre en CI en cada PR."
+</Entrevista>

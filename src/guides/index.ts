@@ -1,5 +1,6 @@
 import { estadoGuide } from './estado'
 import { mysqlGuide } from './mysql'
+import { nodeGuide } from './node'
 import { reactGuide } from './react'
 import { typescriptGuide } from './typescript'
 import type { Chapter, Guide, GuideDef, UpcomingGuide } from './types'
@@ -16,7 +17,7 @@ function buildGuide(def: GuideDef): Guide {
   return guide
 }
 
-export const guides: Guide[] = [reactGuide, typescriptGuide, estadoGuide, mysqlGuide].map(buildGuide)
+export const guides: Guide[] = [reactGuide, typescriptGuide, estadoGuide, mysqlGuide, nodeGuide].map(buildGuide)
 
 // Las que todavía no están escritas se muestran en la home como "próximamente".
 export const upcomingGuides: UpcomingGuide[] = [

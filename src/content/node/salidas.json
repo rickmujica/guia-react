@@ -1,0 +1,1128 @@
+{
+ "node": "v24.22.1",
+ "express": "5.3.0",
+ "scripts": {
+  "node/02-express/auth/claves.ts": {
+   "stdout": "Lo que se guarda: 161 caracteres (sal + hash en hexadecimal)\n¿La misma clave da el mismo hash? false\nClave correcta: true\nClave incorrecta: false\n",
+   "stderr": "",
+   "codigo": 0
+  },
+  "node/02-express/produccion/config.ts": {
+   "stdout": "",
+   "stderr": "Configuración inválida:\n  DB_HOST: Entrada inválida: se esperaba texto, recibido indefinido\n  DB_USER: Entrada inválida: se esperaba texto, recibido indefinido\n  DB_PASSWORD: Entrada inválida: se esperaba texto, recibido indefinido\n  DB_NAME: Entrada inválida: se esperaba texto, recibido indefinido\n  JWT_SECRET: Entrada inválida: se esperaba texto, recibido indefinido\n",
+   "codigo": 1
+  },
+  "--env-file=.env.ejemplo node/02-express/produccion/config.ts": {
+   "stdout": "Configuración OK: {\n  NODE_ENV: 'production',\n  PUERTO: 8080,\n  DB_HOST: 'db.interna',\n  DB_USER: 'app_busqueda',\n  DB_PASSWORD: '***',\n  DB_NAME: 'busqueda',\n  JWT_SECRET: '***'\n}\n",
+   "stderr": "",
+   "codigo": 0
+  },
+  "node/02-express/produccion/apagado.ts": {
+   "stdout": "Servidor listo\nSIGTERM: no acepto más pedidos, termino los que están en curso…\nEl pedido lento igual respondió: { listo: true }\nPedidos terminados. Cierro la base de datos y salgo.\n",
+   "stderr": "",
+   "codigo": 0
+  },
+  "--test node/02-express/testing/precios.test.ts": {
+   "stdout": "▶ rangoSalarial\n  ✔ con mínimo y máximo (…ms)\n  ✔ sin datos (…ms)\n  ✔ solo uno de los dos (…ms)\n  ✔ mínimo mayor que máximo tira un error (…ms)\n✔ rangoSalarial (…ms)\nℹ tests 4\nℹ suites 1\nℹ pass 4\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms …\n",
+   "stderr": "",
+   "codigo": 0
+  },
+  "--test node/02-express/testing/servicio.test.ts": {
+   "stdout": "✔ publicar guarda la oferta si no está repetida (…ms)\n✔ publicar rechaza un título repetido en la misma empresa (409) (…ms)\n✔ obtener una que no existe da 404 (…ms)\nℹ tests 3\nℹ suites 0\nℹ pass 3\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms …\n",
+   "stderr": "",
+   "codigo": 0
+  },
+  "--test node/02-express/testing/app.test.ts": {
+   "stdout": "▶ API de ofertas\n  ✔ GET /ofertas lista las ofertas (…ms)\n  ✔ POST /ofertas crea una oferta (201) (…ms)\n  ✔ POST /ofertas con datos inválidos da 400 (…ms)\n  ✔ GET /ofertas/99 da 404 (…ms)\n✔ API de ofertas (…ms)\nℹ tests 4\nℹ suites 1\nℹ pass 4\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms …\n",
+   "stderr": "",
+   "codigo": 0
+  },
+  "node/01-node/archivos/rutas.ts": {
+   "stdout": "datos/empresas.json\ncv-2026.pdf\n.pdf\n/home/ana/cv\n{\n  root: '/',\n  dir: '/home/ana/cv',\n  base: 'cv-2026.pdf',\n  ext: '.pdf',\n  name: 'cv-2026'\n}\n~/guia-react/src/demos/node/01-node/archivos\n~/guia-react/src/demos/node/01-node/archivos/datos.json\n",
+   "stderr": "",
+   "codigo": 0
+  },
+  "node/01-node/archivos/archivos.ts": {
+   "stdout": "Postulaciones: [ 'Nubelia', 'Pagos Sur' ]\nNotas:\nPreparar live coding\nRepasar el event loop\n\nnotas.txt: 43 bytes\npostulaciones.json: 124 bytes\n",
+   "stderr": "",
+   "codigo": 0
+  },
+  "node/01-node/archivos/streams.ts": {
+   "stdout": "CSV: 4.3 MB\nVisitas a la oferta 3: 13334\nComprimido: 21 KB\n",
+   "stderr": "",
+   "codigo": 0
+  },
+  "node/01-node/async/estilos.ts": {
+   "stdout": "1. async/await: 3 ofertas\n   Un archivo que no existe: ENOENT\n2. promisify: 3 ofertas\n   (el callback todavía no corrió: readFile no bloquea)\n3. Callback: 3 ofertas\n",
+   "stderr": "",
+   "codigo": 0
+  },
+  "node/01-node/async/paralelo.ts": {
+   "stdout": "En serie: ~600 ms\nPromise.all: ~300 ms [ 'empresas (300 ms)', 'ofertas (200 ms)', 'postulaciones (100 ms)' ]\nPromise.all con un error: ofertas respondió 500\nallSettled: [ 'empresas (300 ms)', '✗ ofertas respondió 500' ]\nrace: rápido (100 ms)\nany: anda (150 ms)\n",
+   "stderr": "",
+   "codigo": 0
+  },
+  "node/01-node/async/cancelar.ts": {
+   "stdout": "Con timeout: AbortError\nCancelada a mano: AbortError\n",
+   "stderr": "",
+   "codigo": 0
+  },
+  "node/01-node/async/sin-catch.ts": {
+   "stdout": "",
+   "stderr": "file://~/guia-react/src/demos/node/01-node/async/sin-catch.ts:2\n  throw new Error('La base de datos no responde')\n        ^\n\nError: La base de datos no responde\n    at guardarPostulacion (file://~/guia-react/src/demos/node/01-node/async/sin-catch.ts:2:9)\n    at file://~/guia-react/src/demos/node/01-node/async/sin-catch.ts:6:1\n\nNode.js v24.22.1\n",
+   "codigo": 1
+  },
+  "node/01-node/event-loop/orden.ts": {
+   "stdout": "1. Código sincrónico: corre de un tirón, primero que todo\n2. Más código sincrónico\n3. Promesa resuelta: microtarea\n4. queueMicrotask: otra microtarea\n5. process.nextTick\n6. setTimeout(0): fase de timers\n7. Terminó de leer el archivo: callback de I/O\n8. setImmediate desde el I/O: fase check\n9. setTimeout(0) desde el I/O\n",
+   "stderr": "",
+   "codigo": 0
+  },
+  "node/01-node/event-loop/bloquear.ts": {
+   "stdout": "Bucle sincrónico terminado (~500 ms)\nEl timer de 100 ms se ejecutó a los ~500 ms\n",
+   "stderr": "",
+   "codigo": 0
+  },
+  "node/01-node/event-loop/worker.ts": {
+   "stdout": "Principal: sigo libre mientras el worker calcula\nWorker: fibonacci(35) = 9227465\n",
+   "stderr": "",
+   "codigo": 0
+  },
+  "node/01-node/http/cliente.ts": {
+   "stdout": "200 application/json\n[ { id: 1, titulo: 'Frontend React Senior' } ]\nok: false · status: 404\nTimeout: TimeoutError\n",
+   "stderr": "",
+   "codigo": 0
+  },
+  "node/01-node/modulos/main.ts": {
+   "stdout": "USD 3.000,00 – USD 4.000,00\nUSD 1.100,00\nGs. 18.000.000\nCarpeta: modulos\nArchivo: main.ts\nProyecto: guia-react · type: module\n",
+   "stderr": "",
+   "codigo": 0
+  },
+  "node/01-node/modulos/enum.ts": {
+   "stdout": "",
+   "stderr": "node:internal/modules/run_main:107\n    triggerUncaughtException(\n    ^\n\nfile://~/guia-react/src/demos/node/01-node/modulos/enum.ts:4\n    // @ts-expect-error: erasableSyntaxOnly marca lo mismo que Node\n  > enum Seniority {\n      Junior,\n      Senior,\n  > }\n\nSyntaxError [ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX]: TypeScript enum is not supported in strip-only mode {\n  code: 'ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX'\n}\n\nNode.js v24.22.1\n",
+   "codigo": 1
+  },
+  "node/01-node/proceso/eventos.ts": {
+   "stdout": "Nueva postulación: Nubelia\nNubelia: postulado → entrevista\n(once: este oyente se ejecuta solo la primera vez)\nNubelia: entrevista → oferta\nError: No hay postulación a Pagos Sur\nNueva postulación: Delta Pay\nLlegó con await: Delta Pay\n",
+   "stderr": "",
+   "codigo": 0
+  },
+  "node/01-node/proceso/argumentos.ts react node -s senior --remoto --minimo 3000": {
+   "stdout": "process.argv: [\n  'react',    'node',\n  '-s',       'senior',\n  '--remoto', '--minimo',\n  '3000'\n]\nOpciones: [Object: null prototype] {\n  seniority: 'senior',\n  remoto: true,\n  minimo: '3000'\n}\nPalabras clave: [ 'react', 'node' ]\n",
+   "stderr": "",
+   "codigo": 0
+  },
+  "--env-file=.env.ejemplo node/01-node/proceso/entorno.ts": {
+   "stdout": "PUERTO: 4000 number\nDB_NAME: busqueda\nNO_EXISTE: undefined\nAPI_KEY definida: true\nVersión de Node: v24\n",
+   "stderr": "",
+   "codigo": 0
+  },
+  "node/01-node/proceso/codigo-de-salida.ts": {
+   "stdout": "",
+   "stderr": "Uso: node codigo-de-salida.ts <archivo>...\n",
+   "codigo": 1
+  }
+ },
+ "apis": {
+  "node/02-express/api-rest.ts\nGET /ofertas?modalidad=remoto&pagina=1&porPagina=2\nGET /ofertas/3\nPOST /ofertas {\"titulo\": \"Backend Node\", \"empresa\": \"Delta Pay\", \"modalidad\": \"remoto\", \"salarioMax\": 4500}\nPATCH /ofertas/3 {\"salarioMax\": 3500}\nPUT /ofertas/4 {\"titulo\": \"Frontend Semi\", \"empresa\": \"Mate Cloud\", \"modalidad\": \"hibrido\", \"salarioMax\": 2400}\nDELETE /ofertas/2\nDELETE /ofertas/2\nGET /ofertas?porPagina=3": [
+   {
+    "pedido": {
+     "metodo": "GET",
+     "ruta": "/ofertas?modalidad=remoto&pagina=1&porPagina=2",
+     "headers": {}
+    },
+    "respuesta": {
+     "status": 200,
+     "statusText": "OK",
+     "headers": {
+      "content-length": "241",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"f1-oRG20t92y3qZjt0qhm/zrM+Q6EY\"",
+      "x-powered-by": "Express"
+     },
+     "body": "{\"datos\":[{\"id\":1,\"titulo\":\"Frontend React Senior\",\"empresa\":\"Nubelia\",\"modalidad\":\"remoto\",\"salarioMax\":4000},{\"id\":2,\"titulo\":\"Fullstack Node\",\"empresa\":\"Nubelia\",\"modalidad\":\"remoto\",\"salarioMax\":3000}],\"total\":3,\"pagina\":1,\"porPagina\":2}",
+     "consola": ""
+    }
+   },
+   {
+    "pedido": {
+     "metodo": "GET",
+     "ruta": "/ofertas/3",
+     "headers": {}
+    },
+    "respuesta": {
+     "status": 200,
+     "statusText": "OK",
+     "headers": {
+      "content-length": "104",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"68-51ccvSYI5XbCoK9vBzODKtziFAQ\"",
+      "x-powered-by": "Express"
+     },
+     "body": "{\"id\":3,\"titulo\":\"React Native Developer\",\"empresa\":\"Pagos Sur\",\"modalidad\":\"hibrido\",\"salarioMax\":3200}",
+     "consola": ""
+    }
+   },
+   {
+    "pedido": {
+     "metodo": "POST",
+     "ruta": "/ofertas",
+     "headers": {
+      "content-type": "application/json"
+     },
+     "body": "{\"titulo\": \"Backend Node\", \"empresa\": \"Delta Pay\", \"modalidad\": \"remoto\", \"salarioMax\": 4500}"
+    },
+    "respuesta": {
+     "status": 201,
+     "statusText": "Created",
+     "headers": {
+      "content-length": "93",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"5d-uZNGwTmvDOIDuIk6IQdKrOWH4aM\"",
+      "location": "/ofertas/6",
+      "x-powered-by": "Express"
+     },
+     "body": "{\"titulo\":\"Backend Node\",\"empresa\":\"Delta Pay\",\"modalidad\":\"remoto\",\"salarioMax\":4500,\"id\":6}",
+     "consola": ""
+    }
+   },
+   {
+    "pedido": {
+     "metodo": "PATCH",
+     "ruta": "/ofertas/3",
+     "headers": {
+      "content-type": "application/json"
+     },
+     "body": "{\"salarioMax\": 3500}"
+    },
+    "respuesta": {
+     "status": 200,
+     "statusText": "OK",
+     "headers": {
+      "content-length": "104",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"68-K6E64p0+ydNTg8aI09qegquYGnI\"",
+      "x-powered-by": "Express"
+     },
+     "body": "{\"id\":3,\"titulo\":\"React Native Developer\",\"empresa\":\"Pagos Sur\",\"modalidad\":\"hibrido\",\"salarioMax\":3500}",
+     "consola": ""
+    }
+   },
+   {
+    "pedido": {
+     "metodo": "PUT",
+     "ruta": "/ofertas/4",
+     "headers": {
+      "content-type": "application/json"
+     },
+     "body": "{\"titulo\": \"Frontend Semi\", \"empresa\": \"Mate Cloud\", \"modalidad\": \"hibrido\", \"salarioMax\": 2400}"
+    },
+    "respuesta": {
+     "status": 200,
+     "statusText": "OK",
+     "headers": {
+      "content-length": "96",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"60-e1E+8zoh5j3r5pM70EY96bKKdow\"",
+      "x-powered-by": "Express"
+     },
+     "body": "{\"titulo\":\"Frontend Semi\",\"empresa\":\"Mate Cloud\",\"modalidad\":\"hibrido\",\"salarioMax\":2400,\"id\":4}",
+     "consola": ""
+    }
+   },
+   {
+    "pedido": {
+     "metodo": "DELETE",
+     "ruta": "/ofertas/2",
+     "headers": {}
+    },
+    "respuesta": {
+     "status": 204,
+     "statusText": "No Content",
+     "headers": {
+      "x-powered-by": "Express"
+     },
+     "body": "",
+     "consola": ""
+    }
+   },
+   {
+    "pedido": {
+     "metodo": "DELETE",
+     "ruta": "/ofertas/2",
+     "headers": {}
+    },
+    "respuesta": {
+     "status": 404,
+     "statusText": "Not Found",
+     "headers": {
+      "content-length": "32",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"20-FZy1ioeTnk726FzYF7l5lllkBmY\"",
+      "x-powered-by": "Express"
+     },
+     "body": "{\"error\":\"Oferta no encontrada\"}",
+     "consola": ""
+    }
+   },
+   {
+    "pedido": {
+     "metodo": "GET",
+     "ruta": "/ofertas?porPagina=3",
+     "headers": {}
+    },
+    "respuesta": {
+     "status": 200,
+     "statusText": "OK",
+     "headers": {
+      "content-length": "349",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"15d-S+uEDhHxdd9zlFVuTwbuDeyY6Ig\"",
+      "x-powered-by": "Express"
+     },
+     "body": "{\"datos\":[{\"id\":1,\"titulo\":\"Frontend React Senior\",\"empresa\":\"Nubelia\",\"modalidad\":\"remoto\",\"salarioMax\":4000},{\"id\":3,\"titulo\":\"React Native Developer\",\"empresa\":\"Pagos Sur\",\"modalidad\":\"hibrido\",\"salarioMax\":3500},{\"titulo\":\"Frontend Semi\",\"empresa\":\"Mate Cloud\",\"modalidad\":\"hibrido\",\"salarioMax\":2400,\"id\":4}],\"total\":5,\"pagina\":1,\"porPagina\":3}",
+     "consola": ""
+    }
+   }
+  ],
+  "node/02-express/auth/app.ts\nGET /yo\nPOST /login {\"email\": \"ana@ejemplo.com\", \"password\": \"incorrecta\"}\nPOST /login {\"email\": \"ana@ejemplo.com\", \"password\": \"secreto-123\"}\nGET /yo [Authorization: Bearer {token}]\nGET /admin/usuarios [Authorization: Bearer {token}]\nGET /yo [Authorization: Bearer token-inventado]": [
+   {
+    "pedido": {
+     "metodo": "GET",
+     "ruta": "/yo",
+     "headers": {}
+    },
+    "respuesta": {
+     "status": 401,
+     "statusText": "Unauthorized",
+     "headers": {
+      "content-length": "26",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"1a-rgm4T5N+jZUKQhdvmDXo+mSxNQQ\"",
+      "x-powered-by": "Express"
+     },
+     "body": "{\"error\":\"Falta el token\"}",
+     "consola": ""
+    }
+   },
+   {
+    "pedido": {
+     "metodo": "POST",
+     "ruta": "/login",
+     "headers": {
+      "content-type": "application/json"
+     },
+     "body": "{\"email\": \"ana@ejemplo.com\", \"password\": \"incorrecta\"}"
+    },
+    "respuesta": {
+     "status": 401,
+     "statusText": "Unauthorized",
+     "headers": {
+      "content-length": "43",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"2b-e3PAAut+YYnjz0AhpNhF1SBOm60\"",
+      "x-powered-by": "Express"
+     },
+     "body": "{\"error\":\"Email o contraseña incorrectos\"}",
+     "consola": ""
+    }
+   },
+   {
+    "pedido": {
+     "metodo": "POST",
+     "ruta": "/login",
+     "headers": {
+      "content-type": "application/json"
+     },
+     "body": "{\"email\": \"ana@ejemplo.com\", \"password\": \"secreto-123\"}"
+    },
+    "respuesta": {
+     "status": 200,
+     "statusText": "OK",
+     "headers": {
+      "content-length": "160",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"a0-rkmy4HIdBr7KALGZk6+hDKJ1ZL4\"",
+      "x-powered-by": "Express"
+     },
+     "body": "{\"token\":\"eyJhbGciOiJIUzI1NiJ9.eyJyb2wiOiJ1c3VhcmlvIiwic3ViIjoidTEiLCJpYXQiOjE3OTMzNDI0MDUsImV4cCI6MTc5MzM0MzMwNX0.XYHnyDaDzeeyw5TyqnfIgj7Tn1CwbRl-nzFYhdxzwZs\"}",
+     "consola": ""
+    }
+   },
+   {
+    "pedido": {
+     "metodo": "GET",
+     "ruta": "/yo",
+     "headers": {
+      "authorization": "Bearer {token}"
+     }
+    },
+    "respuesta": {
+     "status": 200,
+     "statusText": "OK",
+     "headers": {
+      "content-length": "27",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"1b-8W7CzKonEC9Yi6YbMCHICVOZaqs\"",
+      "x-powered-by": "Express"
+     },
+     "body": "{\"id\":\"u1\",\"rol\":\"usuario\"}",
+     "consola": ""
+    }
+   },
+   {
+    "pedido": {
+     "metodo": "GET",
+     "ruta": "/admin/usuarios",
+     "headers": {
+      "authorization": "Bearer {token}"
+     }
+    },
+    "respuesta": {
+     "status": 403,
+     "statusText": "Forbidden",
+     "headers": {
+      "content-length": "37",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"25-ipgX2gg8njvPgmwWCIOjjxPMJ48\"",
+      "x-powered-by": "Express"
+     },
+     "body": "{\"error\":\"Solo para administradores\"}",
+     "consola": ""
+    }
+   },
+   {
+    "pedido": {
+     "metodo": "GET",
+     "ruta": "/yo",
+     "headers": {
+      "authorization": "Bearer token-inventado"
+     }
+    },
+    "respuesta": {
+     "status": 401,
+     "statusText": "Unauthorized",
+     "headers": {
+      "content-length": "37",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"25-yzDnu4cX3FjVR9pqGltub8Xil5c\"",
+      "x-powered-by": "Express"
+     },
+     "body": "{\"error\":\"Token inválido o vencido\"}",
+     "consola": ""
+    }
+   }
+  ],
+  "node/02-express/capas/app.ts\nGET /ofertas\nGET /ofertas?modalidad=hibrido\nPOST /ofertas {\"titulo\": \"Backend Node\", \"empresa\": \"Nubelia\"}\nPOST /ofertas {\"titulo\": \"frontend react senior\", \"empresa\": \"Nubelia\"}\nPOST /ofertas {\"titulo\": \"QA\"}\nGET /ofertas/7": [
+   {
+    "pedido": {
+     "metodo": "GET",
+     "ruta": "/ofertas",
+     "headers": {}
+    },
+    "respuesta": {
+     "status": 200,
+     "statusText": "OK",
+     "headers": {
+      "content-length": "207",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"cf-+y21Bi+Yw/Dix2r/O2J6rE/h5gk\"",
+      "x-powered-by": "Express"
+     },
+     "body": "[{\"id\":1,\"titulo\":\"Frontend React Senior\",\"empresa\":\"Nubelia\",\"modalidad\":\"remoto\",\"salarioMax\":4000},{\"id\":2,\"titulo\":\"React Native Developer\",\"empresa\":\"Pagos Sur\",\"modalidad\":\"hibrido\",\"salarioMax\":3200}]",
+     "consola": ""
+    }
+   },
+   {
+    "pedido": {
+     "metodo": "GET",
+     "ruta": "/ofertas?modalidad=hibrido",
+     "headers": {}
+    },
+    "respuesta": {
+     "status": 200,
+     "statusText": "OK",
+     "headers": {
+      "content-length": "106",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"6a-h99dpR/jwfRqtTWlDejDzxOSlb0\"",
+      "x-powered-by": "Express"
+     },
+     "body": "[{\"id\":2,\"titulo\":\"React Native Developer\",\"empresa\":\"Pagos Sur\",\"modalidad\":\"hibrido\",\"salarioMax\":3200}]",
+     "consola": ""
+    }
+   },
+   {
+    "pedido": {
+     "metodo": "POST",
+     "ruta": "/ofertas",
+     "headers": {
+      "content-type": "application/json"
+     },
+     "body": "{\"titulo\": \"Backend Node\", \"empresa\": \"Nubelia\"}"
+    },
+    "respuesta": {
+     "status": 201,
+     "statusText": "Created",
+     "headers": {
+      "content-length": "91",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"5b-u2Qwg/2/hWMh/5KeZExcFZLPt5M\"",
+      "location": "/ofertas/3",
+      "x-powered-by": "Express"
+     },
+     "body": "{\"titulo\":\"Backend Node\",\"empresa\":\"Nubelia\",\"modalidad\":\"remoto\",\"salarioMax\":null,\"id\":3}",
+     "consola": ""
+    }
+   },
+   {
+    "pedido": {
+     "metodo": "POST",
+     "ruta": "/ofertas",
+     "headers": {
+      "content-type": "application/json"
+     },
+     "body": "{\"titulo\": \"frontend react senior\", \"empresa\": \"Nubelia\"}"
+    },
+    "respuesta": {
+     "status": 409,
+     "statusText": "Conflict",
+     "headers": {
+      "content-length": "57",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"39-1GgOQ0Iz/wIdFzS04LpGpdrmpvE\"",
+      "x-powered-by": "Express"
+     },
+     "body": "{\"error\":\"Nubelia ya publicó \\\"frontend react senior\\\"\"}",
+     "consola": ""
+    }
+   },
+   {
+    "pedido": {
+     "metodo": "POST",
+     "ruta": "/ofertas",
+     "headers": {
+      "content-type": "application/json"
+     },
+     "body": "{\"titulo\": \"QA\"}"
+    },
+    "respuesta": {
+     "status": 400,
+     "statusText": "Bad Request",
+     "headers": {
+      "content-length": "60",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"3c-yRGpBw33Wmz4Cw7MQK/XYyum2Zo\"",
+      "x-powered-by": "Express"
+     },
+     "body": "{\"error\":\"Datos inválidos\",\"detalles\":[\"titulo\",\"empresa\"]}",
+     "consola": ""
+    }
+   },
+   {
+    "pedido": {
+     "metodo": "GET",
+     "ruta": "/ofertas/7",
+     "headers": {}
+    },
+    "respuesta": {
+     "status": 404,
+     "statusText": "Not Found",
+     "headers": {
+      "content-length": "33",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"21-0GN1K053bhZ+QlUPk8I8zBhFAZU\"",
+      "x-powered-by": "Express"
+     },
+     "body": "{\"error\":\"No existe la oferta 7\"}",
+     "consola": ""
+    }
+   }
+  ],
+  "node/02-express/hola.ts\nGET /\nGET /salud\nGET /no-existe": [
+   {
+    "pedido": {
+     "metodo": "GET",
+     "ruta": "/",
+     "headers": {}
+    },
+    "respuesta": {
+     "status": 200,
+     "statusText": "OK",
+     "headers": {
+      "content-length": "18",
+      "content-type": "text/html; charset=utf-8",
+      "etag": "W/\"12-Rh2ahHMVyBxuIRqJkHoXzDJ+g4s\"",
+      "x-powered-by": "Express"
+     },
+     "body": "Hola desde Express",
+     "consola": ""
+    }
+   },
+   {
+    "pedido": {
+     "metodo": "GET",
+     "ruta": "/salud",
+     "headers": {}
+    },
+    "respuesta": {
+     "status": 200,
+     "statusText": "OK",
+     "headers": {
+      "content-length": "29",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"1d-ojLegx8aM1eiH64iMdVX7U5GDiY\"",
+      "x-powered-by": "Express"
+     },
+     "body": "{\"ok\":true,\"version\":\"1.0.0\"}",
+     "consola": ""
+    }
+   },
+   {
+    "pedido": {
+     "metodo": "GET",
+     "ruta": "/no-existe",
+     "headers": {}
+    },
+    "respuesta": {
+     "status": 404,
+     "statusText": "Not Found",
+     "headers": {
+      "content-length": "148",
+      "content-security-policy": "default-src 'none'",
+      "content-type": "text/html; charset=utf-8",
+      "x-content-type-options": "nosniff",
+      "x-powered-by": "Express"
+     },
+     "body": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Error</title>\n</head>\n<body>\n<pre>Cannot GET /no-existe</pre>\n</body>\n</html>\n",
+     "consola": ""
+    }
+   }
+  ],
+  "node/02-express/rutas.ts\nGET /api/ofertas?modalidad=remoto\nGET /api/ofertas?q=front\nGET /api/ofertas/3\nGET /api/ofertas/99\nPOST /api/ofertas {\"titulo\": \"Backend Node\", \"empresa\": \"Delta Pay\", \"modalidad\": \"remoto\", \"salarioMax\": 4500}": [
+   {
+    "pedido": {
+     "metodo": "GET",
+     "ruta": "/api/ofertas?modalidad=remoto",
+     "headers": {}
+    },
+    "respuesta": {
+     "status": 200,
+     "statusText": "OK",
+     "headers": {
+      "content-length": "302",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"12e-Csb+m9l1zjyzgt0+/7yORw07JCo\"",
+      "x-powered-by": "Express"
+     },
+     "body": "[{\"id\":1,\"titulo\":\"Frontend React Senior\",\"empresa\":\"Nubelia\",\"modalidad\":\"remoto\",\"salarioMax\":4000},{\"id\":2,\"titulo\":\"Fullstack Node\",\"empresa\":\"Nubelia\",\"modalidad\":\"remoto\",\"salarioMax\":3000},{\"id\":5,\"titulo\":\"Senior Frontend Engineer\",\"empresa\":\"Delta Pay\",\"modalidad\":\"remoto\",\"salarioMax\":6000}]",
+     "consola": ""
+    }
+   },
+   {
+    "pedido": {
+     "metodo": "GET",
+     "ruta": "/api/ofertas?q=front",
+     "headers": {}
+    },
+    "respuesta": {
+     "status": 200,
+     "statusText": "OK",
+     "headers": {
+      "content-length": "310",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"136-vMjgnMGwCG5f7Tb4FIP/1paIu6E\"",
+      "x-powered-by": "Express"
+     },
+     "body": "[{\"id\":1,\"titulo\":\"Frontend React Senior\",\"empresa\":\"Nubelia\",\"modalidad\":\"remoto\",\"salarioMax\":4000},{\"id\":4,\"titulo\":\"Frontend Junior\",\"empresa\":\"Mate Cloud\",\"modalidad\":\"presencial\",\"salarioMax\":1600},{\"id\":5,\"titulo\":\"Senior Frontend Engineer\",\"empresa\":\"Delta Pay\",\"modalidad\":\"remoto\",\"salarioMax\":6000}]",
+     "consola": ""
+    }
+   },
+   {
+    "pedido": {
+     "metodo": "GET",
+     "ruta": "/api/ofertas/3",
+     "headers": {}
+    },
+    "respuesta": {
+     "status": 200,
+     "statusText": "OK",
+     "headers": {
+      "content-length": "104",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"68-51ccvSYI5XbCoK9vBzODKtziFAQ\"",
+      "x-powered-by": "Express"
+     },
+     "body": "{\"id\":3,\"titulo\":\"React Native Developer\",\"empresa\":\"Pagos Sur\",\"modalidad\":\"hibrido\",\"salarioMax\":3200}",
+     "consola": ""
+    }
+   },
+   {
+    "pedido": {
+     "metodo": "GET",
+     "ruta": "/api/ofertas/99",
+     "headers": {}
+    },
+    "respuesta": {
+     "status": 404,
+     "statusText": "Not Found",
+     "headers": {
+      "content-length": "32",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"20-FZy1ioeTnk726FzYF7l5lllkBmY\"",
+      "x-powered-by": "Express"
+     },
+     "body": "{\"error\":\"Oferta no encontrada\"}",
+     "consola": ""
+    }
+   },
+   {
+    "pedido": {
+     "metodo": "POST",
+     "ruta": "/api/ofertas",
+     "headers": {
+      "content-type": "application/json"
+     },
+     "body": "{\"titulo\": \"Backend Node\", \"empresa\": \"Delta Pay\", \"modalidad\": \"remoto\", \"salarioMax\": 4500}"
+    },
+    "respuesta": {
+     "status": 201,
+     "statusText": "Created",
+     "headers": {
+      "content-length": "93",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"5d-sRYPy4Uihnqr8/o0kqE3G9BiG/M\"",
+      "location": "/api/ofertas/6",
+      "x-powered-by": "Express"
+     },
+     "body": "{\"id\":6,\"titulo\":\"Backend Node\",\"empresa\":\"Delta Pay\",\"modalidad\":\"remoto\",\"salarioMax\":4500}",
+     "consola": ""
+    }
+   }
+  ],
+  "node/02-express/middlewares.ts\nGET /ofertas\nDELETE /ofertas/1\nDELETE /ofertas/1 [x-api-key: clave-de-prueba]\nDELETE /ofertas/1 [x-api-key: clave-de-prueba]\nGET /postulaciones\nPOST /ofertas {\"titulo\": \"sin cerrar\"\nGET /no-existe": [
+   {
+    "pedido": {
+     "metodo": "GET",
+     "ruta": "/ofertas",
+     "headers": {}
+    },
+    "respuesta": {
+     "status": 200,
+     "statusText": "OK",
+     "headers": {
+      "content-length": "112",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"70-RXnf7fwKdj4Q8apd5Tp2J2dDoKo\"",
+      "x-powered-by": "Express"
+     },
+     "body": "[\"Frontend React Senior\",\"Fullstack Node\",\"React Native Developer\",\"Frontend Junior\",\"Senior Frontend Engineer\"]",
+     "consola": "GET /ofertas → 200\n"
+    }
+   },
+   {
+    "pedido": {
+     "metodo": "DELETE",
+     "ruta": "/ofertas/1",
+     "headers": {}
+    },
+    "respuesta": {
+     "status": 401,
+     "statusText": "Unauthorized",
+     "headers": {
+      "content-length": "44",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"2c-Pftb1PFhs6eBNWmjjN6ViP+2Axw\"",
+      "x-powered-by": "Express"
+     },
+     "body": "{\"error\":\"Falta la API key o es incorrecta\"}",
+     "consola": "DELETE /ofertas/1 → 401\n"
+    }
+   },
+   {
+    "pedido": {
+     "metodo": "DELETE",
+     "ruta": "/ofertas/1",
+     "headers": {
+      "x-api-key": "clave-de-prueba"
+     }
+    },
+    "respuesta": {
+     "status": 204,
+     "statusText": "No Content",
+     "headers": {
+      "x-powered-by": "Express"
+     },
+     "body": "",
+     "consola": "DELETE /ofertas/1 → 204\n"
+    }
+   },
+   {
+    "pedido": {
+     "metodo": "DELETE",
+     "ruta": "/ofertas/1",
+     "headers": {
+      "x-api-key": "clave-de-prueba"
+     }
+    },
+    "respuesta": {
+     "status": 404,
+     "statusText": "Not Found",
+     "headers": {
+      "content-length": "32",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"20-FZy1ioeTnk726FzYF7l5lllkBmY\"",
+      "x-powered-by": "Express"
+     },
+     "body": "{\"error\":\"Oferta no encontrada\"}",
+     "consola": "DELETE /ofertas/1 → 404\n"
+    }
+   },
+   {
+    "pedido": {
+     "metodo": "GET",
+     "ruta": "/postulaciones",
+     "headers": {}
+    },
+    "respuesta": {
+     "status": 500,
+     "statusText": "Internal Server Error",
+     "headers": {
+      "content-length": "25",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"19-VfUPkCHuLohaSWVOoHsJGFwRBFg\"",
+      "x-powered-by": "Express"
+     },
+     "body": "{\"error\":\"Error interno\"}",
+     "consola": "Error 500: La base de datos no responde\nGET /postulaciones → 500\n"
+    }
+   },
+   {
+    "pedido": {
+     "metodo": "POST",
+     "ruta": "/ofertas",
+     "headers": {
+      "content-type": "application/json"
+     },
+     "body": "{\"titulo\": \"sin cerrar\""
+    },
+    "respuesta": {
+     "status": 400,
+     "statusText": "Bad Request",
+     "headers": {
+      "content-length": "94",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"5e-m+g1cKMgcX8PfVT9Qr/kz9nLjRc\"",
+      "x-powered-by": "Express"
+     },
+     "body": "{\"error\":\"Expected ',' or '}' after property value in JSON at position 23 (line 1 column 24)\"}",
+     "consola": "Error 400: Expected ',' or '}' after property value in JSON at position 23 (line 1 column 24)\nPOST /ofertas → 400\n"
+    }
+   },
+   {
+    "pedido": {
+     "metodo": "GET",
+     "ruta": "/no-existe",
+     "headers": {}
+    },
+    "respuesta": {
+     "status": 404,
+     "statusText": "Not Found",
+     "headers": {
+      "content-length": "36",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"24-Od4sRLjUAbbiloh2Cb33GLJp+FQ\"",
+      "x-powered-by": "Express"
+     },
+     "body": "{\"error\":\"No existe GET /no-existe\"}",
+     "consola": "GET /no-existe → 404\n"
+    }
+   }
+  ],
+  "node/02-express/cors.ts\nGET /ofertas [origin: http://localhost:5173]\nGET /ofertas [origin: https://sitio-malicioso.com]\nOPTIONS /ofertas [origin: http://localhost:5173] [access-control-request-method: DELETE]": [
+   {
+    "pedido": {
+     "metodo": "GET",
+     "ruta": "/ofertas",
+     "headers": {
+      "origin": "http://localhost:5173"
+     }
+    },
+    "respuesta": {
+     "status": 200,
+     "statusText": "OK",
+     "headers": {
+      "access-control-allow-origin": "http://localhost:5173",
+      "content-length": "43",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"2b-DOY6UYEsTb8D/08OuBIml6fHyfE\"",
+      "vary": "Origin",
+      "x-powered-by": "Express"
+     },
+     "body": "[{\"id\":1,\"titulo\":\"Frontend React Senior\"}]",
+     "consola": ""
+    }
+   },
+   {
+    "pedido": {
+     "metodo": "GET",
+     "ruta": "/ofertas",
+     "headers": {
+      "origin": "https://sitio-malicioso.com"
+     }
+    },
+    "respuesta": {
+     "status": 200,
+     "statusText": "OK",
+     "headers": {
+      "content-length": "43",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"2b-DOY6UYEsTb8D/08OuBIml6fHyfE\"",
+      "x-powered-by": "Express"
+     },
+     "body": "[{\"id\":1,\"titulo\":\"Frontend React Senior\"}]",
+     "consola": ""
+    }
+   },
+   {
+    "pedido": {
+     "metodo": "OPTIONS",
+     "ruta": "/ofertas",
+     "headers": {
+      "origin": "http://localhost:5173",
+      "access-control-request-method": "DELETE"
+     }
+    },
+    "respuesta": {
+     "status": 204,
+     "statusText": "No Content",
+     "headers": {
+      "access-control-allow-headers": "Content-Type, Authorization",
+      "access-control-allow-methods": "GET, POST, PUT, DELETE",
+      "access-control-allow-origin": "http://localhost:5173",
+      "vary": "Origin",
+      "x-powered-by": "Express"
+     },
+     "body": "",
+     "consola": ""
+    }
+   }
+  ],
+  "node/02-express/validacion.ts\nPOST /ofertas {\"titulo\": \"Backend Node\", \"empresa\": \"Delta Pay\", \"salarioMax\": 4500}\nPOST /ofertas {\"titulo\": \"QA\", \"modalidad\": \"en la luna\", \"salarioMax\": -10}\nPOST /ofertas {\"titulo\": \"  Data Engineer  \", \"empresa\": \"Cumbre Data\", \"esAdmin\": true}\nGET /ofertas?modalidad=remoto&minimo=3500\nGET /ofertas?minimo=mucho": [
+   {
+    "pedido": {
+     "metodo": "POST",
+     "ruta": "/ofertas",
+     "headers": {
+      "content-type": "application/json"
+     },
+     "body": "{\"titulo\": \"Backend Node\", \"empresa\": \"Delta Pay\", \"salarioMax\": 4500}"
+    },
+    "respuesta": {
+     "status": 201,
+     "statusText": "Created",
+     "headers": {
+      "content-length": "93",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"5d-sRYPy4Uihnqr8/o0kqE3G9BiG/M\"",
+      "x-powered-by": "Express"
+     },
+     "body": "{\"id\":6,\"titulo\":\"Backend Node\",\"empresa\":\"Delta Pay\",\"modalidad\":\"remoto\",\"salarioMax\":4500}",
+     "consola": ""
+    }
+   },
+   {
+    "pedido": {
+     "metodo": "POST",
+     "ruta": "/ofertas",
+     "headers": {
+      "content-type": "application/json"
+     },
+     "body": "{\"titulo\": \"QA\", \"modalidad\": \"en la luna\", \"salarioMax\": -10}"
+    },
+    "respuesta": {
+     "status": 400,
+     "statusText": "Bad Request",
+     "headers": {
+      "content-length": "398",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"18e-VUnBA+9je4JRPcBLLNgbo8PK130\"",
+      "x-powered-by": "Express"
+     },
+     "body": "{\"error\":\"Datos inválidos\",\"detalles\":[{\"campo\":\"titulo\",\"mensaje\":\"El título necesita al menos 3 letras\"},{\"campo\":\"empresa\",\"mensaje\":\"Entrada inválida: se esperaba texto, recibido indefinido\"},{\"campo\":\"modalidad\",\"mensaje\":\"Opción inválida: se esperaba una de \\\"remoto\\\"|\\\"hibrido\\\"|\\\"presencial\\\"\"},{\"campo\":\"salarioMax\",\"mensaje\":\"Demasiado pequeño: se esperaba que número fuera >0\"}]}",
+     "consola": ""
+    }
+   },
+   {
+    "pedido": {
+     "metodo": "POST",
+     "ruta": "/ofertas",
+     "headers": {
+      "content-type": "application/json"
+     },
+     "body": "{\"titulo\": \"  Data Engineer  \", \"empresa\": \"Cumbre Data\", \"esAdmin\": true}"
+    },
+    "respuesta": {
+     "status": 201,
+     "statusText": "Created",
+     "headers": {
+      "content-length": "96",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"60-1ec2Q+ebKVHz3C8re9ni2Im8FAQ\"",
+      "x-powered-by": "Express"
+     },
+     "body": "{\"id\":7,\"titulo\":\"Data Engineer\",\"empresa\":\"Cumbre Data\",\"modalidad\":\"remoto\",\"salarioMax\":null}",
+     "consola": ""
+    }
+   },
+   {
+    "pedido": {
+     "metodo": "GET",
+     "ruta": "/ofertas?modalidad=remoto&minimo=3500",
+     "headers": {}
+    },
+    "respuesta": {
+     "status": 200,
+     "statusText": "OK",
+     "headers": {
+      "content-length": "302",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"12e-IfKFqJIdZXHa2qaZ4as0fxX19Vc\"",
+      "x-powered-by": "Express"
+     },
+     "body": "[{\"id\":1,\"titulo\":\"Frontend React Senior\",\"empresa\":\"Nubelia\",\"modalidad\":\"remoto\",\"salarioMax\":4000},{\"id\":5,\"titulo\":\"Senior Frontend Engineer\",\"empresa\":\"Delta Pay\",\"modalidad\":\"remoto\",\"salarioMax\":6000},{\"id\":6,\"titulo\":\"Backend Node\",\"empresa\":\"Delta Pay\",\"modalidad\":\"remoto\",\"salarioMax\":4500}]",
+     "consola": ""
+    }
+   },
+   {
+    "pedido": {
+     "metodo": "GET",
+     "ruta": "/ofertas?minimo=mucho",
+     "headers": {}
+    },
+    "respuesta": {
+     "status": 400,
+     "statusText": "Bad Request",
+     "headers": {
+      "content-length": "125",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"7d-J1nNjQxYH21IUDnPPyk/PIIssic\"",
+      "x-powered-by": "Express"
+     },
+     "body": "{\"error\":\"Datos inválidos\",\"detalles\":[{\"campo\":\"minimo\",\"mensaje\":\"Entrada inválida: se esperaba número, recibido NaN\"}]}",
+     "consola": ""
+    }
+   }
+  ],
+  "node/01-node/http/servidor.ts\nGET /ofertas\nGET /ofertas/2\nGET /ofertas/9\nPOST /ofertas {\"titulo\": \"Backend Node\", \"modalidad\": \"remoto\"}\nPOST /ofertas {\"titulo\": \"Mal escrito\",\nDELETE /ofertas/1": [
+   {
+    "pedido": {
+     "metodo": "GET",
+     "ruta": "/ofertas",
+     "headers": {}
+    },
+    "respuesta": {
+     "status": 200,
+     "statusText": "OK",
+     "headers": {
+      "content-type": "application/json",
+      "transfer-encoding": "chunked"
+     },
+     "body": "[{\"id\":1,\"titulo\":\"Frontend React Senior\",\"modalidad\":\"remoto\"},{\"id\":2,\"titulo\":\"Fullstack Node\",\"modalidad\":\"remoto\"}]",
+     "consola": "GET /ofertas\n"
+    }
+   },
+   {
+    "pedido": {
+     "metodo": "GET",
+     "ruta": "/ofertas/2",
+     "headers": {}
+    },
+    "respuesta": {
+     "status": 200,
+     "statusText": "OK",
+     "headers": {
+      "content-type": "application/json",
+      "transfer-encoding": "chunked"
+     },
+     "body": "{\"id\":2,\"titulo\":\"Fullstack Node\",\"modalidad\":\"remoto\"}",
+     "consola": "GET /ofertas/2\n"
+    }
+   },
+   {
+    "pedido": {
+     "metodo": "GET",
+     "ruta": "/ofertas/9",
+     "headers": {}
+    },
+    "respuesta": {
+     "status": 404,
+     "statusText": "Not Found",
+     "headers": {
+      "content-type": "application/json",
+      "transfer-encoding": "chunked"
+     },
+     "body": "{\"error\":\"No existe\"}",
+     "consola": "GET /ofertas/9\n"
+    }
+   },
+   {
+    "pedido": {
+     "metodo": "POST",
+     "ruta": "/ofertas",
+     "headers": {
+      "content-type": "application/json"
+     },
+     "body": "{\"titulo\": \"Backend Node\", \"modalidad\": \"remoto\"}"
+    },
+    "respuesta": {
+     "status": 201,
+     "statusText": "Created",
+     "headers": {
+      "content-type": "application/json",
+      "transfer-encoding": "chunked"
+     },
+     "body": "{\"id\":3,\"titulo\":\"Backend Node\",\"modalidad\":\"remoto\"}",
+     "consola": "POST /ofertas\n"
+    }
+   },
+   {
+    "pedido": {
+     "metodo": "POST",
+     "ruta": "/ofertas",
+     "headers": {
+      "content-type": "application/json"
+     },
+     "body": "{\"titulo\": \"Mal escrito\","
+    },
+    "respuesta": {
+     "status": 400,
+     "statusText": "Bad Request",
+     "headers": {
+      "content-type": "application/json",
+      "transfer-encoding": "chunked"
+     },
+     "body": "{\"error\":\"JSON inválido\"}",
+     "consola": "POST /ofertas\n"
+    }
+   },
+   {
+    "pedido": {
+     "metodo": "DELETE",
+     "ruta": "/ofertas/1",
+     "headers": {}
+    },
+    "respuesta": {
+     "status": 404,
+     "statusText": "Not Found",
+     "headers": {
+      "content-type": "application/json",
+      "transfer-encoding": "chunked"
+     },
+     "body": "{\"error\":\"No existe DELETE /ofertas/1\"}",
+     "consola": "DELETE /ofertas/1\n"
+    }
+   }
+  ]
+ }
+}

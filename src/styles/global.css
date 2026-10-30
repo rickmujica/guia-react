@@ -1279,6 +1279,136 @@ code {
   background: var(--bg-soft);
 }
 
+/* Salida de un script de Node y pedidos a una app de Express (guía de Node) */
+.salida-comando {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--text);
+  background: none;
+  padding: 0;
+}
+
+.salida-version {
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.salida-terminal,
+.api-body,
+.api-headers,
+.api-consola {
+  margin: 8px 0;
+  padding: 10px 12px;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  line-height: 1.55;
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.salida-codigo,
+.salida-vacia {
+  margin: 6px 0 0;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.api-intercambio + .api-intercambio {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--border);
+}
+
+.api-pedido,
+.api-status {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  overflow-wrap: anywhere;
+}
+
+.api-metodo {
+  display: inline-block;
+  min-width: 3.6em;
+  padding: 1px 6px;
+  border-radius: 5px;
+  font-weight: 700;
+  font-size: 0.72rem;
+  text-align: center;
+  color: #fff;
+  background: var(--text-muted);
+}
+
+.api-metodo--get {
+  background: #15803d;
+}
+
+.api-metodo--post {
+  background: #1d4ed8;
+}
+
+.api-metodo--put,
+.api-metodo--patch {
+  background: #b45309;
+}
+
+.api-metodo--delete {
+  background: #b91c1c;
+}
+
+.api-ruta {
+  font-weight: 600;
+}
+
+.api-header-enviado {
+  color: var(--text-muted);
+}
+
+.api-body--pedido {
+  margin-top: 6px;
+}
+
+.api-status {
+  margin-top: 6px;
+  font-weight: 600;
+}
+
+.api-status--2xx,
+.api-status--3xx {
+  color: var(--after);
+}
+
+.api-status--4xx,
+.api-status--5xx {
+  color: var(--before);
+}
+
+.api-headers {
+  color: var(--text-muted);
+}
+
+.api-consola {
+  color: var(--text-muted);
+  border-style: dashed;
+}
+
+.api-consola::before {
+  content: 'consola de la app';
+  display: block;
+  margin-bottom: 2px;
+  font-family: var(--font-sans);
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
 /* Adentro de una consulta, el playground es una sección más */
 .consulta .playground {
   margin: 0;
@@ -1608,8 +1738,18 @@ code {
   }
 
   .consulta-error,
-  .consulta-ok {
+  .consulta-ok,
+  .salida-terminal,
+  .api-pedido,
+  .api-status,
+  .api-body,
+  .api-headers,
+  .api-consola {
     font-size: 7.2pt;
+  }
+
+  .api-intercambio {
+    break-inside: avoid;
   }
 
   .consulta-vertical th[scope='row'] {

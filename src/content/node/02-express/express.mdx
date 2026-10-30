@@ -1,0 +1,86 @@
+**Express** es un framework mínimo para servidores HTTP: rutas, middlewares y helpers para leer pedidos y armar respuestas. Es el más usado de Node, el que más vas a ver en ofertas laborales, y la base de muchos otros.
+
+```bash
+npm install express
+npm install -D @types/express
+```
+
+## La app más chica
+
+<Api archivo="node/02-express/hola.ts">
+
+```http
+GET /
+GET /salud
+GET /no-existe
+```
+
+</Api>
+
+- `express()` crea la app. `app.get(ruta, handler)` registra qué hacer con un `GET` a esa ruta; hay `app.post`, `app.put`, `app.patch`, `app.delete` y `app.all`.
+- El handler recibe **`req`** (el pedido) y **`res`** (la respuesta). Una ruta tiene que responder siempre, o el cliente se queda esperando.
+- Si ninguna ruta coincide, Express responde un 404 en HTML. En [middlewares](#/middlewares) lo cambiamos por uno en JSON.
+
+## Rutas, parámetros y Router
+
+<Api archivo="node/02-express/rutas.ts" extra={['node/02-express/datos.ts']} headers="location">
+
+```http
+GET /api/ofertas?modalidad=remoto
+GET /api/ofertas?q=front
+GET /api/ofertas/3
+GET /api/ofertas/99
+POST /api/ofertas {"titulo": "Backend Node", "empresa": "Delta Pay", "modalidad": "remoto", "salarioMax": 4500}
+```
+
+</Api>
+
+| Lo que llega | Dónde | Ejemplo |
+| --- | --- | --- |
+| Parámetros de la ruta | `req.params` | `/ofertas/:id` → `req.params.id` es `'3'` (siempre string) |
+| Query string | `req.query` | `?modalidad=remoto&q=front` → `{ modalidad: 'remoto', q: 'front' }` |
+| Cuerpo | `req.body` | Solo si un middleware lo parseó: `app.use(express.json())` |
+| Headers | `req.get('authorization')` o `req.headers` | Los nombres en minúscula |
+| Otros | `req.method`, `req.path`, `req.originalUrl`, `req.ip`, `req.cookies` (con `cookie-parser`) | |
+
+| Para responder | |
+| --- | --- |
+| `res.json(datos)` | JSON con su `Content-Type` |
+| `res.send(texto)` | Texto, HTML o un Buffer |
+| `res.status(201)` | El código (se encadena: `res.status(201).json(...)`) |
+| `res.set('X-Header', 'valor')`, `res.location(url)` | Headers |
+| `res.redirect('/otra')` | Redirección (302 por defecto) |
+| `res.status(204).end()` | Sin cuerpo |
+| `res.sendFile(ruta)`, `res.download(ruta)` | Archivos |
+
+**`express.Router()`** agrupa las rutas de un recurso en su propio archivo y se monta con `app.use('/api/ofertas', router)`: adentro del router, las rutas son relativas (`'/'`, `'/:id'`).
+
+<Ojo title="Lo que viene en el pedido no es confiable">
+`req.query`, `req.params` y `req.body` son lo que mandó **el cliente**: pueden faltar campos, venir con otro tipo o traer cosas de más. En el `POST` del ejemplo, `{ id: ..., ...req.body }` copia cualquier cosa que manden. Se arregla validando, en el capítulo de [validación](#/validacion).
+</Ojo>
+
+## Cómo organizar un proyecto
+
+```text
+src/
+  app.ts              Crea la app de Express, registra middlewares y rutas (sin listen)
+  servidor.ts         Importa la app y hace listen: el punto de entrada
+  config.ts           Variables de entorno validadas
+  ofertas/
+    ofertas.rutas.ts      El Router del recurso
+    ofertas.servicio.ts   Las reglas del negocio
+    ofertas.repositorio.ts  El acceso a la base de datos
+    ofertas.esquemas.ts   Los esquemas de Zod
+  middlewares/        Autenticación, manejo de errores…
+test/
+```
+
+Separar `app.ts` (que exporta la app) de `servidor.ts` (que la levanta) permite importarla en los tests sin abrir un puerto. En la guía, cada ejemplo hace lo mismo en un solo archivo con `if (import.meta.main)`. La organización por capas está en [arquitectura](#/capas).
+
+<Nota title="¿Express o algo más nuevo?">
+Express es el estándar de hecho y lo vas a encontrar en la mayoría de los proyectos. Alternativas que vas a ver en ofertas: **Fastify** (más rápido, con validación por esquemas incluida), **NestJS** (estructurado con clases y decoradores, estilo Angular, usa Express o Fastify por debajo) y **Hono** (muy liviano, corre en Node, Bun, Deno y en el edge). Los conceptos de esta guía (rutas, middlewares, capas, validación) se trasladan a todos.
+</Nota>
+
+<Entrevista>
+"¿Qué diferencia hay entre req.params, req.query y req.body?" → "params son los segmentos variables de la ruta, como el :id de /ofertas/:id; query es lo que va después del signo de pregunta, para filtros, orden y paginación; body es el cuerpo del pedido, el JSON de un POST o un PUT, y Express solo lo llena si hay un middleware como express.json(). Los tres vienen del cliente, así que se validan siempre, y params y query siempre llegan como string."
+</Entrevista>

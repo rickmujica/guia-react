@@ -1,0 +1,67 @@
+Casi todo en Node es asincrónico. La forma de escribirlo pasó por tres etapas, y en un trabajo real vas a encontrar las tres.
+
+## Callbacks, promesas y async/await
+
+<Salida archivo="node/01-node/async/estilos.ts" />
+
+1. **async/await** con las APIs de promesas (`node:fs/promises`, `fetch`, los drivers de bases de datos): lo que se escribe hoy. Los errores se manejan con `try/catch`, como en código sincrónico.
+2. **`promisify`** convierte una función vieja de callbacks en una que devuelve una promesa.
+3. **Callbacks "error primero"**: la función recibe `(error, resultado)`. Si hay error, el primer argumento lo trae. Es el estilo original de Node; el problema es que anidarlos lleva al *callback hell*:
+
+```js
+leerUsuario(id, (err, usuario) => {
+  if (err) return manejar(err)
+  buscarPostulaciones(usuario, (err, postulaciones) => {
+    if (err) return manejar(err)
+    guardarReporte(postulaciones, (err) => {
+      if (err) return manejar(err)
+      console.log('listo')
+    })
+  })
+})
+```
+
+Fijate en la última línea del ejemplo: el callback de `readFile` corre **después** del `console.log` que está debajo. `readFile` no espera: registra el callback y sigue.
+
+## En serie o en paralelo
+
+Un error común: `await` uno por uno cosas que **no dependen** entre sí.
+
+<Salida archivo="node/01-node/async/paralelo.ts" />
+
+| Función | Termina cuando… | Si una falla… |
+| --- | --- | --- |
+| `Promise.all` | Terminan **todas** | Falla apenas falla una (las demás siguen corriendo, pero se ignoran) |
+| `Promise.allSettled` | Terminan todas | No falla nunca: te da el estado de cada una |
+| `Promise.race` | Termina **la primera**, bien o mal | Falla si la primera en terminar falla |
+| `Promise.any` | Termina la primera **que sale bien** | Falla solo si fallan todas |
+
+<Tip title="Cuántas a la vez">
+`Promise.all` con 10.000 pedidos a una API los dispara **todos juntos** y probablemente te bloqueen o se caiga algo. Para muchos elementos se procesan de a lotes (por ejemplo, de a 10) o con una librería como **p-limit**.
+</Tip>
+
+## Cancelar y poner un límite de tiempo
+
+Una operación sin timeout puede quedarse colgada para siempre (un servidor que no responde). `AbortSignal` es el mecanismo estándar para cancelar: lo aceptan `fetch`, los timers de `node:timers/promises`, `fs`, los streams y cada vez más librerías.
+
+<Salida archivo="node/01-node/async/cancelar.ts" />
+
+- `AbortSignal.timeout(ms)`: una señal que se cancela sola.
+- `new AbortController()`: la cancelás vos con `controller.abort()`. En el front es lo que usás para cancelar un `fetch` cuando el componente se desmonta.
+- `AbortSignal.any([a, b])` combina señales: se cancela con la primera.
+
+## Promesas sin atrapar
+
+Una promesa rechazada que nadie maneja **termina el proceso** (desde Node 15). En un servidor, eso es la app caída:
+
+<Salida archivo="node/01-node/async/sin-catch.ts" error />
+
+Las causas típicas: llamar una función async **sin `await`** (ni `.catch`), o un `.then` sin `.catch` al final. En Express 5, los errores de una ruta async los atrapa Express (lo vemos en [middlewares](#/middlewares)); fuera de las rutas, es tu responsabilidad.
+
+<Ojo title="forEach no espera">
+`array.forEach(async (x) => { await guardar(x) })` **no espera** a nadie: dispara todas las funciones y sigue. Para hacerlo en serie, `for (const x of array) await guardar(x)`. En paralelo, `await Promise.all(array.map(guardar))`.
+</Ojo>
+
+<Entrevista>
+"¿Qué diferencia hay entre Promise.all y Promise.allSettled?" → "Promise.all espera a que terminen todas y falla apenas falla una; lo uso cuando necesito todos los resultados y un error invalida el conjunto. Promise.allSettled espera a todas y nunca falla: devuelve para cada una si se cumplió o se rechazó, y lo uso cuando quiero procesar lo que salió bien aunque algo falle, por ejemplo mandar 50 mails y reportar cuáles fallaron."
+</Entrevista>

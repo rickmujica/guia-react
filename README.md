@@ -10,7 +10,7 @@ La home muestra todas las guías con su progreso. Cada guía recuerda **el últi
 | TypeScript para React (el lenguaje y cómo tipar cada pieza de React, con ejemplos chequeados por el compilador) | Lista | [`docs/guia-typescript-react.pdf`](docs/guia-typescript-react.pdf) |
 | Redux, Redux Toolkit, Redux Saga y Zustand (con RTK Query y una comparación de las cuatro) | Lista | [`docs/guia-estado-global.pdf`](docs/guia-estado-global.pdf) |
 | MySQL, de cero a intermedio (con resultados de un MySQL real y un playground en el navegador) | Lista | [`docs/guia-mysql.pdf`](docs/guia-mysql.pdf) |
-| Node.js y Express | Próximamente | |
+| Node.js y Express (el runtime, Express 5, Zod, JWT y tests, con salidas de ejecuciones reales) | Lista | [`docs/guia-node-express.pdf`](docs/guia-node-express.pdf) |
 
 ## Guía de React moderno
 
@@ -79,6 +79,40 @@ npm run sql                 # como root sin contraseña; si no: MYSQL_USER=yo MY
 
 El script importa un archivo `.ts` directamente, así que necesita Node 22.18 o superior.
 
+## Guía de Node.js y Express
+
+| Parte | Capítulos |
+| --- | --- |
+| Empezá acá | Cómo usar la guía |
+| 1 · Node.js | Módulos, npm y TypeScript · El event loop · Callbacks, promesas y async/await · Archivos, rutas y streams · Eventos y el proceso · HTTP sin frameworks |
+| 2 · Express | Express: rutas y respuestas · Middlewares · Diseñar una API REST · Validar con Zod · Capas y base de datos · Autenticación y seguridad · Tests con node:test · A producción |
+| 3 · Repaso | Chuleta y preguntas de entrevista |
+
+Los ejemplos son archivos `.ts` en `src/demos/node/` que Node ejecuta directamente, sin compilar. En el MDX se usan de dos formas:
+
+````mdx
+<Salida archivo="node/01-node/event-loop/orden.ts" />
+
+<Api archivo="node/02-express/api-rest.ts">
+
+```http
+GET /ofertas?modalidad=remoto
+POST /ofertas {"titulo": "Backend Node", "empresa": "Delta Pay", "modalidad": "remoto"}
+```
+
+</Api>
+````
+
+`<Salida>` muestra el archivo y lo que imprimió al ejecutarlo (con `args`, `flags` como `--test` o `--env-file=…`, y `error` si tiene que terminar con error). `<Api>` levanta la app de Express del archivo en un puerto libre, le hace esos pedidos con `fetch` y muestra cada respuesta, con lo que la app escribió en la consola. Un pedido puede usar un dato de una respuesta anterior: `{token}` se reemplaza por el `token` que devolvió el login.
+
+Esas salidas están en `src/content/node/salidas.json` y las genera:
+
+```bash
+npm run salidas
+```
+
+Necesita Node 24 o superior. Los ejemplos se chequean con su propio `tsconfig.node-ejemplos.json` en cada `npm run build`.
+
 ## Cómo correrla
 
 Necesitás Node.js 20.19 o superior (o 22.12+).
@@ -108,6 +142,7 @@ y abrí desde el teléfono la dirección `Network` que aparece en la terminal. E
 | `npm run lint` | Revisa el código con oxlint. |
 | `npm run pdf` | Build + genera el PDF de cada guía en `docs/` (`npm run pdf -- react` para una sola). |
 | `npm run sql` | Corre las consultas de la guía de MySQL contra tu MySQL local y guarda los resultados. |
+| `npm run salidas` | Ejecuta los ejemplos de la guía de Node y guarda lo que imprimen y lo que responden sus APIs. |
 
 ## Los PDF
 
@@ -135,6 +170,8 @@ src/
 scripts/
   export-pdf.mjs      Genera los PDF
   sql-resultados.mjs  Corre las consultas de la guía de MySQL y guarda sus resultados
+  node-salidas.mjs    Ejecuta los ejemplos de la guía de Node y guarda sus salidas
+  node-api.mjs        Levanta una app de Express de ejemplo y le hace los pedidos de un <Api>
 docs/            Un PDF por guía
 vite.config.ts   Vite con MDX y el React Compiler en modo "annotation"
 ```
@@ -156,4 +193,4 @@ Para una guía nueva, creá `src/guides/<guía>.ts` con su `GuideDef` y sumala a
 
 ## Versiones
 
-Escrita en octubre de 2026 con React 19.3, Vite 8, TypeScript 7 y React Compiler 1.0. Los resultados de la guía de MySQL son de MySQL 8.0.
+Escrita en octubre de 2026 con React 19.3, Vite 8, TypeScript 7 y React Compiler 1.0. Los resultados de la guía de MySQL son de MySQL 8.0, y las salidas de la guía de Node, de Node 24 con Express 5.3.
