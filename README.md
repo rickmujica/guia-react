@@ -7,7 +7,7 @@ La home muestra todas las guías con su progreso. Cada guía recuerda **el últi
 | Guía | Estado | PDF para el celular |
 | --- | --- | --- |
 | React moderno (hooks, React 19 a 19.3, React Compiler, puente a Next.js) | Lista | [`docs/guia-react-moderno.pdf`](docs/guia-react-moderno.pdf) |
-| TypeScript para React | Próximamente | |
+| TypeScript para React (el lenguaje y cómo tipar cada pieza de React, con ejemplos chequeados por el compilador) | Lista | [`docs/guia-typescript-react.pdf`](docs/guia-typescript-react.pdf) |
 | Redux, Redux Toolkit, Redux Saga y Zustand | Próximamente | |
 | MySQL (básico e intermedio) | Próximamente | |
 | Node.js y Express | Próximamente | |
@@ -22,6 +22,17 @@ La home muestra todas las guías con su progreso. Cada guía recuerda **el últi
 | 3 · React 19 a fondo | Actions · useActionState · Formularios con action y useFormStatus · useOptimistic · use() · ref como prop y `<Context>` · Metadatos · Errores y migración |
 | 4 · React 19.1 → 19.3 | `<Activity>` · useEffectEvent · `<ViewTransition>` y addTransitionType · Fragment refs · React Compiler · Otras novedades |
 | 5 · Puente a Next.js | Server Components · Server Functions y formularios · Chuleta y preguntas de entrevista |
+
+## Guía de TypeScript para React
+
+| Parte | Capítulos |
+| --- | --- |
+| Empezá acá | Cómo usar la guía |
+| 1 · El lenguaje | Tipos básicos e inferencia · Objetos: type e interface · Uniones y narrowing · Funciones · Genéricos · Utility types y tipos calculados · Módulos, tsconfig y declaraciones |
+| 2 · TypeScript en React | Componentes y props · Estado y eventos · Refs y el DOM · Context, useReducer y custom hooks · Componentes genéricos · React 19 con TypeScript · Datos de APIs con Zod |
+| 3 · Repaso | Chuleta y preguntas de entrevista |
+
+Los snippets son archivos reales en `src/demos/typescript/ejemplos/` y se chequean con su propio `tsconfig.ejemplos.json` en cada `npm run build`. Las líneas con `// @ts-expect-error` tienen que dar error: si dejan de darlo, el build falla.
 
 ## Cómo correrla
 

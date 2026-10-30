@@ -1,0 +1,42 @@
+Casi todo en una app de React es un objeto: las props, el estado, lo que devuelve la API. TypeScript los describe por su **forma**: qué propiedades tienen y de qué tipo.
+
+## type e interface
+
+<Source path="src/demos/typescript/ejemplos/objetos/type-vs-interface.ts" />
+
+- `?` marca una propiedad **opcional**: su tipo pasa a ser `T | undefined`.
+- `readonly` impide reasignarla (solo en tiempo de compilación, en runtime sigue siendo un objeto común).
+- A un objeto literal no le podés pasar propiedades de más: TypeScript lo marca porque casi siempre es un typo.
+
+<Nota title="Tipado estructural">
+TypeScript compara **formas**, no nombres. Si un objeto tiene todas las propiedades que pide un tipo, es compatible, aunque nunca lo hayas declarado con ese tipo. Por eso podés pasar un objeto con propiedades de más si viene en una variable (el chequeo de propiedades de más es solo para literales).
+</Nota>
+
+## Extender tipos
+
+<Source path="src/demos/typescript/ejemplos/objetos/extender.ts" />
+
+¿`type` o `interface`? En la práctica son intercambiables para objetos. Las diferencias reales:
+
+| | `type` | `interface` |
+| --- | --- | --- |
+| Objetos | Sí | Sí |
+| Uniones, tuplas, primitivos, tipos calculados | Sí | No |
+| Extender | Con `&` | Con `extends` (da mejores mensajes de error) |
+| Se fusiona si la declarás dos veces | No (da error) | Sí |
+
+Elegí uno y sé consistente. Muchos equipos usan **`type` para todo** (porque también sirve para uniones) y reservan `interface` para cuando necesitan extender tipos de librerías. Es lo que hace esta guía.
+
+## Objetos como diccionario
+
+<Source path="src/demos/typescript/ejemplos/objetos/diccionarios.ts" />
+
+`Record<K, V>` es la forma de tipar un objeto usado como mapa. Con claves de una unión de literales es muy útil: si agregás una opción a la unión, TypeScript te marca todos los `Record` que quedaron incompletos.
+
+<Tip title="noUncheckedIndexedAccess">
+Por defecto, `salarios['Cualquiera']` es `number` aunque la clave no exista. Con `"noUncheckedIndexedAccess": true` en el tsconfig pasa a ser `number | undefined` y te obliga a revisarlo. Lo mismo con `array[i]`. Es más estricto y algo más molesto, pero atrapa bugs reales.
+</Tip>
+
+<Entrevista>
+"¿type o interface?" → "Para objetos son casi equivalentes. type además sirve para uniones, tuplas y tipos calculados; interface se puede extender con extends y se fusiona si se declara dos veces, que es útil para ampliar tipos de librerías. Uso uno de forma consistente, normalmente type."
+</Entrevista>

@@ -1368,6 +1368,13 @@ code {
     break-inside: avoid;
   }
 
+  /* Las rutas largas de los archivos (guía de TypeScript) cortan en vez de salirse de la página */
+  .demo-tab {
+    flex: 0 1 auto;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
   .code {
     white-space: pre-wrap;
     overflow-wrap: anywhere;

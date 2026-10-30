@@ -1,0 +1,43 @@
+TypeScript chequea tu código, pero **no puede chequear lo que llega por la red**. `response.json()` devuelve `any`, y cualquier tipo que le pongas es una promesa que hacés vos, no algo comprobado. Este capítulo es sobre cómo cerrar ese hueco.
+
+## El problema del as
+
+<Source path="src/demos/typescript/ejemplos/react/apis.ts" />
+
+`(await res.json()) as Oferta[]` compila siempre. Si el backend cambia `salario` por `sueldo`, o manda el `id` como string, TypeScript no se entera: el error aparece mucho después, en un componente que muestra `undefined` o en un cálculo que da `NaN`.
+
+La regla: **los datos externos entran como `unknown` y se validan en el borde** (donde los recibís), así el resto de la app puede confiar en los tipos.
+
+## Validar con Zod
+
+[Zod](https://zod.dev) es la librería de validación más usada en el ecosistema de React y Next.js. Definís un **esquema**, y de ese esquema salen dos cosas:
+
+- La **validación en runtime**: `parse` (tira un error) o `safeParse` (devuelve una unión discriminada por `success`).
+- El **tipo de TypeScript**, con `z.infer<typeof Schema>`. No escribís el tipo dos veces y nunca se desincronizan.
+
+<Demo file="typescript/ValidarRespuesta" title="Validar una respuesta de API con Zod" highlight="5-12,28-31" />
+
+Editá el JSON: cambiá `"remoto"` por `"full remote"`, borrá la empresa o poné el `id` entre comillas. Cada error dice el campo y el problema. Fijate también que `tags` tiene `.default([])`: si no viene, el resultado igual es un array.
+
+## Dónde validar
+
+| Dato | Dónde |
+| --- | --- |
+| Respuesta de una API | En la función que hace el fetch, antes de devolverla |
+| `FormData` de un formulario | En la acción (o Server Function) que lo recibe |
+| `localStorage`, query params, `postMessage` | Al leerlos |
+| Variables de entorno | Al arrancar la app |
+
+Así los componentes reciben datos ya tipados y validados, y no tienen que defenderse de nada.
+
+<Tip title="El mismo esquema en el front y el back">
+En un proyecto con Next.js (o con un backend en Node con TypeScript), el mismo esquema de Zod valida el formulario en el cliente y el body en el servidor. Un solo lugar donde vive la forma de los datos.
+</Tip>
+
+<Nota title="Otras opciones">
+Valibot y ArkType hacen lo mismo con bundles más chicos. Si el backend publica un esquema OpenAPI, también podés generar los tipos con herramientas como `openapi-typescript`. Lo importante es la idea: **no confiar en `as` para datos externos**.
+</Nota>
+
+<Entrevista>
+"¿Cómo tipás la respuesta de una API?" → "La trato como unknown y la valido en el borde con un esquema de Zod. Del esquema saco el tipo con z.infer, así la validación en runtime y el tipo nunca se desincronizan. Un as solo le dice a TypeScript que confíe, no comprueba nada."
+</Entrevista>

@@ -1,0 +1,48 @@
+TypeScript trae un set de tipos "de fábrica" que transforman otros tipos. Con ellos evitás escribir dos veces lo mismo: definís un tipo base y derivás el resto.
+
+## Los utility types del día a día
+
+<Source path="src/demos/typescript/ejemplos/utility/utility-types.ts" />
+
+| Utility type | Qué hace | Uso típico |
+| --- | --- | --- |
+| `Partial<T>` | Todo opcional | Funciones de update, estado de un formulario a medio completar |
+| `Required<T>` | Todo obligatorio | Config con defaults ya aplicados |
+| `Readonly<T>` | Nada se puede reasignar | Props, estado que no se muta |
+| `Pick<T, K>` | Solo esas claves | Una vista resumida de un tipo grande |
+| `Omit<T, K>` | Todo menos esas claves | El "create" sin el `id` que pone el servidor |
+| `Record<K, V>` | Objeto con claves K y valores V | Diccionarios, mapas de estado a color |
+| `Exclude<U, X>` | Saca opciones de una unión | Estados activos sin `'rechazado'` |
+| `Extract<U, X>` | Se queda con las opciones que coinciden | Filtrar una unión |
+| `NonNullable<T>` | Saca `null` y `undefined` | Después de validar |
+
+## Tipos que salen de valores
+
+Muchas veces el valor ya existe (una constante, una función, lo que devuelve un fetch) y el tipo se puede **sacar de ahí**:
+
+<Source path="src/demos/typescript/ejemplos/utility/desde-valores.ts" />
+
+- `typeof valor` (en posición de tipo) da el tipo de una variable.
+- `keyof T` da la unión de las claves.
+- `T['prop']` (indexed access) da el tipo de una propiedad.
+- `ReturnType<typeof fn>` y `Parameters<typeof fn>` dan lo que devuelve y lo que recibe una función.
+- `Awaited<T>` "abre" una `Promise`.
+
+<Tip title="Un solo lugar de verdad">
+Si el tipo y el valor dicen lo mismo, escribí uno y derivá el otro. Por ejemplo, la lista de etapas como `as const` y el tipo `Etapa` con `(typeof etapas)[number]`. Si alguien agrega una etapa, el tipo se actualiza solo.
+</Tip>
+
+## Tipos calculados
+
+Esto ya es TypeScript avanzado. No vas a escribirlo seguido, pero sí leerlo en tipos de librerías (React, Redux Toolkit, Zod, TanStack Query…):
+
+<Source path="src/demos/typescript/ejemplos/utility/avanzados.ts" />
+
+- **Mapped types** (`{ [K in keyof T]: ... }`): recorren las claves de un tipo y transforman cada una. `Partial`, `Readonly` y `Record` están hechos así.
+- **Conditional types** (`T extends U ? X : Y`): un "if" a nivel de tipos.
+- **infer**: captura una parte del tipo mientras compara. `ReturnType` y `Awaited` están hechos con `infer`.
+- **Template literal types**: arman strings a nivel de tipos. Así una librería puede saber que `setEmpresa` existe porque hay un campo `empresa`.
+
+<Entrevista>
+"¿Qué diferencia hay entre Pick y Omit?" → "Pick arma un tipo nuevo con las claves que le paso y Omit con todas menos esas. Uso Omit, por ejemplo, para el tipo de creación de una entidad sin el id que genera el backend: `Omit<Postulacion, 'id'>`."
+</Entrevista>

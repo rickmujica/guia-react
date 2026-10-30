@@ -1,0 +1,46 @@
+Esta guía junta **todo el TypeScript que vas a usar en un proyecto de React**: primero el lenguaje (lo justo y necesario, sin teoría de más) y después cómo se tipa cada pieza de React: props, estado, eventos, refs, context, reducers, hooks propios, componentes genéricos y lo nuevo de React 19.
+
+Está pensada para leerse en orden, pero cada capítulo se sostiene solo. Si ya escribís TypeScript en el día a día, saltá directo a la parte 2.
+
+## Los ejemplos se chequean de verdad
+
+Casi todos los snippets de esta guía son **archivos reales** del proyecto, en `src/demos/typescript/ejemplos/`. No están solo para leer: `npm run build` los pasa por el compilador de TypeScript, así que si un ejemplo tuviera un error de tipos, el build fallaría.
+
+Para mostrar los errores que TypeScript te ahorra, los ejemplos usan este comentario:
+
+```ts
+// @ts-expect-error: Type 'number' is not assignable to type 'string'.
+puesto = 42
+```
+
+`@ts-expect-error` le dice al compilador "en la línea siguiente **tiene que** haber un error". Si no lo hay, el que falla es el comentario. Así cada error que ves en la guía está comprobado: es exactamente lo que pasaría en tu editor.
+
+<Probalo>
+Abrí cualquier archivo de `src/demos/typescript/ejemplos/` en VS Code y borrá un `// @ts-expect-error`: vas a ver aparecer el subrayado rojo con el mensaje real. Pasá el mouse sobre las variables para ver el tipo que infirió TypeScript.
+</Probalo>
+
+Algunos capítulos tienen además **demos en vivo**: componentes tipados que podés tocar, con su código abajo, igual que en la guía de React.
+
+## La configuración del proyecto
+
+El proyecto usa la plantilla de Vite con **TypeScript 7** (el compilador reescrito en Go, unas 10 veces más rápido) y estas opciones, que son las que vas a encontrar en un proyecto nuevo:
+
+| Opción | Qué hace |
+| --- | --- |
+| `strict` | Activa todos los chequeos estrictos. En TypeScript 7 viene activado por defecto (en versiones viejas había que ponerlo). |
+| `verbatimModuleSyntax` | Obliga a importar los tipos con `import type`. |
+| `erasableSyntaxOnly` | Prohíbe la sintaxis que genera JavaScript (como `enum`). Lo vemos en el capítulo de [módulos](#/modulos-y-config). |
+| `noUnusedLocals` / `noUnusedParameters` | Marca variables y parámetros sin usar (en los ejemplos está apagado, porque declaran cosas solo para mostrarlas). |
+| `jsx: "react-jsx"` | El JSX se transforma sin tener que importar React en cada archivo. |
+
+Los ejemplos tienen su propia configuración, `tsconfig.ejemplos.json`, que extiende la de la app.
+
+## Cómo aprovecharla
+
+1. Leé la explicación y el código. Pasá el mouse por las variables en tu editor para ver qué infiere TypeScript.
+2. Romper cosas a propósito es la mejor forma de aprender tipos: cambiá un tipo, sacá un `?`, borrá un `case`, y mirá qué se queja.
+3. Los recuadros **En una entrevista** resumen cómo contestar las preguntas típicas. El último capítulo las junta todas.
+
+<Nota title="Versiones">
+Escrita en octubre de 2026 con TypeScript 7.0, React 19.3 (tipos de `@types/react` 19) y Zod 4.
+</Nota>

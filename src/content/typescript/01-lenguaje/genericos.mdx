@@ -1,0 +1,45 @@
+Un **genérico** es un parámetro, pero de tipo. Te deja escribir una función, un tipo o un componente **una vez** y que funcione con cualquier tipo, **sin perder** la información de cuál es.
+
+Ya los usaste: `Array<string>`, `Promise<Oferta>`, `useState<number>`, `Record<string, number>`. Acá vemos cómo escribir los tuyos.
+
+## Funciones genéricas
+
+<Source path="src/demos/typescript/ejemplos/genericos/genericos.ts" />
+
+- `<T>` declara el parámetro de tipo. Casi nunca lo pasás a mano: TypeScript lo **infiere** de los argumentos (`primero(['Acme'])` → `T` es `string`).
+- `T extends { id: number }` es una **restricción**: T puede ser cualquier tipo, siempre que tenga un `id`. Y lo mejor: el resultado conserva el tipo completo, no solo `{ id }`.
+- `K extends keyof T` es el combo clásico: una clave que tiene que existir en el objeto. Es lo que usan las funciones de "ordenar por", "agrupar por", los formularios tipados…
+
+<Tip title="Los nombres de los genéricos">
+Por convención: `T` (type), `K` (key), `V` (value), `E` (element o error). Si hay varios y se confunden, usá nombres descriptivos: `TItem`, `TData`.
+</Tip>
+
+## Tipos genéricos
+
+<Source path="src/demos/typescript/ejemplos/genericos/tipos-genericos.ts" />
+
+`RespuestaApi<T>` es el ejemplo típico: la forma de la respuesta es siempre la misma (paginación, total), lo que cambia es el tipo de `data`. Y `Resultado<T, E>` es un patrón muy usado para devolver errores sin tirar excepciones: una unión discriminada por `ok`.
+
+Los genéricos también pueden tener un **valor por defecto** (`E = Error`), igual que los parámetros de una función.
+
+## Cuándo usar un genérico
+
+Usá un genérico cuando **el tipo de la salida depende del tipo de la entrada**. Si la función recibe un `T` y devuelve un `T` (o un `T[]`, o un `T | undefined`), es un genérico. Si siempre devuelve lo mismo, no hace falta.
+
+```ts
+// ❌ El genérico no aporta nada: T solo aparece una vez
+function imprimir<T>(valor: T): void {
+  console.log(valor)
+}
+
+// ✅ Igual de flexible, más simple
+function imprimir(valor: unknown): void {
+  console.log(valor)
+}
+```
+
+En la [parte 2](#/componentes-genericos) usamos lo mismo para escribir componentes genéricos: una `<Lista>` o un `<Select>` que sirven para cualquier tipo de dato.
+
+<Entrevista>
+"¿Para qué sirven los genéricos?" → "Para escribir código reutilizable sin perder el tipo. Por ejemplo, una función `porId<T extends { id: number }>(lista: T[])` devuelve el mismo T que recibió, con todas sus propiedades. Con any perdería el tipo y con un tipo fijo no podría reutilizarla."
+</Entrevista>

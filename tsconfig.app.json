@@ -22,5 +22,7 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src"]
+  "include": ["src"],
+  // Los ejemplos de la guía de TypeScript se chequean con su propia config (tsconfig.ejemplos.json).
+  "exclude": ["src/demos/typescript/ejemplos"]
 }

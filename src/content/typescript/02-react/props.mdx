@@ -1,0 +1,48 @@
+Un componente es una función que recibe **un objeto** (las props) y devuelve JSX. Tiparlo es tipar ese objeto. Eso es todo: no hay ninguna API especial.
+
+## Tipar las props
+
+<Source path="src/demos/typescript/ejemplos/react/props.tsx" />
+
+- Las props se describen con un `type` (por convención, `NombreProps`) y se desestructuran en la firma.
+- Las opcionales llevan `?` y el valor por defecto va en la desestructuración (`etiquetas = []`).
+- Al usar el componente, TypeScript marca la prop que falta o el tipo equivocado, y el editor te autocompleta las props disponibles.
+
+<Ojo title="No hace falta React.FC">
+Antes era común `const Tarjeta: React.FC<Props> = (...) => ...`. Hoy no se recomienda: no suma nada, complica los genéricos y en versiones viejas agregaba `children` aunque el componente no los usara. Una función con las props tipadas alcanza. El tipo de retorno se infiere, no lo anotes.
+</Ojo>
+
+## children y otros tipos de React
+
+<Source path="src/demos/typescript/ejemplos/react/children.tsx" />
+
+| Tipo | Qué acepta | Para |
+| --- | --- | --- |
+| `ReactNode` | Todo lo renderizable: JSX, strings, números, `null`, arrays | `children` y cualquier "slot" |
+| `ReactElement` | Solo un elemento JSX | Cuando vas a leer o clonar el elemento |
+| `PropsWithChildren<P>` | Tus props + `children?: ReactNode` | Atajo para layouts y wrappers |
+| `(args) => ReactNode` | Una función que devuelve UI | Render props |
+
+## Extender las props de un elemento nativo
+
+Un `<Boton>` propio debería aceptar **todo** lo que acepta un `<button>`: `onClick`, `disabled`, `type`, `aria-label`… Escribirlas una por una es imposible. `ComponentProps<'button'>` las trae todas:
+
+<Source path="src/demos/typescript/ejemplos/react/props-nativas.tsx" />
+
+<Demo file="typescript/BotonTipado" title="Un botón con variantes que acepta todas las props de <button>" highlight="4-8,16-24,27" />
+
+El truco está en `...resto`: separás tus props (`variante`, `cargando`) y el resto pasa directo al `<button>`. Si mañana necesitás un `aria-describedby`, ya funciona.
+
+<Tip title="ComponentProps con componentes">
+`ComponentProps<typeof Boton>` te da las props de **otro componente**. Sirve para envolver un componente de una librería sin tener que importar su tipo de props (que muchas veces no está exportado).
+</Tip>
+
+## Props que dependen de otras
+
+<Source path="src/demos/typescript/ejemplos/react/props-discriminadas.tsx" />
+
+Si `reintentar` solo tiene sentido cuando `tipo` es `'error'`, una **unión discriminada** lo expresa: TypeScript obliga a pasarlo en ese caso y no lo permite en los demás. Es mucho mejor que poner todo opcional y revisar en runtime.
+
+<Entrevista>
+"¿Cómo tiparías un botón propio?" → "Con `ComponentProps<'button'>` más mis props, por ejemplo la variante. Desestructuro lo mío y paso el resto al button con spread. Así acepta onClick, disabled, aria-* y desde React 19 también ref, sin declararlos uno por uno."
+</Entrevista>
