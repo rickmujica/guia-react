@@ -1,0 +1,46 @@
+Los dos lugares donde más se tipa en un componente: el estado y los handlers de eventos. La buena noticia es que casi todo se infiere.
+
+## useState
+
+<Source path="src/demos/typescript/ejemplos/react/estado.tsx" />
+
+- Con un valor inicial "completo" (`0`, `'lista'`, `{ ... }`), **no anotes nada**: se infiere.
+- Con un valor inicial que no alcanza (`null`, `[]`, `{}`), pasá el tipo como genérico: `useState<Usuario | null>(null)`. Sin él, `useState([])` queda como `never[]` y no vas a poder agregar nada.
+- La función actualizadora (`setX(anterior => ...)`) recibe el valor anterior ya tipado.
+- Si el estado puede ser `null`, TypeScript te obliga a revisarlo antes de usarlo (`usuario?.nombre`, `usuario && ...`).
+
+## Eventos
+
+<Source path="src/demos/typescript/ejemplos/react/eventos.tsx" />
+
+**Inline, no escribas nada**: en `onChange={(e) => ...}` TypeScript sabe que `e` es un `ChangeEvent<HTMLInputElement>`. Solo tenés que anotar cuando el handler es una función aparte.
+
+Los tipos de eventos más comunes:
+
+| Evento | Tipo | Elemento típico |
+| --- | --- | --- |
+| `onChange` | `ChangeEvent<HTMLInputElement>` | `input`, `select` (`HTMLSelectElement`), `textarea` (`HTMLTextAreaElement`) |
+| `onSubmit` | `FormEvent<HTMLFormElement>` | `form` |
+| `onClick` | `MouseEvent<HTMLButtonElement>` | `button`, `div`… |
+| `onKeyDown` | `KeyboardEvent<HTMLInputElement>` | `input` |
+| `onFocus` / `onBlur` | `FocusEvent<HTMLInputElement>` | `input` |
+
+<Ojo title="MouseEvent de React, no del DOM">
+Importá los tipos de eventos de `react`, no uses los globales del DOM. El `MouseEvent` global es el evento nativo; el de React es el evento sintético que recibe tu handler.
+</Ojo>
+
+<Tip title="target o currentTarget">
+`e.currentTarget` es el elemento que tiene el handler y está tipado con el genérico (`HTMLFormElement`). `e.target` es donde se originó el evento, que puede ser un hijo, así que en eventos de mouse TypeScript lo tipa como `EventTarget` genérico. En `onChange` de un input son el mismo elemento.
+</Tip>
+
+## Un formulario tipado
+
+<Demo file="typescript/FormularioTipado" title="Un formulario con un handler genérico para todos los campos" highlight="3-4,12-15,21-24" />
+
+Fijate en `set<K extends keyof Form>(campo: K, valor: Form[K])`: un solo setter para todos los campos, y TypeScript chequea que el valor coincida con el campo. `set('salario', 'mucho')` no compila.
+
+Y en `e.target.value as Modalidad`: el `value` de un `<select>` siempre es `string`, aunque las `<option>` solo tengan valores válidos. El `as` le dice a TypeScript que confíe; si los valores vinieran de afuera, habría que validarlos.
+
+<Entrevista>
+"¿Cómo tipás un handler de onChange que está separado del JSX?" → "Con `ChangeEvent<HTMLInputElement>` importado de react. Si no me acuerdo el tipo, escribo el handler inline, paso el mouse por el evento y copio el tipo que infiere TypeScript."
+</Entrevista>

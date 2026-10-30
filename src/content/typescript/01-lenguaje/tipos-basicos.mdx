@@ -1,0 +1,53 @@
+TypeScript es JavaScript con tipos. Los tipos se chequean mientras escribís (en el editor) y al compilar, y **desaparecen** en el JavaScript que llega al navegador: no cambian cómo se ejecuta tu código, solo te avisan antes de que algo se rompa.
+
+## Primitivos, arrays y tuplas
+
+<Source path="src/demos/typescript/ejemplos/basicos/primitivos.ts" />
+
+Algunas cosas para notar:
+
+- Los tipos van en **minúscula** (`string`, no `String`). Los de mayúscula son los objetos envoltorio de JavaScript y casi nunca los vas a querer.
+- Con `strict`, `null` y `undefined` **no** entran en cualquier tipo. Si un valor puede faltar, lo decís con una unión: `string | null`. Esto solo ya evita la mayoría de los "Cannot read properties of undefined".
+- Las **tuplas** son arrays de largo fijo. Las vas a ver todo el tiempo sin darte cuenta: `useState` devuelve una tupla `[valor, setter]`.
+
+## Inferencia: no anotes todo
+
+<Source path="src/demos/typescript/ejemplos/basicos/inferencia.ts" />
+
+TypeScript **infiere** el tipo a partir del valor. Anotar `const nombre: string = 'Acme'` no suma nada. La regla práctica:
+
+| Anotá… | Dejá que infiera… |
+| --- | --- |
+| Parámetros de funciones (siempre) | Variables con valor inicial |
+| Props de componentes | Lo que devuelve una función interna |
+| Lo que exporta un módulo, si querés un contrato claro | Callbacks (`map`, `filter`, handlers inline) |
+| Cuando el valor inicial no alcanza (`null`, `[]`) | |
+
+Fijate la diferencia entre `let` y `const`: `let puesto = 'Frontend'` es `string` (puede cambiar), pero `const modalidad = 'remoto'` es el **literal** `'remoto'`, porque nunca va a cambiar.
+
+## any, unknown, never y void
+
+<Source path="src/demos/typescript/ejemplos/basicos/any-unknown-never.ts" />
+
+| Tipo | Qué significa | Cuándo aparece |
+| --- | --- | --- |
+| `any` | "No chequees nada" | `JSON.parse`, `response.json()`, código viejo. Evitalo: contagia todo lo que toca. |
+| `unknown` | "Puede ser cualquier cosa, revisalo antes de usarlo" | Datos externos, el error de un `catch`. |
+| `never` | "Esto no puede pasar" | Funciones que siempre tiran error, uniones sin opciones restantes. |
+| `void` | "No devuelve nada útil" | Funciones y callbacks sin `return`. |
+
+<Ojo title="any es contagioso">
+Si una variable es `any`, todo lo que sale de ella también lo es: `peligro.nombre.length` es `any` y TypeScript no te va a avisar nada. Cuando recibas datos de afuera, bajalos a `unknown` y validalos (lo vemos en [datos de APIs](#/datos-de-apis)).
+</Ojo>
+
+## Tipos literales y as const
+
+<Source path="src/demos/typescript/ejemplos/basicos/literales.ts" />
+
+Las **uniones de literales** son la herramienta más útil del día a día: un estado, una variante de botón, una modalidad de trabajo. Reemplazan a los `enum` y el editor te autocompleta las opciones.
+
+`as const` "congela" un valor: todo pasa a ser `readonly` y los strings quedan como literales. Combinado con `typeof` e indexado con `[number]`, te permite escribir la lista de opciones **una sola vez** y sacar el tipo de ahí.
+
+<Entrevista>
+"¿Cuál es la diferencia entre any y unknown?" → "Los dos aceptan cualquier valor, pero any desactiva el chequeo y unknown no: con unknown no puedo usar el valor hasta que lo achico con typeof, instanceof o una validación. Para datos externos uso unknown y valido en el borde."
+</Entrevista>

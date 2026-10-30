@@ -1,0 +1,99 @@
+Todo lo de la guía en una página, para repasar antes de una entrevista o tener a mano mientras codeás.
+
+## Tipos
+
+```ts
+let a: string | null = null               // unión con null
+const estados = ['a', 'b'] as const        // readonly ['a', 'b']
+type Estado = (typeof estados)[number]     // 'a' | 'b'
+type Props = { id: number; nombre?: string; readonly creado: Date }
+type Mapa = Record<Estado, string>         // obliga a completar todas las claves
+const config = { a: 1 } satisfies Record<string, number> // chequea sin perder el tipo
+function nunca(x: never): never { throw new Error(String(x)) } // switch exhaustivo
+```
+
+## Utility types
+
+| Necesito… | Uso |
+| --- | --- |
+| Un update parcial | `Partial<T>` |
+| Crear sin el id | `Omit<T, 'id'>` |
+| Algunas claves | `Pick<T, 'a' \| 'b'>` |
+| Sacar opciones de una unión | `Exclude<U, 'x'>` |
+| Lo que devuelve una función async | `Awaited<ReturnType<typeof fn>>` |
+| Las claves como unión | `keyof T` |
+| El tipo de una propiedad | `T['prop']` |
+
+## React
+
+```tsx
+// Props
+type Props = ComponentProps<'button'> & { variante?: 'primario' | 'secundario' }
+function Boton({ variante = 'primario', ...resto }: Props) { /* ... */ }
+
+// children
+{ children: ReactNode }
+
+// Estado
+const [usuario, setUsuario] = useState<Usuario | null>(null)
+const [tags, setTags] = useState<string[]>([])
+
+// Eventos (solo si el handler está separado)
+function onChange(e: ChangeEvent<HTMLInputElement>) {}
+function onSubmit(e: FormEvent<HTMLFormElement>) {}
+
+// Refs
+const input = useRef<HTMLInputElement>(null)
+function Campo({ ref }: { ref?: Ref<HTMLInputElement> }) {}
+
+// Context
+const Ctx = createContext<Valor | null>(null)
+function useValor() {
+  const v = use(Ctx)
+  if (!v) throw new Error('Falta el Provider')
+  return v
+}
+
+// Reducer
+type Action = { type: 'agregado'; item: Item } | { type: 'borrado'; id: number }
+
+// Hook que devuelve una tupla
+return [valor, setValor] as const
+
+// Componente genérico
+function Lista<T>({ items, render }: { items: T[]; render: (item: T) => ReactNode }) {}
+
+// Datos externos
+const Oferta = z.object({ id: z.number(), empresa: z.string() })
+type Oferta = z.infer<typeof Oferta>
+```
+
+## Preguntas de entrevista
+
+**¿any o unknown?** Los dos aceptan cualquier valor. `any` apaga el chequeo; `unknown` obliga a revisarlo antes de usarlo. Para datos externos, `unknown` y validación.
+
+**¿type o interface?** Para objetos, casi lo mismo. `type` sirve también para uniones y tipos calculados; `interface` se extiende con `extends` y se fusiona si se declara dos veces. Elegí uno y sé consistente.
+
+**¿Qué es una unión discriminada?** Una unión de objetos con una propiedad literal en común (`status`, `type`). Chequeando esa propiedad, TypeScript sabe qué variante es y qué campos tiene. Es la forma de modelar estados sin combinaciones imposibles.
+
+**¿Qué es never y para qué sirve?** El tipo de lo que no puede pasar. Sirve para chequeos exhaustivos: si en el `default` de un switch el valor no es `never`, falta manejar un caso.
+
+**¿Para qué sirven los genéricos?** Para reutilizar código sin perder el tipo: la salida depende de la entrada (`primero<T>(lista: T[]): T | undefined`).
+
+**¿Qué hace satisfies?** Chequea que un valor cumpla un tipo sin reemplazar el tipo inferido, que suele ser más preciso.
+
+**¿Por qué no enum?** Genera código en runtime y no es compatible con herramientas que solo borran tipos (`erasableSyntaxOnly`, Node.js). Mejor una unión de literales o un objeto `as const`.
+
+**¿Cómo tipás children?** Con `ReactNode`, que acepta todo lo renderizable.
+
+**¿React.FC sí o no?** No hace falta: una función con las props tipadas alcanza y se lleva mejor con los genéricos.
+
+**¿Cómo tipás un evento?** Inline se infiere. Separado: `ChangeEvent<HTMLInputElement>`, `FormEvent<HTMLFormElement>`, `MouseEvent<HTMLButtonElement>`, importados de `react`.
+
+**¿Cómo extendés las props de un elemento nativo?** `ComponentProps<'button'> & MisProps`, desestructurando lo propio y pasando `...resto` al elemento.
+
+**¿Qué pasa con los datos de una API?** TypeScript no los puede chequear: `res.json()` es `any`. Se validan en el borde con Zod y el tipo sale del esquema con `z.infer`.
+
+**¿Qué es el `!` después de una expresión?** Non-null assertion: le dice a TypeScript que no es `null` sin chequear nada. Usalo poco; preferí un `if`.
+
+**¿as es lo mismo que validar?** No. `as` es una afirmación tuya que TypeScript acepta sin comprobar. Solo validar en runtime (con un `if` o un esquema) da garantías.

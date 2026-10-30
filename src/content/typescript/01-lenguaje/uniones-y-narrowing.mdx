@@ -1,0 +1,63 @@
+Una **unión** (`A | B`) dice "es uno de estos tipos". Antes de usar el valor, TypeScript te obliga a averiguar cuál es. Ese proceso se llama **narrowing** (achicar el tipo) y es lo que más vas a hacer con TypeScript en React.
+
+## Achicar una unión
+
+<Source path="src/demos/typescript/ejemplos/narrowing/uniones.ts" />
+
+TypeScript entiende el JavaScript que ya escribís y achica el tipo dentro de cada rama:
+
+| Chequeo | Sirve para |
+| --- | --- |
+| `typeof x === 'string'` | Primitivos: string, number, boolean, function… |
+| `x == null` / `x != null` | Descartar `null` y `undefined` a la vez |
+| `if (x)` | Descartar `null`, `undefined` y valores falsy (ojo con `0` y `''`) |
+| `Array.isArray(x)` | Arrays |
+| `x instanceof Date` | Clases (Date, Error, Map…) |
+| `'prop' in x` | Objetos que se distinguen por una propiedad |
+| `x.tipo === 'algo'` | Uniones discriminadas (lo que sigue) |
+
+## Uniones discriminadas
+
+Es el patrón más importante de esta guía. Cada variante tiene una propiedad literal en común (el **discriminante**: `status`, `type`, `kind`…) y trae solo los datos que tienen sentido en ese caso.
+
+<Source path="src/demos/typescript/ejemplos/narrowing/discriminadas.ts" />
+
+La versión "bolsa de opcionales" (`loading`, `error?`, `data?`) permite **estados imposibles**: `loading: true` con un `error`, o `data` mientras todavía carga. Con la unión discriminada esos estados ni siquiera se pueden escribir.
+
+<Demo file="typescript/EstadoPedido" title="Un pedido modelado como unión discriminada" highlight="6-10,26-33,51-68" />
+
+Tocá los botones y mirá el JSON: en cada estado hay solo los campos de esa variante. En `Resultado`, cada `case` accede a `data` o `error` sin `?.` ni `!`, porque TypeScript ya sabe cuál es.
+
+<Tip title="El error de un catch es unknown">
+En un `catch (e)`, `e` es `unknown`: en JavaScript se puede tirar cualquier cosa, no solo un `Error`. Por eso la demo hace `e instanceof Error ? e.message : String(e)`.
+</Tip>
+
+## Que no se escape ningún caso
+
+<Source path="src/demos/typescript/ejemplos/narrowing/exhaustivo.ts" />
+
+En el `default`, después de descartar todos los casos, el tipo que queda es `never`. Si pasás ese valor a una función que solo acepta `never`, el día que alguien agregue una opción a la unión, **el switch deja de compilar** y te muestra exactamente dónde falta manejarla. Es una red de seguridad gratis para reducers, estados y variantes.
+
+## Type predicates y assertion functions
+
+Cuando el chequeo es más complejo que un `typeof`, podés escribir tu propia función de narrowing:
+
+<Source path="src/demos/typescript/ejemplos/narrowing/predicados.ts" />
+
+- `valor is Tipo` (**type predicate**): si la función devuelve `true`, el valor es de ese tipo. Ideal para `filter`.
+- `asserts valor is Tipo` (**assertion function**): si la función no tira error, el tipo queda achicado de ahí en adelante.
+- Desde TypeScript 5.5, `filter((n) => n !== null)` ya infiere el predicado solo, sin escribir nada.
+
+## satisfies y el operador !
+
+<Source path="src/demos/typescript/ejemplos/narrowing/satisfies.ts" />
+
+`satisfies` chequea que un valor cumpla un tipo **sin cambiar** el tipo inferido. Es ideal para objetos de configuración: tenés el chequeo (no falta ni sobra ninguna clave) y además TypeScript recuerda los valores exactos.
+
+<Ojo title="El ! es un 'confiá en mí'">
+`document.getElementById('root')!` le dice a TypeScript que el valor no es `null`. No hace ningún chequeo en runtime: si te equivocás, explota igual. Usalo solo cuando estás seguro (como en `main.tsx`, con el div que está en el HTML) y preferí un `if` o una assertion function en el resto.
+</Ojo>
+
+<Entrevista>
+"¿Cómo modelarías el estado de un fetch?" → "Con una unión discriminada por status: idle, loading, success con data y error con el mensaje. Así no existen estados imposibles como loading con error, y en cada rama del switch TypeScript sabe qué campos hay. Con un default que recibe never, si agrego un estado, el compilador me marca dónde falta manejarlo."
+</Entrevista>

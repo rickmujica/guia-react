@@ -1,0 +1,48 @@
+El último capítulo del lenguaje: cómo se importan y exportan los tipos, qué hace cada opción importante del `tsconfig.json`, y cómo tipar cosas que vienen de afuera.
+
+## import type
+
+<Source path="src/demos/typescript/ejemplos/modulos/imports.ts" />
+
+Con `verbatimModuleSyntax` (lo activa la plantilla de Vite), TypeScript exige marcar los imports que son **solo tipos** con `import type` o `type` adentro de las llaves. Así el compilador (y herramientas como Vite, esbuild u oxc, que procesan archivo por archivo) sabe que puede borrarlos sin mirar el resto del proyecto.
+
+## Sin enum: erasableSyntaxOnly
+
+<Source path="src/demos/typescript/ejemplos/modulos/enums.ts" />
+
+Casi todo TypeScript es "borrable": sacás los tipos y queda JavaScript válido. Pero hay sintaxis que **genera código**: `enum`, `namespace` y los parámetros de constructor con `public`/`private`. Con `erasableSyntaxOnly` esas construcciones dan error.
+
+¿Por qué? Porque las herramientas modernas (Node.js ejecutando `.ts` directo, Vite, Bun) solo **borran** los tipos, no los compilan. La alternativa a `enum` es una **unión de literales** o un **objeto `as const`**, que además se lleva mejor con los strings que vienen de una API.
+
+## El tsconfig que importa
+
+No hace falta saberse todas las opciones. Estas son las que vas a ver y tocar:
+
+| Opción | Para qué |
+| --- | --- |
+| `strict` | Todos los chequeos estrictos (`strictNullChecks`, `noImplicitAny`…). Siempre activado. |
+| `target` / `lib` | Qué versión de JavaScript generar y qué APIs existen (`DOM`, `ES2023`…). |
+| `module` / `moduleResolution` | Cómo se resuelven los imports. Con Vite: `esnext` y `bundler`. |
+| `jsx` | `react-jsx` para no tener que importar React en cada archivo. |
+| `noEmit` | TypeScript solo chequea; Vite es quien genera el JavaScript. |
+| `paths` | Alias de imports (`@/components/...`). Hay que configurarlos también en Vite. |
+| `noUncheckedIndexedAccess` | `array[i]` y `obj[clave]` incluyen `undefined`. Recomendado, más estricto. |
+| `skipLibCheck` | No revisar los `.d.ts` de `node_modules` (más rápido). |
+
+## Archivos de declaración (.d.ts)
+
+Un `.d.ts` solo tiene tipos: describe algo que existe en otro lado. Los vas a necesitar para tipar variables globales, las variables de entorno de Vite o un paquete que no trae tipos:
+
+<Source path="src/demos/typescript/ejemplos/modulos/declaraciones.d.ts" />
+
+<Source path="src/demos/typescript/ejemplos/modulos/usar-declaraciones.ts" />
+
+Antes de escribir un `declare module` para un paquete, buscá si existe `@types/nombre-del-paquete` (los tipos mantenidos por la comunidad en DefinitelyTyped). Hoy la mayoría de los paquetes ya traen sus tipos incluidos.
+
+<Nota title="vite-env.d.ts">
+La plantilla de Vite incluye los tipos de `vite/client` (en `tsconfig.app.json`, en `types`). Por eso `import logo from './logo.svg'`, `import.meta.env` e `import texto from './archivo.txt?raw'` ya vienen tipados.
+</Nota>
+
+<Entrevista>
+"¿Por qué no usarías enum?" → "Porque genera código en runtime y no es compatible con herramientas que solo borran tipos, como Node.js o erasableSyntaxOnly. Uso una unión de literales, o un objeto as const si también necesito los valores en runtime."
+</Entrevista>

@@ -1,4 +1,5 @@
 import { reactGuide } from './react'
+import { typescriptGuide } from './typescript'
 import type { Chapter, Guide, GuideDef, UpcomingGuide } from './types'
 
 // Arma la guía con los datos que se calculan: número de capítulo y referencias a la parte y la guía.
@@ -13,7 +14,7 @@ function buildGuide(def: GuideDef): Guide {
   return guide
 }
 
-export const guides: Guide[] = [reactGuide].map(buildGuide)
+export const guides: Guide[] = [reactGuide, typescriptGuide].map(buildGuide)
 
 // Las que todavía no están escritas se muestran en la home como "próximamente".
 export const upcomingGuides: UpcomingGuide[] = [

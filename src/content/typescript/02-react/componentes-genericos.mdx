@@ -1,0 +1,38 @@
+Un componente es una función, así que también puede ser **genérico**. Es la forma de escribir una `<Lista>`, una `<Tabla>` o un `<Select>` que sirva para cualquier tipo de dato sin perder el tipo en los callbacks.
+
+## Un componente genérico
+
+<Source path="src/demos/typescript/ejemplos/react/genericos.tsx" />
+
+- `function Lista<T>(props: ListaProps<T>)`: el `T` se **infiere** de la prop `items`. No hace falta escribir `<Lista<Oferta> ...>` (aunque se puede).
+- Adentro de `renderItem` y `getKey`, el parámetro ya tiene el tipo correcto: con ofertas es `Oferta`, con contactos es `Contacto`.
+- Si usás una propiedad que no existe en ese tipo, el error aparece en el JSX donde usás el componente.
+
+<Ojo title="Arrow functions genéricas en .tsx">
+En un archivo `.tsx`, `const Lista = <T>(props) => ...` no compila: el parser cree que `<T>` es una etiqueta JSX. Escribí `<T,>` (con coma) o usá `function`.
+</Ojo>
+
+## Una demo con dos tipos
+
+<Demo file="typescript/ListaGenerica" title="Un mismo Select genérico con ofertas y con monedas" highlight="4-10,12,55-56" />
+
+El mismo `Select` trabaja con `Oferta` y con `Moneda`, y `onChange` devuelve **la opción entera**, no un string. Por eso `setOferta` y `setMoneda` se pueden pasar directo: TypeScript chequea que el tipo de la opción coincida con el del estado.
+
+## Patrones de props que vas a ver
+
+| Patrón | Cómo se tipa |
+| --- | --- |
+| Render prop | `render: (item: T) => ReactNode` |
+| Slots (varias zonas de contenido) | `header?: ReactNode; footer?: ReactNode` |
+| Envolver un elemento nativo | `ComponentProps<'input'> & { ... }` |
+| Reemplazar una prop nativa | `Omit<ComponentProps<'input'>, 'onChange'> & { onChange: (v: string) => void }` |
+| Variantes con datos distintos | Unión discriminada (`{ tipo: 'a'; ... } \| { tipo: 'b'; ... }`) |
+| Props de otro componente | `ComponentProps<typeof OtroComponente>` |
+
+<Nota title="Componentes polimórficos">
+Algunas librerías de UI tienen una prop `as` para cambiar el elemento (`<Texto as="h2">`). Tiparla bien es complejo (genéricos sobre `ElementType` y `ComponentPropsWithoutRef`) y rara vez lo necesitás en una app. Si te lo cruzás, sabé que existe; en tu código, preferí componentes separados o la prop `asChild` de Radix.
+</Nota>
+
+<Entrevista>
+"¿Escribiste algún componente genérico?" → "Sí, por ejemplo una lista o un select que reciben items de tipo T y callbacks como renderItem o getLabel que reciben un T. T se infiere de los items, así que el que usa el componente tiene autocompletado y chequeo de tipos en los callbacks sin escribir nada extra."
+</Entrevista>

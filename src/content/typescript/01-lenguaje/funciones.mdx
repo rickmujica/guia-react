@@ -1,0 +1,36 @@
+En React casi todo es una función: componentes, handlers, hooks, callbacks. Tiparlas bien es lo que hace que el resto se infiera solo.
+
+## Parámetros, retorno y callbacks
+
+<Source path="src/demos/typescript/ejemplos/funciones/funciones.ts" />
+
+- Los **parámetros** siempre se anotan (si no, son `any` implícito y con `strict` da error).
+- El **retorno** se infiere. Anotalo cuando quieras que TypeScript te avise si la función empieza a devolver otra cosa, por ejemplo en funciones exportadas o recursivas.
+- El patrón **objeto desestructurado** (`{ empresa, remoto = true }: { ... }`) es exactamente cómo se tipan las props de un componente.
+- En los **callbacks** (`map`, `filter`, `onClick={(e) => ...}`) no hace falta anotar: TypeScript conoce el tipo por el contexto.
+- Una función `async` siempre devuelve una `Promise<T>`.
+
+## Tipos de función
+
+Un tipo de función se escribe como una arrow: `(texto: string) => boolean`. Lo vas a usar todo el tiempo para props que reciben callbacks:
+
+```tsx
+type Props = {
+  onSeleccionar: (id: number) => void
+  filtrar?: (oferta: Oferta) => boolean
+}
+```
+
+## Sobrecargas y void
+
+<Source path="src/demos/typescript/ejemplos/funciones/sobrecargas.ts" />
+
+Las **sobrecargas** (varias firmas para una función) existen, pero en código de apps casi siempre una unión o un genérico lo resuelven mejor. Las vas a leer en los tipos de librerías.
+
+<Nota title="void no es undefined">
+Un callback de tipo `() => void` puede devolver cualquier cosa: `void` significa "no voy a usar lo que devuelvas". Por eso `onClick={() => lista.push(1)}` compila aunque `push` devuelva un número. Es a propósito: si no, no podrías pasar funciones que devuelven algo a donde se espera un handler.
+</Nota>
+
+<Entrevista>
+"¿Cuándo anotás el tipo de retorno?" → "Los parámetros siempre; el retorno lo dejo inferir salvo en funciones exportadas o de librería, donde lo escribo como contrato para que un cambio interno no cambie la API sin que me entere."
+</Entrevista>

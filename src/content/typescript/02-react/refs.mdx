@@ -1,0 +1,35 @@
+Los refs se tipan con el tipo del elemento del DOM (`HTMLInputElement`, `HTMLDivElement`, `HTMLVideoElement`…) o con el tipo del valor que guardan.
+
+<Source path="src/demos/typescript/ejemplos/react/refs.tsx" />
+
+## Los dos usos de useRef
+
+| Para… | Cómo | Tipo de `current` |
+| --- | --- | --- |
+| Un nodo del DOM | `useRef<HTMLInputElement>(null)` | `HTMLInputElement \| null` |
+| Un valor mutable (timer, valor anterior) | `useRef<number \| undefined>(undefined)` | `number \| undefined` |
+
+En los dos casos `current` es mutable. Un ref de DOM arranca en `null` y React lo completa al montar, por eso siempre hay que revisarlo (`ref.current?.focus()`).
+
+<Nota title="useRef en React 19">
+Con los tipos de React 19, `useRef` **siempre** pide un valor inicial (`useRef<number>()` ya no compila) y desapareció la diferencia entre `RefObject` (de solo lectura) y `MutableRefObject`. Lo vemos con el resto de los cambios en [React 19 con TypeScript](#/react-19).
+</Nota>
+
+## ref como prop
+
+En React 19 `ref` es una prop común, sin `forwardRef`. Hay dos formas de tiparla:
+
+- Si tu componente extiende `ComponentProps<'input'>`, **ya está incluida**: pasa con el resto de las props.
+- Si la declarás a mano, el tipo es `Ref<HTMLInputElement>` (acepta un objeto ref o un callback ref).
+
+## useImperativeHandle
+
+Cuando el padre no necesita el nodo sino **acciones** (`play`, `pausa`, `focus`, `reset`), exponé una API propia. Definís el tipo del "handle", el hijo recibe `ref?: Ref<Handle>` y el padre crea `useRef<Handle>(null)`. TypeScript conecta las dos puntas.
+
+## Callback refs con cleanup
+
+Desde React 19 un callback ref puede devolver una función de **cleanup**, como un effect. Los tipos todavía permiten que el nodo sea `null`, así que conviene revisarlo al principio.
+
+<Entrevista>
+"¿Qué tipo le ponés a un useRef de un input?" → "`useRef<HTMLInputElement>(null)`. current es `HTMLInputElement | null`, porque hasta que el componente monta no hay nodo, así que lo uso con ?. o dentro de un effect después de revisar que exista."
+</Entrevista>
