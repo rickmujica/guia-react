@@ -1,0 +1,74 @@
+**Redux Toolkit** (RTK) es la forma oficial y recomendada de escribir Redux desde 2019. No es otra librería: es Redux, con funciones que eliminan el boilerplate y traen buenas prácticas por defecto.
+
+<AntesAhora antes="Redux clásico" ahora="Redux Toolkit">
+
+```ts
+const AVANZADA = 'postulaciones/avanzada'
+const avanzada = (id: number) => ({ type: AVANZADA, payload: id })
+
+function reducer(state = inicial, action) {
+  switch (action.type) {
+    case AVANZADA:
+      return {
+        ...state,
+        items: state.items.map((p) =>
+          p.id === action.payload ? { ...p, etapa: siguiente[p.etapa] } : p,
+        ),
+      }
+    default:
+      return state
+  }
+}
+```
+
+```ts
+const slice = createSlice({
+  name: 'postulaciones',
+  initialState: inicial,
+  reducers: {
+    avanzada(state, action: PayloadAction<number>) {
+      const p = state.items.find((p) => p.id === action.payload)
+      if (p) p.etapa = siguiente[p.etapa]
+    },
+  },
+})
+
+export const { avanzada } = slice.actions
+export default slice.reducer
+```
+
+</AntesAhora>
+
+## createSlice
+
+Un **slice** es una porción del estado con su reducer y sus acciones. `createSlice` recibe un nombre, el estado inicial y los "case reducers", y genera:
+
+- `slice.reducer`: el reducer para el store.
+- `slice.actions`: un action creator por cada reducer, con el `type` armado como `nombre/reducer` (`postulaciones/avanzada`).
+- `slice.selectors`: los selectores que declares, adaptados para recibir el estado global.
+
+<Ojo title="¿Mutar? Sí, pero es un borrador">
+Adentro de `createSlice` podés escribir `state.filtro = 'x'` o `state.items.push(p)`. No estás mutando el estado real: RTK usa **Immer**, que te da un borrador, registra los cambios y arma un estado nuevo inmutable. Dos reglas: o mutás el borrador, o devolvés un valor nuevo, **nunca las dos cosas**. Y esto solo vale adentro de `createSlice`/`createReducer`: en un componente, sigue sin poder mutarse.
+</Ojo>
+
+## configureStore y los tipos
+
+<Source path="src/demos/estado/toolkit/store.ts" />
+
+`configureStore` arma el store con buenos defaults: combina los reducers, agrega el middleware de thunks, conecta las Redux DevTools y, en desarrollo, chequea que no mutes el estado ni guardes valores no serializables (como un `Date` o una función).
+
+Los tipos `RootState` y `AppDispatch` **salen del store**, no se escriben a mano. Con ellos se crean los hooks tipados una sola vez.
+
+<Tip title="Un store por request (Next.js)">
+En la demo el store se crea con una función (`crearStore`) y no como una constante global. Es el patrón que pide Next.js con el App Router: un store por request en el servidor, para no mezclar datos de distintos usuarios. En una app solo de cliente (Vite), una constante global también está bien.
+</Tip>
+
+## La demo completa
+
+<Demo file="estado/ReduxToolkit" title="Slice, selectores memorizados y thunks con createAsyncThunk" extra={['estado/toolkit/postulacionesSlice.ts', 'estado/toolkit/store.ts']} />
+
+Cargá la lista, filtrá, avanzá y rechazá postulaciones, y agregá una nueva. Mirá la pestaña del slice: todo lo que en Redux clásico estaba repartido en cuatro lugares, acá está en un archivo. Lo async (`createAsyncThunk`) lo vemos en el capítulo siguiente.
+
+<Entrevista>
+"¿Qué es Redux Toolkit y por qué usarlo?" → "Es la forma oficial de escribir Redux. createSlice genera acciones y reducer a partir de funciones que mutan un borrador con Immer, configureStore trae thunk, DevTools y chequeos, createAsyncThunk maneja pending, fulfilled y rejected, y RTK Query resuelve el fetch y la caché. Es el mismo Redux con mucho menos código."
+</Entrevista>

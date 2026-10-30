@@ -1,0 +1,63 @@
+**Zustand** ("estado" en alemán) es un store global en un hook. Sin Provider, sin acciones con `type`, sin reducers: el estado y las funciones que lo cambian viven juntos, y cada componente elige qué parte leer.
+
+```ts
+const useContador = create<{ cuenta: number; sumar: () => void }>()((set) => ({
+  cuenta: 0,
+  sumar: () => set((s) => ({ cuenta: s.cuenta + 1 })),
+}))
+
+function Boton() {
+  const sumar = useContador((s) => s.sumar)
+  return <button onClick={sumar}>+1</button>
+}
+```
+
+Eso es todo. Es la librería de estado global que más creció en los últimos años, sobre todo en proyectos nuevos.
+
+<Demo file="estado/Zustand" title="Un store de Zustand con acciones async, selectores y persist" extra={['estado/zustand/store.ts']} />
+
+Cargá la lista, filtrá y avanzá postulaciones. Mirá qué parpadea: al escribir en el filtro, `Total` no se re-renderiza porque solo lee `items.length`. Y **recargá la página**: las postulaciones siguen ahí gracias al middleware `persist`.
+
+## Lo esencial
+
+- **`create<T>()(fn)`**: los paréntesis extra son para que TypeScript infiera bien con middlewares. `fn` recibe `set` y `get` y devuelve el estado inicial con las acciones.
+- **`set(parcial)`** hace un *merge* superficial: `set({ filtro })` no borra el resto. Con una función, `set((s) => ...)` recibe el estado actual.
+- **`get()`** lee el estado actual adentro de una acción (útil en las async).
+- **Acciones async**: son funciones `async` comunes. No hace falta middleware.
+- **Fuera de React**: `useStore.getState()`, `useStore.setState()` y `useStore.subscribe()`. Sirve para usarlo desde un interceptor de axios, un websocket o un test.
+
+## Selectores y re-renders
+
+El hook recibe un selector, y el componente se re-renderiza solo si el resultado cambia (con `Object.is`), igual que `useSelector`:
+
+```ts
+const items = usePostulaciones((s) => s.items) // ✅ solo cuando cambian los items
+const todo = usePostulaciones() // ⚠️ con cualquier cambio del store
+```
+
+<Ojo title="Elegir varias cosas: useShallow">
+Un selector que arma un objeto o array nuevo (`(s) => ({ a: s.a, b: s.b })`) devuelve algo distinto en cada llamada. En Zustand 5 eso provoca un **loop infinito de renders** ("Maximum update depth exceeded"). Envolvelo en `useShallow`, que compara las propiedades una por una, o usá un selector por valor.
+</Ojo>
+
+## Middlewares
+
+| Middleware | Para qué |
+| --- | --- |
+| `persist` | Guardar en `localStorage` (o donde quieras) y rehidratar al cargar. `partialize` elige qué guardar. |
+| `devtools` | Conectar con la extensión Redux DevTools. |
+| `immer` | Escribir `set((s) => { s.items.push(x) })` mutando un borrador, como en RTK. |
+| `subscribeWithSelector` | Suscribirse solo a una parte del estado fuera de React. |
+
+Se componen anidándolos: `create<T>()(devtools(persist((set) => ({ ... }), { name: 'x' })))`.
+
+## Organizar un store grande
+
+Un solo `create` por dominio (`useCarrito`, `useFiltros`, `useSesion`) suele ser suficiente. Si un store crece, se puede partir en **slices**: funciones que reciben `set`/`get` y devuelven una parte del estado, combinadas en un solo `create`.
+
+<Nota title="Zustand y Next.js">
+Un store creado con `create` a nivel de módulo es **global**: en el servidor de Next.js lo compartirían todos los requests. Para el App Router, la documentación recomienda crear el store por request con `createStore` (de `zustand/vanilla`) y pasarlo por un context. En apps solo de cliente, el `create` global está perfecto.
+</Nota>
+
+<Entrevista>
+"¿Por qué Zustand y no Redux?" → "Para estado global del cliente de tamaño chico o mediano, Zustand es mucho más simple: un hook con estado y acciones, sin Provider ni boilerplate, con selectores para evitar re-renders y middlewares como persist o devtools. Redux Toolkit lo elegiría en apps grandes con mucha lógica compartida, equipos grandes que se benefician de la estructura, o si necesito RTK Query y las DevTools con time travel."
+</Entrevista>

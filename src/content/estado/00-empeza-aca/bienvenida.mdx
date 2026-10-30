@@ -1,0 +1,36 @@
+Esta guía recorre las cuatro formas de manejar **estado global** que más vas a encontrar en ofertas de trabajo y en proyectos reales: **Redux** "clásico" (el que seguro viste en código legacy), **Redux Toolkit** (la forma oficial de escribir Redux hoy), **Redux Saga** (para efectos async complejos) y **Zustand** (la alternativa liviana que más creció).
+
+Todas las demos usan el mismo tema que la guía de React: **postulaciones a trabajos**. Así, cuando compares las cuatro herramientas, lo único que cambia es la herramienta.
+
+## Antes de agarrar una librería
+
+No todo el estado necesita una librería. La pregunta clave es **de dónde viene** el dato:
+
+| Tipo de estado | Ejemplos | Herramienta |
+| --- | --- | --- |
+| **Local** de un componente | Un input, si un modal está abierto | `useState`, `useReducer` |
+| **Compartido** por un subárbol | Tema, usuario logueado | Context (o subir el estado) |
+| **Del servidor** (caché de datos remotos) | Lista de ofertas, perfil del usuario | TanStack Query, RTK Query, SWR, Server Components |
+| **Global del cliente** | Carrito, filtros de varias pantallas, borradores, preferencias | Redux Toolkit, Zustand |
+
+<Ojo title="El error más común">
+Meter **todo** en Redux: hasta el texto de cada input y los datos que vienen de la API (con su `loading`, `error`, caché y refetch hechos a mano). Hoy los datos del servidor van a una librería de **caché** (RTK Query o TanStack Query) y en el store global queda poco: lo que realmente es del cliente y compartido.
+</Ojo>
+
+## Cómo está armada
+
+1. **Redux clásico**: los conceptos (store, acciones, reducers), react-redux con hooks y con `connect`, y middleware con thunks. Es lo que vas a encontrar en proyectos de 2016 a 2020.
+2. **Redux Toolkit**: `configureStore`, `createSlice`, `createAsyncThunk` y RTK Query. La forma recomendada de escribir Redux.
+3. **Redux Saga**: generadores y efectos, y los patrones donde brilla (cancelación, carreras, polling).
+4. **Zustand**: un store en un hook, sin Provider ni boilerplate.
+5. **Comparación**: la misma feature hecha cuatro veces, con una tabla para decidir.
+
+Cada demo crea **su propio store** (salvo la de Zustand, que es global como en una app real), así que el botón **Reiniciar** vuelve todo a cero.
+
+<Tip title="Redux DevTools">
+Instalá la extensión **Redux DevTools** en tu navegador: con Redux Toolkit se conecta sola y te muestra cada acción, el estado antes y después, y te deja "viajar en el tiempo". Zustand también se puede conectar con su middleware `devtools`.
+</Tip>
+
+<Nota title="Versiones">
+Escrita en octubre de 2026 con Redux 5, React Redux 9, Redux Toolkit 2, Redux Saga 1.5 y Zustand 5.
+</Nota>

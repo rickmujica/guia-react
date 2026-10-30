@@ -1,0 +1,62 @@
+**RTK Query** es la capa de **fetching y caché** de Redux Toolkit. Vos describís los endpoints y genera los hooks, el estado de carga, la caché compartida, la deduplicación de pedidos y la invalidación. Es la respuesta de Redux a TanStack Query, y viene incluida en `@reduxjs/toolkit`.
+
+<Demo file="estado/RtkQuery" title="Queries, mutations y caché compartida con RTK Query" extra={['estado/rtk-query/api.ts']} />
+
+Probá esto:
+
+1. Montá el segundo componente: aparece **al instante**, sin pedir de nuevo. Los dos leen la misma entrada de la caché.
+2. Tocá **avanzar** en cualquiera: la mutation invalida el tag `Postulacion` y la lista se vuelve a pedir sola. Los dos componentes se actualizan.
+3. **refetch** fuerza un pedido nuevo: `isFetching` pasa a `true`, pero `isLoading` no (ya había datos).
+
+## Cómo se define una API
+
+```ts
+export const ofertasApi = createApi({
+  reducerPath: 'ofertasApi',
+  baseQuery: fetchBaseQuery({ baseUrl: '/api' }),
+  tagTypes: ['Oferta'],
+  endpoints: (build) => ({
+    listar: build.query<Oferta[], void>({
+      query: () => 'ofertas',
+      providesTags: ['Oferta'],
+    }),
+    crear: build.mutation<Oferta, NuevaOferta>({
+      query: (body) => ({ url: 'ofertas', method: 'POST', body }),
+      invalidatesTags: ['Oferta'],
+    }),
+  }),
+})
+
+export const { useListarQuery, useCrearMutation } = ofertasApi
+```
+
+La demo usa `queryFn` en vez de `query` para llamar a la API falsa de la guía, pero en un proyecto real es así de corto. Después se suma al store: el reducer en `reducerPath` y el middleware con `.concat(ofertasApi.middleware)`.
+
+## Lo que te da cada hook
+
+| Query (`useListarQuery(arg)`) | Mutation (`useCrearMutation()`) |
+| --- | --- |
+| `data`, `error` | Devuelve `[disparar, { isLoading, error, data }]` |
+| `isLoading`: primera carga, sin datos | `disparar(arg)` devuelve una promesa con `.unwrap()` |
+| `isFetching`: cualquier pedido en curso | Invalida tags al terminar |
+| `refetch()` | |
+| Opciones: `skip`, `pollingInterval`, `refetchOnFocus` | |
+
+## Tags: cuándo volver a pedir
+
+Las queries **proveen** tags y las mutations los **invalidan**. Cuando una mutation invalida `'Oferta'`, toda query que provea `'Oferta'` y esté en uso se vuelve a pedir. Con ids (`{ type: 'Oferta', id: 3 }`) se puede invalidar solo un elemento.
+
+## RTK Query o TanStack Query
+
+| | RTK Query | TanStack Query |
+| --- | --- | --- |
+| Si ya usás Redux | Ideal: misma store y DevTools | Funciona igual, separado |
+| Sin Redux | Trae Redux como dependencia | Más liviano |
+| Definición | Endpoints centralizados en `createApi` | Hooks con `queryKey` donde los uses |
+| Caché | Por endpoint + argumento, tags | Por `queryKey`, invalidación por key |
+
+Las dos resuelven lo mismo. En un proyecto con Redux, RTK Query; en uno sin Redux (o con Zustand), TanStack Query.
+
+<Entrevista>
+"¿Por qué no guardar la respuesta de la API en un slice con un thunk?" → "Porque estaría reescribiendo una caché: loading, error, deduplicar pedidos, invalidar al mutar, refetch al volver a la pestaña. RTK Query (o TanStack Query) ya lo resuelve: defino endpoints, uso los hooks y con tags invalido lo que cambió."
+</Entrevista>

@@ -1,0 +1,73 @@
+Saga brilla cuando el flujo async es **complejo**: varias cosas que compiten, procesos que corren de fondo y hay que poder cortar, pasos que esperan a que el usuario haga algo. Estos son los patrones que más vas a ver.
+
+<Demo file="estado/SagaPatrones" title="race para un timeout y fork/cancel para un polling" extra={['estado/saga/patrones.ts']} />
+
+## race: timeout
+
+```ts
+const { respuesta, timeout } = yield race({
+  respuesta: call(api.lenta),
+  timeout: delay(2000, true),
+})
+```
+
+`race` corre varios efectos y se queda con **el primero que termina**. Los demás se **cancelan** solos. Tocá el botón varias veces: la API tarda entre 0,5 y 3 segundos, así que a veces gana la respuesta y a veces el timeout.
+
+El mismo patrón sirve para "cancelar si el usuario toca Cancelar": `race({ resultado: call(...), cancelar: take('CANCELADO') })`.
+
+## fork, take y cancel: polling
+
+```ts
+function* controlarPolling() {
+  while (true) {
+    yield take('pollingIniciado') // espera
+    const tarea = yield fork(polling) // arranca en paralelo
+    yield take('pollingDetenido') // espera
+    yield cancel(tarea) // corta el loop, esté donde esté
+  }
+}
+```
+
+Una saga con `while (true)` que hace `take` es un **flujo**: se lee de arriba abajo como una historia ("esperá que empiece, arrancá, esperá que pare, cortá"). Con thunks, esto requeriría guardar el id de un `setInterval` en algún lado y acordarse de limpiarlo.
+
+## Manejo de errores
+
+```ts
+function* cargar() {
+  try {
+    const datos = yield call(api.listar)
+    yield put(cargadas(datos))
+  } catch (error) {
+    yield put(falloLaCarga(String(error)))
+  }
+}
+```
+
+Un error en un `call` se tira **adentro de la saga**, en la línea del `yield`, así que se maneja con un `try/catch` común. Ojo: un error sin atrapar en una saga hija puede terminar con la saga raíz y dejar de escuchar acciones.
+
+## Testear una saga
+
+Como los efectos son objetos, se testea recorriendo el generador:
+
+```ts
+const gen = cargarSaga()
+expect(gen.next().value).toEqual(put(cargando()))
+expect(gen.next().value).toEqual(call(api.listar))
+const datos = [{ id: 1, empresa: 'Acme', etapa: 'postulado' }]
+expect(gen.next(datos).value).toEqual(put(cargadas(['Acme']))) // le "inyectás" la respuesta
+expect(gen.next().done).toBe(true)
+```
+
+No hay que mockear la API: nunca se llama. Le pasás a `next()` lo que habría devuelto.
+
+## ¿Saga hoy?
+
+<Ojo title="Para proyectos nuevos, casi nunca">
+El equipo de Redux recomienda **no** usar Saga para lo común: para traer datos, **RTK Query**; para "cuando pase X, hacé Y", el **listener middleware** de Redux Toolkit, que cubre la mayoría de los casos (incluida la cancelación) con async/await normal. Saga sigue siendo muy buena para flujos largos y complejos, pero suma una curva de aprendizaje (generadores, efectos) y tipos más débiles en TypeScript (cada `yield` hay que anotarlo a mano).
+
+Lo importante para vos: **saber leerla y mantenerla**, porque está en muchísimo código que todavía corre en producción.
+</Ojo>
+
+<Entrevista>
+"¿Por qué alguien elegiría Saga en vez de thunks?" → "Para flujos async complejos: cancelación (takeLatest, cancel), carreras con timeout (race), procesos de fondo como polling (fork) y flujos que esperan acciones del usuario (take). Además los efectos son datos, así que se testean sin mocks. Para casos simples, hoy usaría RTK Query o el listener middleware."
+</Entrevista>

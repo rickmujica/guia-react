@@ -1,0 +1,55 @@
+**Redux Saga** es un middleware para manejar efectos secundarios con **funciones generadoras**. Mientras un thunk es "una función async que despacha cosas", una saga es un **proceso** que escucha acciones y decide qué hacer: puede esperar, cancelarse, correr en paralelo o competir con otras.
+
+Lo vas a encontrar en muchos proyectos grandes de 2017 a 2021 (bancos, fintech, e-commerce), justamente el tipo de código legacy que suele pedirse en entrevistas.
+
+## Repaso: generadores
+
+Una función con `function*` es un **generador**: se puede pausar en cada `yield` y alguien de afuera decide cuándo sigue y con qué valor.
+
+```ts
+function* contar() {
+  const a: number = yield 'primero' // se pausa acá
+  const b: number = yield 'segundo'
+  return a + b
+}
+
+const it = contar()
+it.next() // { value: 'primero', done: false }
+it.next(1) // a = 1 → { value: 'segundo', done: false }
+it.next(2) // b = 2 → { value: 3, done: true }
+```
+
+El middleware de Redux Saga es ese "alguien de afuera": la saga hace `yield` de un **efecto** (un objeto que describe qué hacer), el middleware lo ejecuta y le devuelve el resultado.
+
+## Los efectos básicos
+
+| Efecto | Qué hace | Bloquea |
+| --- | --- | --- |
+| `call(fn, ...args)` | Llama a una función (si devuelve una promesa, espera el resultado) | Sí |
+| `put(acción)` | Despacha una acción | No |
+| `select(selector)` | Lee el estado | No |
+| `take('tipo')` | Espera a que se despache una acción de ese tipo | Sí |
+| `delay(ms)` | Espera | Sí |
+| `fork(saga)` | Arranca otra saga en paralelo | No |
+| `takeEvery('tipo', saga)` | Arranca `saga` por **cada** acción de ese tipo | No |
+| `takeLatest('tipo', saga)` | Igual, pero **cancela** la anterior si sigue corriendo | No |
+
+## Un buscador con debounce y cancelación
+
+<Demo file="estado/SagaBusqueda" title="takeLatest + delay: debounce y cancelación en cuatro líneas" extra={['estado/saga/busqueda.ts']} />
+
+Escribí rápido en el buscador y mirá el log: cada tecla arranca una saga nueva, y `takeLatest` **cancela** la anterior. Si la cancelación llega durante el `delay(300)`, nunca se busca: eso es un debounce. Si llega durante el `call` a la API, la respuesta vieja se descarta y no pisa a la nueva (el famoso problema de las *race conditions* del capítulo de `useEffect`).
+
+En la pestaña `busqueda.ts`:
+
+- El slice de RTK solo guarda datos. La lógica async vive en la saga `buscar`.
+- `try/finally` con `cancelled()` permite reaccionar a la cancelación (limpiar, anotar, abortar).
+- El store se arma con `configureStore` y el middleware de Saga, que después se arranca con `sagaMiddleware.run(rootSaga)`.
+
+<Tip title="Los efectos son datos">
+`call(api.buscarEmpresas, texto)` no llama a la API: devuelve un objeto `{ CALL: { fn, args } }`. Eso hace que las sagas sean muy fáciles de testear: recorrés el generador con `next()` y comparás objetos, sin mockear `fetch`. Lo vemos en el capítulo siguiente.
+</Tip>
+
+<Entrevista>
+"¿Qué diferencia hay entre takeEvery y takeLatest?" → "Los dos arrancan una saga por cada acción de un tipo. takeEvery deja correr todas en paralelo; takeLatest cancela la anterior si sigue viva, así solo cuenta la última. takeLatest es ideal para búsquedas o cargas donde una respuesta vieja no debe pisar a la nueva."
+</Entrevista>

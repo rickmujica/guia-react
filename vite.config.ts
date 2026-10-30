@@ -27,6 +27,6 @@ export default defineConfig({
   build: {
     // Todas las guías (capítulos + demos) van en un solo bundle de unos cientos de kB con gzip.
     // Para una app de documentación está bien, así que subimos el límite del aviso.
-    chunkSizeWarningLimit: 1000,
+    chunkSizeWarningLimit: 2000,
   },
 })

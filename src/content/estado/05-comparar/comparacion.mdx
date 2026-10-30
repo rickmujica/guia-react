@@ -1,0 +1,43 @@
+La misma feature, cuatro veces: cargar una lista de la API (con estado de carga), agregar un elemento y quitarlo. Así se ve la diferencia real de cada herramienta, no en teoría.
+
+<Demo file="estado/Comparacion" title="Redux clásico, Redux Toolkit, RTK + Saga y Zustand lado a lado" extra={['estado/comparacion/ConRedux.tsx', 'estado/comparacion/ConToolkit.tsx', 'estado/comparacion/ConSaga.tsx', 'estado/comparacion/ConZustand.tsx']} />
+
+El número de líneas sale del archivo fuente real (sin vacías ni comentarios). Mirá las pestañas: la lógica es exactamente la misma, lo que cambia es cuánto código hace falta para expresarla y dónde vive cada parte.
+
+Con una sola feature la diferencia parece chica. Pero en Redux clásico cada acción nueva suma una constante, un action creator y un `case`, y cada operación async tres acciones más; en Redux Toolkit es una función en el slice, y en Zustand, una función en el store. En una app con decenas de features, eso es lo que separa un archivo de 50 líneas de uno de 300.
+
+## La tabla
+
+| | Redux clásico | Redux Toolkit | RTK + Saga | Zustand |
+| --- | --- | --- | --- | --- |
+| **Boilerplate** | Mucho | Poco | Medio | Mínimo |
+| **Provider** | Sí | Sí | Sí | No |
+| **Lógica async** | Thunks a mano | `createAsyncThunk`, listener | Sagas (generadores) | Funciones async en el store |
+| **Datos del servidor** | A mano | RTK Query | A mano o RTK Query | TanStack Query aparte |
+| **Re-renders** | Selectores + `createSelector` | Igual | Igual | Selectores + `useShallow` |
+| **DevTools / time travel** | Sí | Sí, configurado | Sí | Con el middleware `devtools` |
+| **TypeScript** | Verboso | Muy bueno (inferencia) | Débil en los `yield` | Muy bueno |
+| **Curva de aprendizaje** | Media | Media | Alta | Baja |
+| **Tamaño (min+gzip aprox.)** | ~5 kB con react-redux | ~15 kB (sin RTK Query) | +~5 kB de Saga | ~1 kB |
+| **Cuándo** | Mantener código legacy | Apps medianas y grandes, equipos grandes | Flujos async complejos en código existente | Apps chicas y medianas, estado del cliente simple |
+
+## Cómo decidir
+
+1. **¿Son datos del servidor?** Usá una librería de caché: **TanStack Query** o **RTK Query** (si ya hay Redux). Esto solo ya saca la mayor parte de lo que antes iba al store.
+2. **¿Queda estado global del cliente?** Si es poco y simple (filtros, preferencias, un carrito), **Zustand** o incluso **Context**. Si es mucho, con lógica compleja, muchas personas tocando el código y necesidad de trazabilidad, **Redux Toolkit**.
+3. **¿Hay flujos async muy complejos** (cancelación, polling, pasos que esperan al usuario)? Primero probá el **listener middleware** de RTK. Si ya hay Saga en el proyecto, seguí con Saga.
+4. **¿Proyecto legacy con Redux clásico?** No reescribas todo: **migrá de a un slice** a Redux Toolkit. `configureStore` acepta los reducers viejos tal como están, así que los dos estilos conviven.
+
+## Migrar Redux clásico a Redux Toolkit
+
+Un camino que funciona en proyectos reales, sin frenar features:
+
+1. Reemplazá `createStore` + `combineReducers` + `applyMiddleware` por `configureStore`, pasándole los reducers viejos. Nada más cambia.
+2. Cada vez que toques una feature, convertí su reducer en un `createSlice` (las acciones nuevas tienen el mismo `type` si usás el mismo nombre).
+3. Pasá los thunks a `createAsyncThunk`, y los que solo traen datos, a endpoints de RTK Query.
+4. Cambiá `connect` por hooks en los componentes que vayas tocando.
+5. Si hay sagas, dejalas: siguen funcionando con `configureStore`. Las nuevas features pueden usar el listener middleware.
+
+<Entrevista>
+"Si arrancás un proyecto hoy, ¿qué usás para el estado?" → "Separo el estado del servidor del estado del cliente. Para el servidor, TanStack Query o RTK Query. Para el cliente, empiezo con useState, context o Zustand si es poco; si la app es grande, con mucha lógica compartida y un equipo grande, Redux Toolkit. Saga solo si el proyecto ya la usa o hay flujos async muy complejos."
+</Entrevista>
