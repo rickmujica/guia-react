@@ -1,0 +1,80 @@
+**Autenticación** es saber quién es el usuario (login). **Autorización** es decidir qué puede hacer (un admin sí, un usuario no). Son las partes donde un error sale más caro, así que la regla número uno es: usá librerías probadas, no inventes tu propia criptografía.
+
+## Guardar contraseñas
+
+Una contraseña **nunca** se guarda tal cual (ni cifrada, que se puede descifrar). Se guarda un **hash lento con sal**:
+
+<Salida archivo="node/02-express/auth/claves.ts" />
+
+- **Hash**: una función de un solo camino. De la contraseña sale el hash, pero del hash no se puede volver a la contraseña. Para verificar un login, se calcula el hash de lo que escribió el usuario y se compara.
+- **Lento a propósito**: con un hash rápido (como SHA-256), alguien que roba la base prueba miles de millones de contraseñas por segundo. `scrypt`, `bcrypt` y `argon2` tardan decenas de milisegundos cada vez.
+- **Sal**: bytes al azar, distintos para cada usuario, guardados junto al hash. Dos usuarios con la misma contraseña tienen hashes distintos, y las tablas precalculadas no sirven.
+
+El ejemplo usa `scrypt`, que viene con Node. En proyectos vas a ver **bcrypt** (el más común) o **argon2** (el recomendado hoy). Los tres están bien.
+
+## Sesiones o tokens
+
+Después del login, el servidor tiene que reconocer al usuario en cada pedido siguiente. Dos formas:
+
+| | Sesión con cookie | Token (JWT) |
+| --- | --- | --- |
+| Cómo funciona | El servidor guarda la sesión (en memoria, Redis o la base) y le da al navegador un id en una cookie | El servidor firma un token con los datos del usuario y el cliente lo manda en cada pedido |
+| El servidor guarda | Las sesiones | Nada (solo el secreto para firmar) |
+| Cerrar sesión / revocar | Borrar la sesión: inmediato | Difícil: el token vale hasta que vence (por eso duran poco) |
+| Ideal para | Una web con su propio backend | APIs para apps móviles, o entre servicios |
+
+Las dos son válidas. Lo que **no** conviene es guardar un token en `localStorage`: cualquier script que logre ejecutarse en tu página (un XSS) lo puede leer. Para una web, una cookie `httpOnly` (que JavaScript no puede leer), `Secure` y `SameSite`, tenga adentro un id de sesión o el JWT.
+
+## JWT con Express
+
+Un **JWT** son tres partes en base64 separadas por puntos: `header.payload.firma`. El payload **no está cifrado**, cualquiera lo puede leer: no pongas datos sensibles. La firma garantiza que nadie lo modificó, porque para firmar hace falta el secreto del servidor.
+
+<Api archivo="node/02-express/auth/app.ts" extra={['node/02-express/auth/claves.ts']}>
+
+```http
+GET /yo
+POST /login {"email": "ana@ejemplo.com", "password": "incorrecta"}
+POST /login {"email": "ana@ejemplo.com", "password": "secreto-123"}
+GET /yo [Authorization: Bearer {token}]
+GET /admin/usuarios [Authorization: Bearer {token}]
+GET /yo [Authorization: Bearer token-inventado]
+```
+
+</Api>
+
+(`{token}` es el token que devolvió el login: la guía lo reemplaza al hacer el pedido.)
+
+- El login responde lo mismo si el email no existe o si la contraseña está mal: así no se puede averiguar qué emails están registrados.
+- **`autenticar`** verifica la firma y el vencimiento, y deja el usuario en `res.locals`. Sin token o con uno inválido: **401**.
+- **`soloAdmin`** chequea el rol: Ana está autenticada pero no es admin, entonces **403**.
+- El token vence en 15 minutos. Para no pedir la contraseña cada 15 minutos se usa un **refresh token** (de larga duración, en una cookie `httpOnly`, guardado en la base para poder revocarlo) que pide tokens nuevos.
+
+El ejemplo usa **jose**, que funciona en Node, en el navegador y en el edge. En proyectos más viejos vas a ver **jsonwebtoken** (`jwt.sign` y `jwt.verify`), que hace lo mismo. Y para no hacer todo esto a mano existen **Auth.js**, **Better Auth**, **Passport** o servicios como **Clerk**, **Auth0** o **Supabase Auth**.
+
+## Seguridad básica de una API
+
+| Riesgo | Qué hacer |
+| --- | --- |
+| Inyección SQL | Consultas con parámetros, siempre ([MySQL desde Node](#/mysql/desde-node)) |
+| Datos inválidos o de más | Validar todo con Zod ([validación](#/validacion)) |
+| Fuerza bruta en el login | `express-rate-limit`: por ejemplo, 5 intentos por minuto por IP |
+| Headers inseguros | `helmet()`: agrega headers como `Content-Security-Policy` y `Strict-Transport-Security`, y saca `X-Powered-By` |
+| Secretos en el código | Variables de entorno; el `.env` fuera del repo |
+| CORS demasiado abierto | Lista de orígenes permitidos ([middlewares](#/middlewares)) |
+| Errores que muestran de más | En producción, al cliente un mensaje genérico; el detalle (stack, SQL) solo en los logs |
+| Dependencias con vulnerabilidades | `npm audit`, Dependabot o Renovate |
+| Acceso a datos ajenos | Chequear que el recurso **es del usuario**: `GET /postulaciones/7` no alcanza con estar logueado, la postulación 7 tiene que ser tuya |
+
+La última es de las más comunes en la vida real (se llama *IDOR*, o *broken object level authorization*): el usuario está autenticado, pero nadie verifica que el objeto que pide le pertenezca.
+
+```ts
+import helmet from 'helmet'
+import rateLimit from 'express-rate-limit'
+
+app.use(helmet())
+app.use('/login', rateLimit({ windowMs: 60_000, limit: 5 }))
+```
+
+<Entrevista>
+"¿Cómo implementarías la autenticación de una API?" → "Las contraseñas se guardan con un hash lento y con sal (bcrypt, argon2 o scrypt). En el login verifico el hash y emito una sesión o un JWT de vida corta firmado con un secreto de las variables de entorno. Un middleware lo verifica en cada pedido y deja el usuario disponible: 401 si no hay token válido, 403 si el usuario no tiene permiso. En una web prefiero cookies httpOnly, Secure y SameSite en lugar de localStorage, por XSS. Sumo rate limiting en el login, helmet, CORS con una lista de orígenes, y en cada recurso verifico que pertenezca al usuario."
+</Entrevista>

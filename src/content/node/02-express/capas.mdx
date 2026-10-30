@@ -1,0 +1,66 @@
+Con tres rutas, todo en un archivo está bien. Con cuarenta, las rutas que mezclan HTTP, reglas de negocio y SQL se vuelven imposibles de testear y de cambiar. La organización más común en APIs de Node separa **capas**, cada una con un solo trabajo.
+
+## Las capas
+
+```text
+Pedido HTTP
+   │
+   ▼
+Rutas (o controladores)   Leen y validan el pedido, llaman al servicio, arman la respuesta.
+   │                      Saben de HTTP; no saben de SQL.
+   ▼
+Servicio                  Las reglas del negocio ("no se puede publicar dos veces la misma oferta").
+   │                      No sabe de HTTP ni de SQL: se puede usar desde una ruta, un script o un test.
+   ▼
+Repositorio               El acceso a los datos: SQL, un ORM, una API externa o memoria.
+   │                      Es lo único que cambia si cambiás de base de datos.
+   ▼
+MySQL
+```
+
+## El ejemplo completo
+
+La misma API de ofertas, partida en capas. Mirá las pestañas: cada archivo es una capa.
+
+<Api archivo="node/02-express/capas/app.ts" extra={['node/02-express/capas/rutas.ts', 'node/02-express/capas/servicio.ts', 'node/02-express/capas/repositorio.ts', 'node/02-express/capas/ofertas.ts']} headers="location">
+
+```http
+GET /ofertas
+GET /ofertas?modalidad=hibrido
+POST /ofertas {"titulo": "Backend Node", "empresa": "Nubelia"}
+POST /ofertas {"titulo": "frontend react senior", "empresa": "Nubelia"}
+POST /ofertas {"titulo": "QA"}
+GET /ofertas/7
+```
+
+</Api>
+
+- **`ofertas.ts`**: el modelo. Los esquemas de Zod, los tipos que salen de ellos y `ErrorDeNegocio`, un error que ya sabe qué status HTTP le corresponde.
+- **`repositorio.ts`**: una **interfaz** (`RepositorioOfertas`) y una implementación en memoria.
+- **`servicio.ts`**: la regla del título repetido (409) y el 404. Recibe el repositorio como parámetro.
+- **`rutas.ts`**: valida con Zod y llama al servicio. Ninguna línea de SQL ni de reglas.
+- **`app.ts`**: **arma las piezas**. `crearApp` recibe el repositorio, y por defecto usa uno en memoria.
+
+## Inyección de dependencias, sin frameworks
+
+Que el servicio **reciba** el repositorio (en lugar de importarlo directo) es **inyección de dependencias**. Con funciones que reciben sus dependencias alcanza; no hace falta un framework. La ganancia: la misma app funciona con datos en memoria en los tests y con MySQL en producción.
+
+<Source path="src/demos/node/02-express/capas/repositorio-mysql.ts" />
+
+<Source path="src/demos/node/02-express/capas/servidor.ts" />
+
+El repositorio de MySQL cumple la misma interfaz con consultas con parámetros (como en el capítulo de [MySQL desde Node](#/mysql/desde-node)). `servidor.ts` es el punto de entrada de producción: crea el pool, arma la app con el repositorio de verdad y la levanta. Para cambiar de base de datos, se cambia un archivo.
+
+<Tip title="Transacciones entre repositorios">
+Si una operación del servicio toca varias tablas (crear un pedido y descontar el stock), tiene que ir en **una transacción**. Una forma simple: que el repositorio reciba la conexión como parámetro, y que el servicio abra la transacción con `pool.getConnection()` y se la pase a cada repositorio. Los ORMs lo resuelven con algo como `prisma.$transaction(async (tx) => { ... })`.
+</Tip>
+
+## ¿Hace falta tanto?
+
+Para un CRUD chico, rutas + un módulo de acceso a datos alcanza. Las capas valen la pena cuando hay **reglas de negocio** de verdad, varias fuentes de datos, o cuando querés testear la lógica sin levantar una base. Lo que no conviene es el extremo opuesto: SQL adentro de las rutas de Express, repetido en cinco lugares.
+
+Otras arquitecturas que vas a escuchar: **MVC** (modelo, vista, controlador: el "controlador" es lo que acá llamamos rutas), **hexagonal** o *ports and adapters* (la misma idea de las interfaces llevada al extremo), y la organización **por feature** (una carpeta `ofertas/` con sus rutas, servicio y repositorio) en lugar de por tipo (una carpeta `rutas/`, otra `servicios/`…). Por feature escala mejor.
+
+<Entrevista>
+"¿Cómo estructurarías una API en Node?" → "Por feature (una carpeta por recurso) y en capas: rutas que solo traducen HTTP y validan con Zod, un servicio con las reglas de negocio que no sabe nada de HTTP, y un repositorio que es lo único que habla con la base. Las dependencias se pasan por parámetro (el servicio recibe el repositorio), así en los tests uso uno en memoria y en producción el de MySQL. Los errores esperables los lanza el servicio con su status y los traduce un único middleware de errores."
+</Entrevista>

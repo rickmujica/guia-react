@@ -1,0 +1,67 @@
+Leer y escribir archivos, armar rutas y procesar datos grandes sin llenar la memoria. Son las APIs que más vas a usar en scripts y en el backend.
+
+## Rutas con node:path
+
+<Salida archivo="node/01-node/archivos/rutas.ts" />
+
+- **`path.join`** une partes con el separador del sistema (`/` en Mac y Linux, `\` en Windows) y resuelve los `..`. Nunca concatenes rutas con `+`.
+- **`path.resolve`** devuelve una ruta absoluta.
+- Las rutas relativas (`'datos.json'`) se resuelven contra **la carpeta desde donde ejecutaste node** (`process.cwd()`), no contra la del archivo. Para leer un archivo que está al lado del código, usá `import.meta.dirname`.
+
+## Archivos con node:fs/promises
+
+<Salida archivo="node/01-node/archivos/archivos.ts" />
+
+| Función | Para |
+| --- | --- |
+| `readFile(ruta, 'utf8')` | Leer un archivo entero como texto (sin `'utf8'` devuelve un `Buffer`) |
+| `writeFile(ruta, datos)` | Crear o reemplazar un archivo |
+| `appendFile(ruta, datos)` | Agregar al final |
+| `mkdir(ruta, { recursive: true })` | Crear una carpeta (y las que falten en el camino) |
+| `readdir(ruta)` | Listar una carpeta |
+| `stat(ruta)` | Tamaño, fechas, si es carpeta… |
+| `rm(ruta, { recursive: true, force: true })` | Borrar un archivo o una carpeta entera |
+| `rename(de, a)` / `copyFile(de, a)` | Mover y copiar |
+| `access(ruta)` | Ver si existe (o, mejor, intentar leerlo y manejar el error `ENOENT`) |
+
+Los errores traen un `code`: `ENOENT` (no existe), `EACCES` (sin permiso), `EEXIST` (ya existe), `EISDIR` (es una carpeta).
+
+<Nota title="Sync, callbacks y promesas">
+Cada función existe en tres versiones: `fs.readFileSync` (bloquea), `fs.readFile` con callback y `fsPromises.readFile`. En un servidor, la de promesas. Las `Sync` están bien en un script de línea de comandos o al arrancar la app (leer una configuración, por ejemplo).
+</Nota>
+
+## Streams: datos de a pedazos
+
+`readFile` carga el archivo **entero en memoria**. Con un log de 4 GB, el proceso se queda sin memoria. Un **stream** procesa los datos **de a pedazos** (*chunks*) a medida que llegan: la memoria usada es la de un pedazo, no la del archivo.
+
+<Salida archivo="node/01-node/archivos/streams.ts" />
+
+Los cuatro tipos:
+
+| Tipo | Qué es | Ejemplos |
+| --- | --- | --- |
+| **Readable** | Una fuente de datos | `createReadStream`, el `req` de un servidor HTTP, `Readable.from(iterable)` |
+| **Writable** | Un destino | `createWriteStream`, el `res` de un servidor HTTP, `process.stdout` |
+| **Duplex** | Las dos cosas | Un socket TCP |
+| **Transform** | Un Duplex que transforma lo que pasa | `createGzip`, un parser de CSV, cifrado |
+
+- **`pipeline`** conecta streams en cadena, propaga los errores de cualquiera de ellos y cierra todo al final. Usalo siempre en lugar del viejo `.pipe()`, que no maneja errores.
+- **`for await (const pedazo of stream)`**: los Readable son iterables asíncronos. Con `readline`, de a líneas.
+- **Backpressure**: si el destino es más lento que la fuente (escribir en un disco lento, un cliente con mala conexión), el stream frena la lectura hasta que el destino se pone al día. `pipeline` lo maneja solo.
+
+En un servidor, los streams aparecen en todos lados: el cuerpo de un pedido llega como stream (ver [HTTP sin frameworks](#/http)), y para devolver un archivo grande se hace `pipeline(createReadStream(ruta), res)` en lugar de leerlo entero.
+
+## Buffer
+
+Un `Buffer` son bytes crudos (el tipo de Node para datos binarios, parecido a un `Uint8Array`). Aparece al leer archivos sin codificación, con imágenes, hashes y criptografía:
+
+```ts
+const b = Buffer.from('Canción', 'utf8')
+b.length                 // 8: la "ó" ocupa 2 bytes en UTF-8
+b.toString('hex')        // '43616e6369c3b36e'
+b.toString('base64')     // 'Q2FuY2nDs24='
+```
+
+<Entrevista>
+"¿Qué es un stream y cuándo lo usarías?" → "Una forma de procesar datos de a pedazos a medida que llegan, en lugar de cargar todo en memoria. Lo uso para archivos grandes (leer un CSV de varios GB línea por línea, comprimir, subir a S3), para devolver archivos en una respuesta HTTP o para hacer de proxy. Se conectan con pipeline, que maneja los errores y el backpressure: si el destino es más lento, frena la lectura."
+</Entrevista>

@@ -1,0 +1,65 @@
+El objeto global `process` es la conexión de tu programa con el sistema: los argumentos, las variables de entorno, la salida, las señales. Y `EventEmitter` es el patrón de eventos sobre el que están construidas muchas APIs de Node.
+
+## EventEmitter
+
+Un objeto que **emite eventos** con nombre, y cualquiera puede **suscribirse**. Lo usan los servidores HTTP (`'request'`, `'close'`), los streams (`'data'`, `'end'`, `'error'`), los procesos y los workers.
+
+<Salida archivo="node/01-node/proceso/eventos.ts" />
+
+- `on(evento, fn)` suscribe, `once` suscribe para una sola vez y `off` desuscribe.
+- `emit(evento, ...args)` llama a los oyentes **en orden y de forma sincrónica**.
+- El evento **`'error'`** es especial: si se emite y nadie lo escucha, se lanza como excepción.
+- Pasándole un tipo (`EventEmitter<Eventos>`), TypeScript chequea los nombres de los eventos y sus argumentos.
+
+<Ojo title="Oyentes que se acumulan">
+Cada `on` agrega un oyente que vive mientras viva el emisor. Suscribirse adentro de una función que se llama muchas veces (por ejemplo, en cada pedido) sin hacer `off` es una **pérdida de memoria** clásica. Node avisa con `MaxListenersExceededWarning` cuando un evento pasa los 10 oyentes.
+</Ojo>
+
+## Argumentos de la línea de comandos
+
+<Salida archivo="node/01-node/proceso/argumentos.ts" args="react node -s senior --remoto --minimo 3000" />
+
+`process.argv` tiene todo como texto: en la posición 0 está la ruta de `node`, en la 1 la del archivo, y después lo que escribiste. `parseArgs` (de `node:util`) los interpreta con tipos y valores por defecto, sin instalar nada. Para una herramienta de línea de comandos más completa existen **commander** o **yargs**.
+
+## Variables de entorno
+
+La configuración que cambia según dónde corre la app (la base de datos, las claves, el puerto) **no va en el código**: va en variables de entorno.
+
+<Salida archivo="node/01-node/proceso/entorno.ts" flags="--env-file=.env.ejemplo" />
+
+- `process.env.X` siempre es un **string** o `undefined`. `PUERTO=4000` llega como `'4000'`: convertilo.
+- `node --env-file=.env` carga un archivo `.env` (desde Node 20.6; antes se usaba el paquete **dotenv**). `--env-file-if-exists` no falla si el archivo no está. Desde el código: `process.loadEnvFile()`.
+- El `.env` va en el `.gitignore`. Al repositorio se sube un `.env.example` con los nombres de las variables y valores de mentira.
+- En [producción](#/produccion) vemos cómo validar todas las variables al arrancar.
+
+## Código de salida
+
+Cuando un proceso termina, le devuelve un número al sistema: **0** si salió bien, **otro** si falló. Lo leen la terminal (`echo $?`), los scripts de npm, el CI (un test que falla devuelve 1 y el pipeline se corta) y Docker.
+
+<Salida archivo="node/01-node/proceso/codigo-de-salida.ts" error />
+
+`process.exitCode = 1` marca el código y deja que el proceso termine solo cuando no quede nada pendiente. `process.exit(1)` corta **en el acto**, aunque haya escrituras o pedidos a medio terminar: usalo solo cuando no hay otra opción.
+
+## Señales y errores no atrapados
+
+```ts
+// Ctrl+C en la terminal manda SIGINT; Docker y Kubernetes mandan SIGTERM antes de apagar
+process.on('SIGTERM', () => apagarProlijo())
+process.on('SIGINT', () => apagarProlijo())
+
+// Último recurso: registrar el error y salir (el proceso quedó en un estado desconocido)
+process.on('uncaughtException', (error) => {
+  logger.fatal(error)
+  process.exit(1)
+})
+process.on('unhandledRejection', (motivo) => {
+  logger.fatal(motivo)
+  process.exit(1)
+})
+```
+
+Un `uncaughtException` **no** se usa para "seguir como si nada": después de un error inesperado, el estado de la app es dudoso. Se registra el error, se sale, y el orquestador (Docker, PM2, Kubernetes) levanta un proceso nuevo. El apagado prolijo con `SIGTERM` lo vemos en [producción](#/produccion).
+
+<Entrevista>
+"¿Cómo manejás la configuración en una app de Node?" → "Con variables de entorno, nunca en el código: en desarrollo, un .env que carga node --env-file (o dotenv) y que no se sube al repo; en producción, las variables del servidor o los secretos del proveedor. Al arrancar las valido todas juntas, por ejemplo con Zod, y si falta alguna la app no arranca, con un mensaje claro. Y recuerdo que process.env siempre devuelve strings."
+</Entrevista>

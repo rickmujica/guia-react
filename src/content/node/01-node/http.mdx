@@ -1,0 +1,56 @@
+Antes de Express, un servidor con el módulo `node:http`, sin ninguna librería. No es lo que vas a escribir en un proyecto, pero muestra qué hace Express por vos.
+
+## Un servidor con node:http
+
+<Api archivo="node/01-node/http/servidor.ts">
+
+```http
+GET /ofertas
+GET /ofertas/2
+GET /ofertas/9
+POST /ofertas {"titulo": "Backend Node", "modalidad": "remoto"}
+POST /ofertas {"titulo": "Mal escrito",
+DELETE /ofertas/1
+```
+
+</Api>
+
+- `createServer` recibe **una** función que atiende **todos** los pedidos. `req` (un `IncomingMessage`) es lo que llegó: método, URL, headers y el cuerpo. `res` (un `ServerResponse`) es lo que vas a responder.
+- El ruteo es a mano: comparar el método y la URL, sacar el `:id` con una expresión regular.
+- El cuerpo llega **como stream**, en pedazos: hay que juntarlos y parsear el JSON (y manejar el error si viene mal).
+- Para responder JSON hay que poner el `Content-Type` y hacer `JSON.stringify`.
+- `if (import.meta.main)` levanta el servidor solo cuando ejecutás este archivo (`node servidor.ts`). Si otro archivo lo importa (un test, o el script que generó estas respuestas), no.
+
+Todo eso, más middlewares, manejo de errores y mucho más, es lo que resuelve Express en el [capítulo siguiente](#/express).
+
+## HTTP en dos minutos
+
+Un pedido HTTP tiene un **método**, una **ruta**, **headers** y, a veces, un **cuerpo**. La respuesta tiene un **código de estado**, headers y un cuerpo.
+
+| Método | Para | ¿Tiene cuerpo? | ¿Idempotente? |
+| --- | --- | --- | --- |
+| `GET` | Leer | No | Sí |
+| `POST` | Crear, o una acción | Sí | No |
+| `PUT` | Reemplazar entero | Sí | Sí |
+| `PATCH` | Cambiar una parte | Sí | No necesariamente |
+| `DELETE` | Borrar | No | Sí |
+
+*Idempotente*: repetir el pedido deja todo igual que hacerlo una vez. Si un `DELETE /ofertas/1` se manda dos veces por un reintento, la oferta sigue borrada; dos `POST` crean dos ofertas.
+
+Los códigos que vas a usar: **200** OK, **201** Created, **204** No Content, **301/302** redirección, **304** Not Modified, **400** Bad Request (datos inválidos), **401** Unauthorized (no sé quién sos), **403** Forbidden (sé quién sos y no podés), **404** Not Found, **409** Conflict, **422** Unprocessable Content, **429** Too Many Requests, **500** Internal Server Error, **502/503** el servidor de atrás no responde o no está disponible.
+
+## fetch como cliente
+
+Node trae `fetch` incluido, con la misma API que el navegador. Sirve para llamar a otras APIs desde tu backend:
+
+<Salida archivo="node/01-node/http/cliente.ts" />
+
+<Ojo title="Los tres errores típicos con fetch">
+1. **`fetch` no falla con un 404 o un 500**: solo falla si no hubo respuesta (sin red, DNS, conexión rechazada). Siempre mirá `res.ok` o `res.status`.
+2. **Sin timeout** espera para siempre. Pasale `signal: AbortSignal.timeout(5000)`.
+3. **`res.json()` devuelve una promesa** (y `unknown` en TypeScript): hay que hacer `await` y validar la forma de los datos, por ejemplo con [Zod](#/validacion).
+</Ojo>
+
+<Entrevista>
+"¿Qué pasa cuando escribís una URL en el navegador y apretás Enter?" → "Se resuelve el dominio a una IP con DNS, se abre una conexión TCP (y TLS si es HTTPS) con el servidor, y se manda un pedido HTTP GET con headers. En el servidor, Node recibe el pedido, el framework lo pasa por los middlewares y la ruta, y se arma la respuesta con un status, headers y un cuerpo (HTML, JSON). El navegador la recibe, parsea el HTML, pide los recursos que referencia (CSS, JS, imágenes), arma el DOM y pinta la página."
+</Entrevista>

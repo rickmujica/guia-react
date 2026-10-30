@@ -1,0 +1,77 @@
+Lo que separa una API que funciona en tu máquina de una que funciona en producción: configuración, logs, errores, apagado y deploy.
+
+## Configuración validada al arrancar
+
+<Salida archivo="node/02-express/produccion/config.ts" error />
+
+<Salida archivo="node/02-express/produccion/config.ts" flags="--env-file=.env.ejemplo" />
+
+- Las variables se validan **todas juntas, al arrancar**. Si falta una, la app no arranca y el error dice cuál. Sin esto, la falta de `DB_PASSWORD` aparece como un error raro en el primer pedido, horas después del deploy.
+- El resto del código importa `config` (tipado: `config.PUERTO` es `number`) en lugar de leer `process.env` por todos lados.
+- Los secretos nunca se imprimen ni se loguean.
+
+## Logs
+
+`console.log` sirve para empezar. En producción se usa un **logger estructurado** como **pino**: escribe cada línea como JSON (fácil de buscar y filtrar en el servicio de logs), con niveles y muy poco costo.
+
+```ts
+import pino from 'pino'
+import pinoHttp from 'pino-http'
+
+export const logger = pino({ level: process.env.LOG_LEVEL ?? 'info' })
+app.use(pinoHttp({ logger })) // una línea por pedido: método, ruta, status y duración
+
+logger.info({ ofertaId: 42 }, 'Oferta publicada')
+logger.error({ err }, 'No se pudo guardar la postulación')
+// {"level":30,"time":1793318400000,"ofertaId":42,"msg":"Oferta publicada"}
+```
+
+Niveles: `fatal`, `error`, `warn`, `info`, `debug`, `trace`. En producción, `info`; mientras investigás un problema, `debug`. Nunca loguees contraseñas, tokens ni datos personales completos.
+
+## Errores
+
+- **Esperables** (datos inválidos, no encontrado, sin permiso): se responden con su status y un mensaje claro. Es lo que hace el manejador de errores de [capas](#/capas).
+- **Inesperados** (un bug, la base caída): al cliente, un 500 genérico **sin** el stack ni el SQL; en los logs, todo el detalle. Un servicio como **Sentry** junta estos errores, los agrupa y avisa.
+- **Fuera de un pedido** (`uncaughtException`, `unhandledRejection`): loguear y salir; el orquestador levanta otro proceso.
+
+## Apagado prolijo
+
+Cada deploy reemplaza los procesos viejos por nuevos. Antes de apagar uno, la plataforma le manda **`SIGTERM`**. Si el proceso se corta en seco, los pedidos que estaba atendiendo fallan. Lo correcto: dejar de aceptar pedidos nuevos, terminar los que están en curso, cerrar las conexiones a la base y salir.
+
+<Salida archivo="node/02-express/produccion/apagado.ts" />
+
+`servidor.close()` deja de aceptar conexiones nuevas y llama al callback cuando terminan las que estaban abiertas. El `setTimeout(..., 10_000).unref()` es un seguro: si algo se cuelga, sale igual (y `unref` evita que ese timer, por sí solo, mantenga vivo el proceso).
+
+## Health check
+
+Un endpoint como `GET /salud` que responde 200 si la app está bien. Lo consultan el balanceador y el orquestador para saber si mandarle tráfico o reiniciarla. A veces hay dos: uno que dice "el proceso está vivo" y otro que además verifica que la base responde.
+
+## Deploy
+
+```dockerfile
+# Dockerfile
+FROM node:24-slim
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev
+COPY src ./src
+ENV NODE_ENV=production
+USER node
+EXPOSE 3000
+CMD ["node", "src/servidor.ts"]
+```
+
+- **`npm ci --omit=dev`**: instalación exacta desde el lock y sin las dependencias de desarrollo.
+- **`NODE_ENV=production`**: Express y muchas librerías se comportan distinto (más rápido, sin stacks en las respuestas de error).
+- **`CMD ["node", ...]`** y no `npm start`: así la señal `SIGTERM` le llega directo a Node.
+- **`USER node`**: no correr como root adentro del contenedor.
+
+Dónde se publica una API de Node hoy: plataformas que toman el repo o el Dockerfile y se encargan del resto (**Railway**, **Render**, **Fly.io**), contenedores en la nube (**AWS ECS**, **Google Cloud Run**), o un VPS con Docker o **PM2** (un administrador de procesos que reinicia la app si se cae y levanta una por núcleo). Las funciones *serverless* (**Vercel**, **AWS Lambda**) también corren Express, con matices (conexiones a la base, tiempos de arranque).
+
+<Tip title="Lista para antes de salir">
+Configuración validada · logs estructurados · manejador de errores sin filtrar detalles · `SIGTERM` manejado · health check · `helmet`, CORS y rate limiting · pool de conexiones a la base con límite · timeouts en los `fetch` a otros servicios · `npm audit` limpio · tests en CI.
+</Tip>
+
+<Entrevista>
+"¿Qué tenés en cuenta para poner una API de Node en producción?" → "Configuración por variables de entorno validadas al arrancar; logs estructurados con pino y errores a Sentry; un manejador de errores que no devuelve detalles internos; apagado prolijo con SIGTERM para no cortar pedidos en cada deploy; un health check; seguridad básica (helmet, CORS, rate limiting, validación); y varias instancias detrás de un balanceador, porque un proceso de Node usa un núcleo. La empaqueto en Docker con npm ci --omit=dev y NODE_ENV=production."
+</Entrevista>

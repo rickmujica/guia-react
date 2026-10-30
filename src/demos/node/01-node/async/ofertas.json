@@ -1,0 +1,5 @@
+[
+  { "id": 1, "titulo": "Frontend React Senior", "empresa": "Nubelia", "modalidad": "remoto" },
+  { "id": 2, "titulo": "Fullstack Node", "empresa": "Nubelia", "modalidad": "remoto" },
+  { "id": 3, "titulo": "React Native Developer", "empresa": "Pagos Sur", "modalidad": "hibrido" }
+]

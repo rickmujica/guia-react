@@ -1,0 +1,114 @@
+Un proyecto de Node es una carpeta con un `package.json` y archivos que se importan entre sí. Este capítulo cubre los dos sistemas de módulos, npm y cómo ejecutar TypeScript directo.
+
+## Módulos ES (import / export)
+
+Es el estándar de JavaScript, el mismo que usás en React. Cada archivo es un módulo: lo que no exporta queda privado.
+
+<Salida archivo="node/01-node/modulos/main.ts" extra={['node/01-node/modulos/precios.ts']} />
+
+- Los módulos propios de Node se importan con el prefijo **`node:`** (`node:fs/promises`, `node:path`). Funciona sin él, pero así queda claro que no es un paquete de npm.
+- En Node, los imports relativos llevan **la extensión** (`./precios.ts`). En un proyecto con Vite o Next no hace falta porque el bundler la completa; Node no adivina.
+- `import.meta.dirname` e `import.meta.filename` son la carpeta y el archivo actuales.
+- **Top-level await**: en un módulo ES se puede usar `await` fuera de una función.
+
+## CommonJS (require)
+
+El sistema original de Node, que vas a encontrar en código viejo, en muchas librerías y en los archivos de configuración `.cjs`:
+
+<AntesAhora antes="CommonJS" ahora="Módulos ES">
+
+```js
+// precios.js
+const IVA = 0.1
+function conIva(monto) {
+  return monto * (1 + IVA)
+}
+module.exports = { conIva }
+
+// main.js
+const { conIva } = require('./precios')
+const path = require('node:path')
+console.log(__dirname)
+```
+
+```ts
+// precios.ts
+const IVA = 0.1
+export function conIva(monto: number) {
+  return monto * (1 + IVA)
+}
+
+// main.ts
+import { conIva } from './precios.ts'
+import path from 'node:path'
+console.log(import.meta.dirname)
+```
+
+</AntesAhora>
+
+| | CommonJS | Módulos ES |
+| --- | --- | --- |
+| Sintaxis | `require()` / `module.exports` | `import` / `export` |
+| Cuándo carga | Al ejecutar el `require` (sincrónico) | Antes de ejecutar el archivo (se analizan los imports primero) |
+| `await` en el nivel superior | No | Sí |
+| `__dirname`, `__filename` | Sí | `import.meta.dirname`, `import.meta.filename` |
+| Extensión en imports relativos | Opcional | Obligatoria |
+
+¿Cuál usa un archivo? `.mjs` / `.mts` siempre es ES y `.cjs` / `.cts` siempre CommonJS. Un `.js` o `.ts` depende del `"type"` del `package.json` más cercano: `"module"` es ES; sin `"type"`, CommonJS. Para un proyecto nuevo: `"type": "module"`. Desde Node 22.12, un módulo CommonJS puede hacer `require()` de un módulo ES (salvo que use top-level await), así que mezclar ya no es el dolor de cabeza que era.
+
+## package.json y npm
+
+```json
+{
+  "name": "api-busqueda",
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch --env-file=.env src/servidor.ts",
+    "start": "node src/servidor.ts",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "express": "^5.3.0",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "typescript": "^7.0.2"
+  },
+  "engines": { "node": ">=24" }
+}
+```
+
+- **`dependencies`**: lo que la app necesita para correr. **`devDependencies`**: solo para desarrollar (tipos, tests, linters). En producción se instala con `npm ci --omit=dev`.
+- **Scripts**: `npm run dev`, `npm test`, `npm start`. Adentro de un script, los binarios de `node_modules/.bin` están en el `PATH`.
+- `node --watch` reinicia el proceso cuando cambia un archivo (antes se usaba `nodemon`), y `--env-file` carga un `.env` (antes, `dotenv`).
+
+| Comando | Qué hace |
+| --- | --- |
+| `npm install express` | Agrega una dependencia (y la anota en `package.json`) |
+| `npm install -D @types/express` | Agrega una dependencia de desarrollo |
+| `npm install` | Instala todo lo del `package.json`, respetando el lock |
+| `npm ci` | Instalación limpia y exacta desde `package-lock.json` (para CI y deploys) |
+| `npm outdated` / `npm update` | Ver y actualizar dentro de los rangos permitidos |
+| `npx paquete` | Ejecuta el binario de un paquete sin instalarlo globalmente |
+| `npm audit` | Busca vulnerabilidades conocidas en las dependencias |
+
+**Versiones (semver)**: `5.3.0` es *mayor.menor.parche*. Un cambio de mayor puede romper cosas. `^5.3.0` acepta cualquier `5.x.x` desde la 5.3.0; `~5.3.0`, solo parches `5.3.x`. El **`package-lock.json`** anota la versión exacta de todo el árbol de dependencias: se sube al repositorio para que todos instalen lo mismo.
+
+## TypeScript con `node archivo.ts`
+
+Node 24 ejecuta `.ts` directamente: **borra los tipos** (*type stripping*) y corre el JavaScript que queda. No chequea tipos ni compila. Por eso no acepta lo que en TypeScript **genera código**, como un `enum`:
+
+<Salida archivo="node/01-node/modulos/enum.ts" error />
+
+Lo que no se puede borrar: `enum`, `namespace` con código, los *parameter properties* de las clases (`constructor(private x: number)`) e `import x = require()`. En lugar de un `enum`, una unión de strings (`type Seniority = 'junior' | 'senior'`) o un objeto `as const`.
+
+En el `tsconfig.json`, la opción `"erasableSyntaxOnly": true` hace que TypeScript marque esas mismas cosas en el editor, y `"allowImportingTsExtensions": true` permite escribir `./precios.ts`. Para chequear los tipos: `tsc --noEmit` (en CI o como script `npm run typecheck`).
+
+<Tip title="¿Y tsx, ts-node o compilar?">
+Antes se usaba **tsx** o **ts-node** para correr TypeScript, o se compilaba con `tsc` a una carpeta `dist/` y se ejecutaba el JavaScript. Siguen siendo válidos (y compilar es lo habitual si publicás una librería), pero para una API, `node archivo.ts` alcanza.
+</Tip>
+
+<Entrevista>
+"¿Diferencia entre CommonJS y ES modules?" → "CommonJS es el sistema original de Node: require y module.exports, carga sincrónica en el momento del require. ES modules es el estándar de JavaScript: import y export, se analizan antes de ejecutar (por eso permiten tree shaking y top-level await). En Node se elige por la extensión (.mjs/.cjs) o por el campo type del package.json. Hoy un proyecto nuevo usa ES modules."
+</Entrevista>

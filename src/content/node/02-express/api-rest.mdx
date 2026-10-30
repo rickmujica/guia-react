@@ -1,0 +1,65 @@
+**REST** es una forma de diseñar APIs sobre HTTP: los datos son **recursos** con una URL (`/ofertas`, `/ofertas/3`), y los **métodos** HTTP dicen qué hacer con ellos. No es un estándar estricto sino un conjunto de convenciones, y seguirlas hace que tu API sea predecible para quien la usa (tu front, por ejemplo).
+
+## Un CRUD completo
+
+<Api archivo="node/02-express/api-rest.ts" extra={['node/02-express/datos.ts']} headers="location">
+
+```http
+GET /ofertas?modalidad=remoto&pagina=1&porPagina=2
+GET /ofertas/3
+POST /ofertas {"titulo": "Backend Node", "empresa": "Delta Pay", "modalidad": "remoto", "salarioMax": 4500}
+PATCH /ofertas/3 {"salarioMax": 3500}
+PUT /ofertas/4 {"titulo": "Frontend Semi", "empresa": "Mate Cloud", "modalidad": "hibrido", "salarioMax": 2400}
+DELETE /ofertas/2
+DELETE /ofertas/2
+GET /ofertas?porPagina=3
+```
+
+</Api>
+
+## Las convenciones
+
+| Acción | Método y ruta | Respuesta |
+| --- | --- | --- |
+| Listar | `GET /ofertas` | 200 con la lista (paginada) |
+| Leer una | `GET /ofertas/:id` | 200, o 404 si no existe |
+| Crear | `POST /ofertas` | **201** con el recurso creado y el header `Location` |
+| Reemplazar | `PUT /ofertas/:id` | 200 (o 204) |
+| Modificar una parte | `PATCH /ofertas/:id` | 200 con el recurso actualizado |
+| Borrar | `DELETE /ofertas/:id` | **204** sin cuerpo, o 404 |
+| Relaciones | `GET /empresas/:id/ofertas` | Las ofertas de una empresa |
+| Acciones que no son CRUD | `POST /postulaciones/:id/archivar` | Un verbo como sub-recurso, con `POST` |
+
+- **Sustantivos en plural**, no verbos: `GET /ofertas`, no `GET /obtenerOfertas`. La acción ya la dice el método.
+- **Filtros, orden y paginación en la query**: `?modalidad=remoto&orden=-salarioMax&pagina=2`.
+- **Status codes con sentido**: el cliente decide qué hacer según el código, no según un `{ ok: false }` adentro de un 200.
+- **Un formato de error consistente** en toda la API, por ejemplo `{ "error": "mensaje", "detalles": [...] }`.
+- **Versionado**: cuando un cambio rompe a los clientes, una versión nueva (`/api/v2/ofertas`) en lugar de cambiar la existente.
+
+## Paginación
+
+Una lista sin límite es una bomba de tiempo: hoy hay 15 ofertas, en un año 200.000 y el endpoint tarda 20 segundos. Dos formas:
+
+| | Por página (*offset*) | Por cursor |
+| --- | --- | --- |
+| Pedido | `?pagina=3&porPagina=20` | `?despuesDe=1042&limite=20` |
+| SQL | `LIMIT 20 OFFSET 40` | `WHERE id > 1042 ORDER BY id LIMIT 20` |
+| A favor | Simple, permite saltar a la página 7 y mostrar el total | Igual de rápido en cualquier página; no se saltean ni repiten elementos si se agregan nuevos |
+| Para | Tablas de un panel de administración | Feeds y scroll infinito |
+
+La respuesta suele incluir los datos y la información para pedir más: `{ datos, total, pagina, porPagina }` o `{ datos, siguienteCursor }`.
+
+## Detalles que suman
+
+- **PUT vs PATCH**: con `PUT` mandás el recurso **entero** (lo que no mandás, se pierde); con `PATCH`, solo lo que cambia. En el ejemplo, el `PATCH` cambió el salario y dejó el resto.
+- **Idempotencia**: el segundo `DELETE /ofertas/2` dio 404, pero el estado es el mismo (la oferta no está). Por eso un cliente puede reintentar un `DELETE` o un `PUT` sin miedo. Un `POST` repetido crea dos recursos: para pagos y cosas sensibles se usa un header `Idempotency-Key`.
+- **No devuelvas de más**: nunca el hash de la contraseña, ni datos internos. Elegí los campos de la respuesta a propósito.
+- **Documentación**: una API se documenta con **OpenAPI** (antes Swagger). Hay librerías que la generan desde los esquemas de Zod.
+
+<Nota title="¿Y GraphQL?">
+**GraphQL** es la alternativa más conocida: un solo endpoint donde el cliente pide exactamente los campos que quiere, útil cuando hay muchos clientes con necesidades distintas. Agrega complejidad (caché, permisos por campo, N+1). Para la mayoría de las apps, una API REST bien hecha alcanza. Otra opción si el front y el back son TypeScript: **tRPC**, que comparte los tipos sin escribir una API "pública".
+</Nota>
+
+<Entrevista>
+"¿Qué hace que una API sea REST?" → "Que modela los datos como recursos con URLs (sustantivos en plural, como /ofertas/3) y usa los métodos HTTP para las acciones: GET para leer, POST para crear, PUT y PATCH para modificar, DELETE para borrar. Además, es sin estado (cada pedido trae todo lo necesario, por ejemplo el token) y usa los status codes con su significado: 201 al crear, 204 sin contenido, 400 si los datos son inválidos, 404 si no existe. Le agrego paginación, un formato de error consistente y versionado."
+</Entrevista>

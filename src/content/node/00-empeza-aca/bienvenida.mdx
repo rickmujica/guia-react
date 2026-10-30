@@ -1,0 +1,50 @@
+Esta guía cubre **Node.js** (JavaScript fuera del navegador) y **Express** (el framework más usado para hacer APIs con Node). Es el backend "liviano" de un perfil fullstack: lo que te van a preguntar si el puesto dice *React + Node*.
+
+## Qué es Node
+
+Node es el motor de JavaScript de Chrome (**V8**) más una librería en C (**libuv**) que le da acceso al sistema: archivos, red, procesos, timers. Con eso, el mismo lenguaje del front sirve para escribir servidores, scripts y herramientas (Vite, ESLint y TypeScript son programas de Node).
+
+Lo que lo hace distinto de otros backends: corre tu código en **un solo hilo** y nunca se queda esperando una lectura de disco o una respuesta de la red. Mientras espera, atiende otra cosa. Eso es el **event loop**, el tema más preguntado de Node en entrevistas, y tiene [su capítulo](#/event-loop).
+
+| | En el navegador | En Node |
+| --- | --- | --- |
+| Globales | `window`, `document` | `process`, `globalThis` |
+| Acceso a | El DOM, `localStorage`, la cámara… | Archivos, red, procesos, variables de entorno |
+| Módulos | `<script type="module">` | `import` / `export` (y el viejo `require`) |
+| Igual en los dos | `fetch`, `URL`, `setTimeout`, `AbortController`, `crypto.randomUUID()`, `structuredClone`, `TextEncoder` | |
+
+## Los ejemplos se ejecutan de verdad
+
+Cada ejemplo de la guía es un archivo de `src/demos/node/`, y debajo está **lo que imprimió al ejecutarlo**:
+
+<Salida archivo="node/01-node/event-loop/orden.ts" />
+
+Esas salidas no están escritas a mano: `npm run salidas` corre cada ejemplo con Node y guarda lo que imprime. Para las apps de Express, levanta la app, le hace pedidos HTTP de verdad y guarda las respuestas:
+
+<Api archivo="node/02-express/hola.ts">
+
+```http
+GET /
+GET /salud
+GET /no-existe
+```
+
+</Api>
+
+Podés correr cualquiera vos: `node src/demos/node/02-express/hola.ts` y abrí `http://localhost:3000`.
+
+## TypeScript sin compilar
+
+Los ejemplos son `.ts` y se ejecutan con `node archivo.ts`, **sin compilar**: desde Node 22.18 (y en Node 24, la LTS que tenés instalada), Node borra los tipos al cargar el archivo y ejecuta lo que queda. Lo vemos en [módulos](#/modulos). Para chequear los tipos se sigue usando `tsc`; en este proyecto, `npm run build` chequea también estos ejemplos.
+
+<Nota title="Versiones">
+Escrita en octubre de 2026. Las salidas se generaron con **Node 24** (LTS hasta abril de 2028) y **Express 5**. Node 26 pasó a LTS el 28 de octubre de 2026: todo lo de la guía funciona igual. Si mantenés un proyecto con Express 4, el [repaso](#/chuleta) tiene las diferencias.
+</Nota>
+
+## Cómo está armada
+
+1. **Node.js**: módulos y npm, el event loop, asincronía, archivos y streams, el proceso y sus eventos, y un servidor HTTP sin frameworks (para entender qué resuelve Express).
+2. **Express**: rutas, middlewares, cómo diseñar una API REST, validación con Zod, una arquitectura en capas con MySQL, autenticación, tests y lo necesario para producción.
+3. **Repaso**: chuleta, diferencias entre Express 4 y 5, y preguntas de entrevista.
+
+Para la base de datos, esta guía usa lo que viste en la [guía de MySQL](#/mysql/desde-node).
