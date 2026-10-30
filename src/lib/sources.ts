@@ -5,9 +5,10 @@ import type { ComponentType } from 'react'
 // 2) como texto plano con ?raw (para mostrar el código fuente real)
 // Así el snippet que ves en la guía ES el archivo del proyecto.
 // SalaryChart queda afuera: LazyDemo lo carga con lazy(), y si lo importáramos acá
-// también, Vite no podría separarlo en su propio archivo (chunk).
+// también, Vite no podría separarlo en su propio archivo (chunk). Los ejemplos de la guía
+// de TypeScript tampoco: son snippets para leer, no demos.
 const demoModules = import.meta.glob<{ default: ComponentType }>(
-  ['../demos/**/*.tsx', '!../demos/hooks/SalaryChart.tsx'],
+  ['../demos/**/*.tsx', '!../demos/hooks/SalaryChart.tsx', '!../demos/typescript/ejemplos/**'],
   { eager: true },
 )
 const rawFiles = import.meta.glob<string>(

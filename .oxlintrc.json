@@ -4,5 +4,16 @@
   "rules": {
     "react/rules-of-hooks": "error",
     "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
+  },
+  "overrides": [
+    {
+      // Los ejemplos de la guía de TypeScript declaran cosas solo para mostrar su tipo.
+      "files": ["src/demos/typescript/ejemplos/**"],
+      "rules": {
+        "no-unused-vars": "off",
+        "no-unused-expressions": "off",
+        "react/only-export-components": "off"
+      }
+    }
+  ]
 }

@@ -1,0 +1,44 @@
+Tres piezas que suelen ir juntas cuando el estado crece: un reducer para la lógica, un context para compartirlo y custom hooks para consumirlo con una API limpia.
+
+## Context sin valores falsos
+
+<Source path="src/demos/typescript/ejemplos/react/context.tsx" />
+
+El patrón recomendado:
+
+1. `createContext<Sesion | null>(null)`: el valor por defecto es `null`, no un objeto inventado.
+2. Un hook propio (`useSesion`) que lee el contexto y **tira un error claro** si no hay Provider.
+3. Como después del `if` el tipo ya no incluye `null`, los componentes que usan el hook reciben un `Sesion` limpio, sin `?.` por todos lados.
+
+Con un valor por defecto "de mentira" (`entrar: () => {}`), si te olvidás el Provider la app no se rompe: simplemente no hace nada, y te pasás un rato buscando por qué.
+
+<Nota title="use(Context) o useContext">
+Los dos funcionan igual y tienen el mismo tipo. `use` (React 19) además se puede llamar adentro de un `if`. Y en React 19 el Provider se escribe `<SesionContext value={...}>`, sin `.Provider`.
+</Nota>
+
+## useReducer con acciones tipadas
+
+<Source path="src/demos/typescript/ejemplos/react/reducer.tsx" />
+
+- `Action` es una **unión discriminada por `type`**: en cada `case`, TypeScript sabe qué campos trae la acción.
+- El reducer declara su retorno (`: State`), así un `case` que devuelve algo incompleto da error ahí mismo.
+- `useReducer` infiere el tipo de `state` y de `dispatch` a partir del reducer: no hace falta pasar genéricos.
+- Despachar una acción con un `type` inventado o sin sus campos no compila.
+
+Para pasar `dispatch` por props o context, su tipo es `Dispatch<Action>` (importado de `react`).
+
+## Custom hooks
+
+<Source path="src/demos/typescript/ejemplos/react/custom-hooks.ts" />
+
+<Ojo title="Tuplas: as const">
+Si un hook devuelve `[valor, alternar]` sin `as const`, TypeScript lo infiere como un **array** `(boolean | (() => void))[]`, y al desestructurar cada elemento es una unión inútil. Con `as const` es una tupla: `readonly [boolean, () => void]`.
+</Ojo>
+
+- Devolvé una **tupla** cuando son dos cosas y es natural renombrarlas (como `useState`). Devolvé un **objeto** cuando son más.
+- Un hook genérico como `useLocalStorage<T>` deja que quien lo usa decida el tipo. Se infiere del valor inicial, o se pasa explícito cuando el inicial no alcanza (`useLocalStorage<'claro' | 'oscuro'>(...)`).
+- `JSON.parse` devuelve `any`: el `as T` del ejemplo confía en lo que haya guardado. Si el dato es importante, validalo (lo vemos en [datos de APIs](#/datos-de-apis)).
+
+<Entrevista>
+"¿Cómo tipás un context?" → "Lo creo con el tipo del valor o null, y hago un hook propio que lo lee y tira error si es null. Así detecto si falta el Provider y los componentes reciben el valor ya sin null."
+</Entrevista>

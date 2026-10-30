@@ -1,0 +1,39 @@
+Las APIs nuevas de React 19 están pensadas para que los tipos se infieran: casi nunca vas a pasar genéricos a mano.
+
+<Source path="src/demos/typescript/ejemplos/react/react19.tsx" />
+
+## Qué infiere cada hook
+
+| Hook | De dónde sale el tipo |
+| --- | --- |
+| `useActionState(accion, inicial)` | El estado sale del inicial y del retorno de la acción. El payload, del segundo parámetro de la acción (`FormData` en un form). |
+| `useFormStatus()` | `pending: boolean`, `data: FormData \| null`, `method`, `action`. |
+| `useOptimistic<Estado, Valor>(estado, fn)` | El estado, del primer argumento. El valor que agregás, del segundo parámetro de `fn` (conviene pasarlo como genérico). |
+| `use(promesa)` | Lo que hay adentro de la `Promise`. |
+| `use(Context)` | El tipo del contexto. |
+
+<Tip title="FormData siempre devuelve string | File | null">
+`datos.get('empresa')` es `FormDataEntryValue | null`. Revisá con `typeof valor === 'string'` antes de usarlo, o validá todo el `FormData` con Zod (siguiente capítulo).
+</Tip>
+
+## Cambios de tipos que rompen código viejo
+
+Al migrar a `@types/react` 19, estos son los errores que más vas a ver:
+
+<Source path="src/demos/typescript/ejemplos/react/cambios-de-tipos.tsx" />
+
+| Error | Arreglo |
+| --- | --- |
+| `useRef` sin argumento | `useRef<T>(null)` o `useRef<T \| undefined>(undefined)` |
+| `MutableRefObject` deprecado | Usá `RefObject`: ahora todos los refs son mutables |
+| `JSX` no encontrado | `import type { JSX } from 'react'` (el namespace global se fue) |
+| `props` de un `ReactElement` es `unknown` | Pasá el tipo: `ReactElement<{ title: string }>` |
+| Callback ref que devuelve algo | Usá llaves: `ref={(n) => { miRef.current = n }}` |
+| `forwardRef` deprecado | `ref` como prop común (`Ref<T>` o `ComponentProps<'elemento'>`) |
+| `propTypes` y `defaultProps` en funciones | Se ignoran: usá TypeScript y valores por defecto en la desestructuración |
+
+Hay un codemod que arregla la mayoría automáticamente: `npx types-react-codemod@latest preset-19 ./src`.
+
+<Entrevista>
+"¿Qué cambió en los tipos con React 19?" → "useRef pide siempre un argumento y todos los refs son mutables, el namespace JSX ahora se importa de react, las props de ReactElement son unknown en vez de any y ref pasa a ser una prop común, así que forwardRef ya no hace falta."
+</Entrevista>

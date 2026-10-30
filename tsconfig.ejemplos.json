@@ -1,0 +1,14 @@
+{
+  // Los snippets de la guía de TypeScript son archivos reales que se chequean con tsc
+  // (npm run build). Cada línea marcada con // @ts-expect-error TIENE que dar error:
+  // si un día deja de darlo, el build falla y el ejemplo se corrige.
+  "extends": "./tsconfig.app.json",
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.ejemplos.tsbuildinfo",
+    // En los ejemplos hay variables y tipos que se declaran solo para mostrarlos.
+    "noUnusedLocals": false,
+    "noUnusedParameters": false
+  },
+  "include": ["src/demos/typescript/ejemplos"],
+  "exclude": []
+}
