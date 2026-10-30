@@ -1,0 +1,52 @@
+El reducer tiene que ser puro, así que no puede hacer un `fetch`. ¿Dónde va entonces lo async? En un **middleware**: una función que se mete entre el `dispatch` y el reducer y puede hacer lo que quiera con cada acción: anotarla, transformarla, demorarla o despachar otras.
+
+```text
+dispatch(acción) ──▶ middleware 1 ──▶ middleware 2 ──▶ reducer
+```
+
+## Un middleware por dentro
+
+Un middleware tiene una firma rara, con tres funciones anidadas:
+
+```ts
+const logger: Middleware = (store) => (next) => (action) => {
+  console.log('antes', store.getState())
+  const resultado = next(action) // sigue la cadena (al final, el reducer)
+  console.log('después', store.getState())
+  return resultado
+}
+```
+
+- `store` tiene `getState` y `dispatch`.
+- `next` pasa la acción al siguiente middleware.
+- Si un middleware no llama a `next`, la acción no llega al reducer.
+
+## Thunks: lo async más simple
+
+`redux-thunk` es un middleware de 10 líneas: si lo que despachás es una **función** en vez de un objeto, la ejecuta pasándole `dispatch` y `getState`. Adentro podés hacer `await` y despachar las acciones que quieras.
+
+<Demo file="estado/ThunkClasico" title="Un thunk con estados de carga y un middleware logger" extra={['estado/thunk/store.ts']} />
+
+Tocá **Cargar** y mirá el log: el logger ve pasar `cargaIniciada`, y 700 ms después `cargaExitosa` (o `cargaFallida`). El thunk en sí no llega al logger porque `thunk` va primero en la cadena y lo "consume".
+
+Mirá la pestaña `store.ts`: así se escribía Redux en muchos proyectos. Para **una** operación async hay tres constantes, tres action creators, tres `case` en el reducer y el thunk. Multiplicalo por cada endpoint de la app.
+
+## El problema del boilerplate
+
+| Por cada feature, en Redux clásico… | Con Redux Toolkit |
+| --- | --- |
+| Constantes de tipos de acción | Las genera `createSlice` |
+| Action creators a mano | Los genera `createSlice` |
+| Reducer con `switch` y spreads anidados | Funciones que "mutan" un borrador (Immer) |
+| Thunk con pending/success/error a mano | `createAsyncThunk` |
+| Configurar thunk, DevTools y chequeos | `configureStore` lo trae todo |
+
+Por eso nació Redux Toolkit, que vemos en la parte siguiente. Pero entender esto te sirve para leer código legacy, que es justamente donde más Redux clásico vas a encontrar.
+
+<Nota title="Otros middlewares">
+`redux-saga` (parte 3) y `redux-observable` (con RxJS) son middlewares para efectos más complejos. `redux-logger` hace lo del ejemplo. Y Redux Toolkit trae su propio **listener middleware** para reaccionar a acciones (lo vemos en la comparación).
+</Nota>
+
+<Entrevista>
+"¿Dónde hacés un fetch en Redux?" → "No en el reducer, que tiene que ser puro. En un middleware: lo más común es un thunk (o createAsyncThunk en Redux Toolkit) que despacha pending, success o error. Si los datos son del servidor, prefiero RTK Query o TanStack Query, que además manejan la caché."
+</Entrevista>

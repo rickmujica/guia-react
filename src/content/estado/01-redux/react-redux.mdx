@@ -1,0 +1,59 @@
+`react-redux` conecta el store con los componentes. Hace tres cosas: pone el store disponible en todo el árbol (`Provider`), te deja **leer** una parte del estado (`useSelector`) y **despachar** acciones (`useDispatch`). Por debajo usa `useSyncExternalStore`, el mismo hook que vimos en la guía de React.
+
+<Demo file="estado/ReactRedux" title="Provider, useSelector, useDispatch y connect" extra={['estado/react-redux/selectors.ts', 'estado/react-redux/hooks.ts', 'estado/react-redux/TotalConectado.tsx']} />
+
+Escribí en el filtro y mirá los recuadros que parpadean: **solo se re-renderizan los componentes cuyo selector devolvió algo distinto**. `Total` lee solo la cantidad, así que filtrar no lo toca. Agregá una empresa y ahí sí parpadea.
+
+## useSelector
+
+```tsx
+const filtro = useAppSelector((state) => state.filtro)
+```
+
+- Corre el selector en cada dispatch y compara el resultado con el anterior usando `===`.
+- Si es igual, **no re-renderiza**. Por eso conviene seleccionar lo mínimo: `state.postulaciones.length` en vez de `state.postulaciones` si solo mostrás el total.
+- Podés llamar a `useSelector` varias veces en un componente, una por dato.
+
+<Ojo title="Selectores que devuelven algo nuevo cada vez">
+`useSelector((s) => s.postulaciones.filter(...))` devuelve **un array nuevo en cada llamada**, aunque nada haya cambiado. Resultado: el componente se re-renderiza con **cualquier** acción. React Redux incluso te avisa en la consola en desarrollo. La solución es **memorizar** el selector con `createSelector` (de Reselect, incluido en Redux Toolkit), como `selectFiltradas` en la demo.
+</Ojo>
+
+## Selectores memorizados
+
+`createSelector([entrada1, entrada2], calculo)` solo vuelve a ejecutar `calculo` si alguna entrada cambió. Si no, devuelve **el mismo resultado de antes** (la misma referencia), y `useSelector` no re-renderiza. Es el equivalente a `useMemo`, pero para datos derivados del store.
+
+Definir los selectores en un archivo aparte (`selectors.ts`) también ayuda a que los componentes no conozcan la forma exacta del estado.
+
+## Hooks tipados
+
+Con TypeScript, en vez de tipar `state` en cada `useSelector`, se crean una vez versiones tipadas:
+
+```ts
+export const useAppSelector = useSelector.withTypes<RootState>()
+export const useAppDispatch = useDispatch.withTypes<AppDispatch>()
+```
+
+## connect: la forma legacy
+
+Antes de los hooks (2019), la única forma era `connect`, un *higher-order component*. Lo vas a encontrar en muchísimo código:
+
+<Source path="src/demos/estado/react-redux/TotalConectado.tsx" />
+
+- `mapStateToProps(state)` elige qué parte del estado llega como props.
+- `mapDispatchToProps` (un objeto de action creators o una función) convierte acciones en props que despachan.
+- `connect(map1, map2)(Componente)` devuelve un componente nuevo que recibe esas props.
+
+| `connect` | Hooks |
+| --- | --- |
+| Envuelve el componente (HOC) | Se llaman adentro del componente |
+| El componente recibe todo por props | Cada dato se lee donde se usa |
+| Tipar `ConnectedProps` es más trabajoso | Inferencia simple con `withTypes` |
+| Sigue soportado | **Recomendado** para código nuevo |
+
+<Tip title="Migrar de connect a hooks">
+No hace falta migrar todo de una. Los dos conviven en el mismo store. Una estrategia común: cada vez que tocás un componente con `connect`, lo pasás a hooks.
+</Tip>
+
+<Entrevista>
+"¿Cuándo se re-renderiza un componente con useSelector?" → "Cuando el valor que devuelve el selector cambia por referencia (===) después de un dispatch. Por eso selecciono lo mínimo y memorizo con createSelector los selectores que devuelven arrays u objetos derivados; si no, el componente se re-renderiza con cualquier acción."
+</Entrevista>

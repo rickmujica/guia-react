@@ -8,7 +8,7 @@ La home muestra todas las guías con su progreso. Cada guía recuerda **el últi
 | --- | --- | --- |
 | React moderno (hooks, React 19 a 19.3, React Compiler, puente a Next.js) | Lista | [`docs/guia-react-moderno.pdf`](docs/guia-react-moderno.pdf) |
 | TypeScript para React (el lenguaje y cómo tipar cada pieza de React, con ejemplos chequeados por el compilador) | Lista | [`docs/guia-typescript-react.pdf`](docs/guia-typescript-react.pdf) |
-| Redux, Redux Toolkit, Redux Saga y Zustand | Próximamente | |
+| Redux, Redux Toolkit, Redux Saga y Zustand (con RTK Query y una comparación de las cuatro) | Lista | [`docs/guia-estado-global.pdf`](docs/guia-estado-global.pdf) |
 | MySQL (básico e intermedio) | Próximamente | |
 | Node.js y Express | Próximamente | |
 
@@ -33,6 +33,19 @@ La home muestra todas las guías con su progreso. Cada guía recuerda **el últi
 | 3 · Repaso | Chuleta y preguntas de entrevista |
 
 Los snippets son archivos reales en `src/demos/typescript/ejemplos/` y se chequean con su propio `tsconfig.ejemplos.json` en cada `npm run build`. Las líneas con `// @ts-expect-error` tienen que dar error: si dejan de darlo, el build falla.
+
+## Guía de estado global
+
+| Parte | Capítulos |
+| --- | --- |
+| Empezá acá | Qué estado necesita una librería y cuál no |
+| 1 · Redux clásico | Store, acciones y reducers · React Redux: hooks y connect · Middleware y thunks |
+| 2 · Redux Toolkit | configureStore y createSlice · createAsyncThunk y compañía · RTK Query |
+| 3 · Redux Saga | Generadores y efectos · Patrones: race, fork y cancel |
+| 4 · Zustand | Zustand |
+| 5 · Comparar y decidir | Las cuatro, lado a lado · Chuleta y preguntas de entrevista |
+
+Cada demo crea su propio store (salvo Zustand, que es global como en una app real) y usa una API falsa con demoras (`src/demos/estado/api.ts`).
 
 ## Cómo correrla
 

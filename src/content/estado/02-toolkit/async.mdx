@@ -1,0 +1,44 @@
+Para lo async, Redux Toolkit trae `createAsyncThunk`: le das un nombre y una función async, y genera el thunk **y** las tres acciones del ciclo de vida.
+
+<Source path="src/demos/estado/toolkit/postulacionesSlice.ts" highlight="13-24,44-62" />
+
+## createAsyncThunk
+
+```ts
+const cargarPostulaciones = createAsyncThunk('postulaciones/cargar', async (falla: boolean) => {
+  return api.listar({ falla }) // lo que devuelve es el payload de fulfilled
+})
+```
+
+| Acción generada | Cuándo se despacha | Qué trae |
+| --- | --- | --- |
+| `cargarPostulaciones.pending` | Al empezar | `meta.arg` (el argumento) |
+| `cargarPostulaciones.fulfilled` | Si la promesa se resuelve | `payload` (lo que devolviste) |
+| `cargarPostulaciones.rejected` | Si tira error | `error` (serializado) o `payload` si usás `rejectWithValue` |
+
+Las tres se manejan en `extraReducers` con el `builder`, porque no las "genera" el slice. El builder con `addCase` es la única forma desde RTK 2 (la sintaxis de objeto se eliminó) y tiene inferencia de tipos completa.
+
+## Opciones útiles
+
+- **`condition`**: si devuelve `false`, el thunk no arranca. En la demo evita dos cargas al mismo tiempo.
+- **`rejectWithValue`**: para devolver un error con forma propia (por ejemplo, los errores de validación del backend).
+- **`unwrap()`**: `await dispatch(thunk()).unwrap()` devuelve el payload o tira el error. Sirve para reaccionar en el componente (cerrar un modal, mostrar un toast).
+- **`getState` y `dispatch`**: el segundo parámetro de la función (`thunkAPI`) los trae, por si necesitás leer el estado o despachar otras acciones.
+- **`signal`**: un `AbortSignal` para cancelar el `fetch` si el thunk se aborta.
+
+## Otras herramientas de RTK
+
+| Herramienta | Para qué |
+| --- | --- |
+| `createEntityAdapter` | Guardar colecciones normalizadas (`ids` + `entities`) con reducers y selectores listos (`addOne`, `updateOne`, `selectAll`…). |
+| `createListenerMiddleware` | Reaccionar a acciones con lógica async ("cuando pase X, hacé Y"). Es la alternativa liviana a Redux Saga. |
+| `combineSlices` | Combinar slices y cargarlos de forma diferida (code splitting). |
+| `createSelector` | Reselect, reexportado. |
+
+<Ojo title="¿Thunks para todo lo del servidor?">
+Si el thunk solo trae datos del backend para mostrarlos, estás escribiendo una caché a mano: `status`, `error`, cuándo volver a pedir, qué pasa si dos componentes piden lo mismo… Para eso está **RTK Query**, el capítulo siguiente. Los thunks quedan para lógica que no es "traer datos": un flujo de checkout, sincronizar con `localStorage`, coordinar varias acciones.
+</Ojo>
+
+<Entrevista>
+"¿Qué genera createAsyncThunk?" → "Un thunk y tres action creators: pending, fulfilled y rejected, que manejo en extraReducers con el builder. Lo que devuelve la función async es el payload de fulfilled y un error se convierte en rejected. Con unwrap puedo esperar el resultado en el componente."
+</Entrevista>

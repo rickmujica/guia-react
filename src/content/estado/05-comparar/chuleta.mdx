@@ -1,0 +1,136 @@
+Todo en una página, para repasar antes de una entrevista o para tener a mano en un proyecto.
+
+## Redux clásico
+
+```ts
+const store = createStore(reducer, applyMiddleware(thunk))
+store.dispatch({ type: 'postulaciones/agregada', payload: p })
+store.getState()
+store.subscribe(() => {})
+
+function reducer(state = inicial, action) {
+  switch (action.type) {
+    case 'postulaciones/agregada':
+      return { ...state, items: [...state.items, action.payload] }
+    default:
+      return state
+  }
+}
+
+// Thunk
+const cargar = () => async (dispatch, getState) => {
+  dispatch({ type: 'cargando' })
+  dispatch({ type: 'cargadas', payload: await api.listar() })
+}
+
+// connect (legacy)
+export default connect((state) => ({ total: state.items.length }), { agregar })(Componente)
+```
+
+## React Redux
+
+```tsx
+<Provider store={store}><App /></Provider>
+
+const items = useAppSelector((s) => s.postulaciones.items)
+const dispatch = useAppDispatch()
+
+const selectFiltradas = createSelector([selectItems, selectFiltro], (items, f) => items.filter(...))
+
+export const useAppSelector = useSelector.withTypes<RootState>()
+export const useAppDispatch = useDispatch.withTypes<AppDispatch>()
+```
+
+## Redux Toolkit
+
+```ts
+const slice = createSlice({
+  name: 'postulaciones',
+  initialState,
+  reducers: {
+    agregada(state, action: PayloadAction<Postulacion>) {
+      state.items.push(action.payload) // Immer
+    },
+  },
+  extraReducers: (builder) => {
+    builder.addCase(cargar.fulfilled, (state, action) => {
+      state.items = action.payload
+    })
+  },
+})
+
+const cargar = createAsyncThunk('postulaciones/cargar', () => api.listar())
+await dispatch(cargar()).unwrap()
+
+const store = configureStore({ reducer: { postulaciones: slice.reducer } })
+type RootState = ReturnType<typeof store.getState>
+type AppDispatch = typeof store.dispatch
+```
+
+## RTK Query
+
+```ts
+const api = createApi({
+  baseQuery: fetchBaseQuery({ baseUrl: '/api' }),
+  tagTypes: ['Oferta'],
+  endpoints: (b) => ({
+    listar: b.query<Oferta[], void>({ query: () => 'ofertas', providesTags: ['Oferta'] }),
+    crear: b.mutation<Oferta, Nueva>({ query: (body) => ({ url: 'ofertas', method: 'POST', body }), invalidatesTags: ['Oferta'] }),
+  }),
+})
+const { data, isLoading, isFetching, error, refetch } = api.useListarQuery()
+const [crear, { isLoading: creando }] = api.useCrearMutation()
+```
+
+## Redux Saga
+
+```ts
+function* buscar(action) {
+  yield delay(300) // debounce con takeLatest
+  const datos = yield call(api.buscar, action.payload)
+  yield put(resultados(datos))
+}
+function* root() {
+  yield takeLatest('busqueda/cambiada', buscar)
+}
+// race, fork, cancel, take, select
+const { ok, timeout } = yield race({ ok: call(api.lenta), timeout: delay(2000) })
+```
+
+## Zustand
+
+```ts
+const useStore = create<State>()(
+  persist(
+    (set, get) => ({
+      items: [],
+      agregar: (p) => set((s) => ({ items: [...s.items, p] })),
+      cargar: async () => set({ items: await api.listar() }),
+    }),
+    { name: 'clave' },
+  ),
+)
+const items = useStore((s) => s.items)
+const { a, b } = useStore(useShallow((s) => ({ a: s.a, b: s.b })))
+useStore.getState().agregar(p) // fuera de React
+```
+
+## Preguntas de entrevista
+
+**¿Qué problema resuelve Redux?** Centraliza el estado global en un store predecible: solo cambia despachando acciones que procesan reducers puros. Facilita compartir estado entre partes lejanas del árbol, depurar (DevTools, time travel) y testear.
+
+**¿Qué es un reducer y por qué tiene que ser puro?** Una función `(estado, acción) => estadoNuevo`. Tiene que ser pura (sin mutar ni efectos) para que el resultado dependa solo de sus entradas: así Redux detecta cambios por referencia y se puede reproducir cualquier estado.
+
+**¿Qué es un middleware?** Una función entre el dispatch y el reducer que ve cada acción. Ahí va lo async (thunk, saga), el logging o la analítica.
+
+**¿Thunk o Saga?** Thunk: async/await simple, ideal para la mayoría. Saga: flujos complejos con cancelación, carreras y procesos de fondo, testeables sin mocks, con más curva de aprendizaje.
+
+**¿Qué aporta Redux Toolkit?** Menos boilerplate (`createSlice`, `createAsyncThunk`), Immer para "mutar" de forma segura, `configureStore` con buenos defaults y RTK Query para la caché de datos del servidor.
+
+**¿Cómo evitás re-renders con useSelector?** Seleccionando lo mínimo y memorizando con `createSelector` los selectores que devuelven arrays u objetos nuevos.
+
+**¿Redux, Context o Zustand?** Context es para inyectar valores que cambian poco (tema, sesión): todos los consumidores se re-renderizan con cada cambio. Zustand para estado global simple con selectores. Redux Toolkit para apps grandes con mucha lógica y necesidad de estructura.
+
+**¿Dónde guardás los datos que vienen de la API?** En una librería de caché (RTK Query o TanStack Query), no a mano en el store.
+
+**¿Cómo migrarías un Redux legacy?** De a poco: `configureStore` con los reducers viejos, después cada feature a `createSlice`, thunks a `createAsyncThunk` o RTK Query, y `connect` a hooks cuando se toque cada componente.

@@ -1,0 +1,49 @@
+Redux se apoya en tres ideas. Si las entendés, el resto (Toolkit, Saga, incluso Zustand) son variaciones:
+
+1. **Un solo store** guarda todo el estado global de la app, en un objeto.
+2. El estado **no se modifica directo**: se **despacha una acción**, un objeto que describe qué pasó (`{ type: 'postulaciones/agregada', payload: ... }`).
+3. Un **reducer**, una función pura `(estado, acción) => estadoNuevo`, calcula el estado siguiente.
+
+```text
+  UI ──dispatch(acción)──▶ store ──▶ reducer(estado, acción) ──▶ estado nuevo
+   ▲                                                                │
+   └──────────────────── subscribe: "cambió el estado" ◀────────────┘
+```
+
+Es el mismo patrón que `useReducer`, pero para toda la app y por fuera de React.
+
+## Un store sin React
+
+<Demo file="estado/ReduxVanilla" title="Redux puro: dispatch, reducer y subscribe" extra={['estado/redux-vanilla/store.ts']} />
+
+El store tiene solo tres métodos que importan:
+
+| Método | Qué hace |
+| --- | --- |
+| `store.getState()` | Devuelve el estado actual. |
+| `store.dispatch(acción)` | Le pasa la acción al reducer y guarda el resultado como estado nuevo. |
+| `store.subscribe(fn)` | Llama a `fn` después de cada dispatch. Devuelve la función para desuscribirse. |
+
+Mirá la pestaña `store.ts`: el estado, las acciones (una unión discriminada por `type`), el reducer y el store.
+
+## Las reglas del reducer
+
+<Ojo title="El reducer tiene que ser puro">
+- **No muta**: devuelve un objeto nuevo (`{ ...state, ... }`, `map`, `filter`). Redux detecta cambios comparando referencias: si mutás, la UI no se entera.
+- **No tiene efectos**: nada de `fetch`, `Date.now()`, `Math.random()` ni `localStorage`. Lo impuro va antes del dispatch (en el handler o en un middleware).
+- **Devuelve el estado sin cambios** para las acciones que no le corresponden (el `default` del switch).
+</Ojo>
+
+Esa pureza es lo que habilita lo bueno de Redux: el time travel de las DevTools, reproducir un bug con la lista de acciones, testear el reducer sin renderizar nada.
+
+## Nombres de las acciones
+
+La convención actual es `dominio/eventoEnPasado`: `postulaciones/agregada`, `filtro/cambiado`. Describen **qué pasó**, no qué hacer (`SET_FILTRO`). En código viejo vas a ver `ADD_TODO` en mayúsculas, con constantes aparte; es lo mismo con otro estilo.
+
+<Nota title="legacy_createStore">
+En Redux 5, `createStore` aparece tachado (deprecado) para empujarte a Redux Toolkit. Sigue funcionando. `legacy_createStore` es el mismo, sin el tachado: lo usamos acá para mostrar Redux "a mano".
+</Nota>
+
+<Entrevista>
+"¿Cuáles son los principios de Redux?" → "Una sola fuente de verdad (el store), el estado es de solo lectura y solo cambia despachando acciones, y los cambios los calculan reducers puros. Eso hace el flujo predecible: puedo ver cada acción, reproducirla y testear la lógica sin la UI."
+</Entrevista>
