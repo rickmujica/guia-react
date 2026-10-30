@@ -1,12 +1,18 @@
-# Guía de React moderno
+# Guías de repaso
 
-Una guía interactiva para repasar React y aprender a fondo React 19 (hasta 19.3), el React Compiler y lo que hace falta para pasar a Next.js.
+Guías interactivas para repasar el stack de front end y algo de back end. Es una app de Vite con aspecto de documentación: cada capítulo explica un tema, muestra una **demo funcionando** y, debajo, el **código fuente real** de esa demo. El snippet que ves en la página es el mismo archivo de `src/demos/` que se está ejecutando, así que podés leerlo en la guía o en tu editor, y si lo cambiás, cambian los dos.
 
-Es una app de Vite con aspecto de documentación: cada capítulo explica un tema, muestra una **demo funcionando** y, debajo, el **código fuente real** de esa demo. El snippet que ves en la página es el mismo archivo de `src/demos/` que se está ejecutando, así que podés leerlo en la guía o en tu editor, y si lo cambiás, cambian los dos.
+La home muestra todas las guías con su progreso. Cada guía recuerda **el último capítulo que abriste** (y hasta dónde bajaste) y **los capítulos que marcaste como leídos**, así que con **Continuar** retomás donde dejaste. Pasar al capítulo siguiente lo marca como leído.
 
-También viene en PDF para leer en el celular: [`docs/guia-react-moderno.pdf`](docs/guia-react-moderno.pdf).
+| Guía | Estado | PDF para el celular |
+| --- | --- | --- |
+| React moderno (hooks, React 19 a 19.3, React Compiler, puente a Next.js) | Lista | [`docs/guia-react-moderno.pdf`](docs/guia-react-moderno.pdf) |
+| TypeScript para React | Próximamente | |
+| Redux, Redux Toolkit, Redux Saga y Zustand | Próximamente | |
+| MySQL (básico e intermedio) | Próximamente | |
+| Node.js y Express | Próximamente | |
 
-## Contenido
+## Guía de React moderno
 
 | Parte | Capítulos |
 | --- | --- |
@@ -26,7 +32,7 @@ npm install
 npm run dev
 ```
 
-Abrí la URL que muestra la terminal (normalmente http://localhost:5173).
+Abrí http://localhost:5173. La app siempre usa ese puerto: el progreso de lectura se guarda en el navegador y es distinto para cada dirección, así que si el puerto está ocupado, cerrá la otra app en lugar de cambiarlo.
 
 Para verla en el celular, conectado a la misma red Wi-Fi:
 
@@ -34,7 +40,7 @@ Para verla en el celular, conectado a la misma red Wi-Fi:
 npm run dev -- --host
 ```
 
-y abrí desde el teléfono la dirección `Network` que aparece en la terminal.
+y abrí desde el teléfono la dirección `Network` que aparece en la terminal. El celular lleva su propio progreso.
 
 ## Scripts
 
@@ -44,11 +50,11 @@ y abrí desde el teléfono la dirección `Network` que aparece en la terminal.
 | `npm run build` | Chequeo de tipos y build de producción en `dist/`. |
 | `npm run preview` | Sirve el build de `dist/`. |
 | `npm run lint` | Revisa el código con oxlint. |
-| `npm run pdf` | Build + genera `docs/guia-react-moderno.pdf`. |
+| `npm run pdf` | Build + genera el PDF de cada guía en `docs/` (`npm run pdf -- react` para una sola). |
 
-## El PDF
+## Los PDF
 
-`docs/guia-react-moderno.pdf` tiene páginas de 104 × 185 mm (proporción de celular), índice con links a cada capítulo y marcadores para navegar desde el lector de PDF. Las demos no se pueden tocar en el PDF, pero todo el código está.
+Cada guía tiene su PDF en `docs/`, con páginas de 104 × 185 mm (proporción de celular), índice con links a cada capítulo y marcadores para navegar desde el lector de PDF. Las demos no se pueden tocar en el PDF, pero todo el código está.
 
 Para regenerarlo después de cambiar algo:
 
@@ -57,22 +63,21 @@ npx playwright install chromium   # solo la primera vez: descarga el navegador
 npm run pdf
 ```
 
-El script (`scripts/export-pdf.mjs`) abre la guía con `?print` en un Chromium automático y la imprime. Esa misma versión imprimible está en el link **Versión imprimible** de la app, por si preferís usar Imprimir → Guardar como PDF del navegador.
+El script (`scripts/export-pdf.mjs`) abre cada guía con `?print=<guía>` (por ejemplo `?print=react`) en un Chromium automático y la imprime. Esa misma versión imprimible está en el link **Versión imprimible** de la app, por si preferís usar Imprimir → Guardar como PDF del navegador.
 
 ## Estructura
 
 ```text
 src/
-  content/       Los capítulos en MDX (Markdown + JSX), una carpeta por parte
+  guides/        Una guía por archivo (índice: partes, capítulos, títulos) + el registro en index.ts
+  content/       Los capítulos en MDX (Markdown + JSX): una carpeta por guía y una por parte
   demos/         Una carpeta por parte y un archivo por demo: el código para practicar
-  components/    Layout, bloques de código, <Demo>, recuadros y la versión imprimible
-  lib/           Utilidades: lectura de los archivos fuente, tema claro/oscuro, modo impresión
-  chapters.ts    El índice: orden, títulos y versión de React de cada capítulo
-  App.tsx        Router mínimo con el hash de la URL y <ViewTransition> entre capítulos
+  components/    Home, layout, bloques de código, <Demo>, recuadros y la versión imprimible
+  lib/           Rutas, progreso de lectura, lectura de los archivos fuente, tema, modo impresión
+  App.tsx        Router mínimo con el hash de la URL (#/guía/capítulo) y <ViewTransition> entre páginas
 scripts/
-  export-pdf.mjs Genera el PDF
-docs/
-  guia-react-moderno.pdf
+  export-pdf.mjs Genera los PDF
+docs/            Un PDF por guía
 vite.config.ts   Vite con MDX y el React Compiler en modo "annotation"
 ```
 
@@ -87,7 +92,9 @@ vite.config.ts   Vite con MDX y el React Compiler en modo "annotation"
 
    `highlight` resalta líneas del archivo. Con `extra={['hooks/otro-archivo.ts']}` se muestran más archivos en pestañas.
 
-3. Para un capítulo nuevo, creá el `.mdx` en `src/content/` y agregalo en `src/chapters.ts`.
+3. Para un capítulo nuevo, creá el `.mdx` en `src/content/<guía>/` y agregalo en el índice de la guía (`src/guides/<guía>.ts`).
+
+Para una guía nueva, creá `src/guides/<guía>.ts` con su `GuideDef` y sumala a la lista `guides` de `src/guides/index.ts`. Los links entre capítulos del MDX (`[texto](#/slug)`) apuntan a la misma guía; para ir a otra, usá `#/<guía>/<slug>`.
 
 ## Versiones
 

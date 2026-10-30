@@ -53,9 +53,9 @@ Una misma actualización puede necesitar animaciones distintas según **por qué
 
 ## Esta guía lo usa
 
-El cambio de capítulo de esta misma app es un `<ViewTransition>` con una `key` por capítulo: el capítulo viejo sale con un fade y el nuevo entra desde abajo.
+El cambio de capítulo de esta misma app es un `<ViewTransition>` con una `key` por página: el capítulo viejo sale con un fade y el nuevo entra desde abajo.
 
-<Source path="src/App.tsx" highlight="25-26,62-66" />
+<Source path="src/App.tsx" highlight="25-26,99-103" />
 
 <Ojo title="default='none' para no animar de más">
 Fijate en `default="none"` del `App.tsx`. Sin eso, cualquier transición **dentro** de un capítulo (por ejemplo, las demos de Actions) haría que toda la página se anime con un cross-fade. Con `default="none"` solo se animan la entrada y la salida del capítulo.

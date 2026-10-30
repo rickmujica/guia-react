@@ -18,8 +18,14 @@ export default defineConfig({
     // En un proyecto real usarías reactCompilerPreset() sin opciones.
     babel({ presets: [reactCompilerPreset({ compilationMode: 'annotation' })] }),
   ],
+  server: {
+    // El progreso de lectura se guarda en el localStorage, que es distinto para cada
+    // puerto. Con strictPort la guía siempre abre en el mismo (5173) y no lo pierde.
+    port: 5173,
+    strictPort: true,
+  },
   build: {
-    // La guía completa (31 capítulos + demos) es un solo bundle de ~200 kB con gzip.
+    // Todas las guías (capítulos + demos) van en un solo bundle de unos cientos de kB con gzip.
     // Para una app de documentación está bien, así que subimos el límite del aviso.
     chunkSizeWarningLimit: 1000,
   },
