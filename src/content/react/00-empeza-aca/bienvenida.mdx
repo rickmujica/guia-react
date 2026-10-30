@@ -17,13 +17,13 @@ Para verla en el celular, conectado a la misma red Wi-Fi, corré `npm run dev --
 
 | Carpeta o archivo | Qué hay |
 | --- | --- |
-| `src/content/` | Los capítulos, en MDX (Markdown con JSX). Se leen bien directo en el editor. |
+| `src/content/react/` | Los capítulos de esta guía, en MDX (Markdown con JSX). Se leen bien directo en el editor. |
 | `src/demos/` | Una carpeta por parte y un archivo por demo. **Este es el código para practicar.** |
 | `src/components/` | La maquinaria de la guía: layout, bloques de código y el componente `<Demo>`. |
-| `src/chapters.ts` | El índice: orden, títulos y versión de React de cada capítulo. |
+| `src/guides/react.ts` | El índice: orden, títulos y versión de React de cada capítulo. |
 | `vite.config.ts` | Vite con MDX y el React Compiler (en modo `annotation`, lo vemos en su capítulo). |
 | `scripts/export-pdf.mjs` | El script que genera el PDF (`npm run pdf`). |
-| `docs/` | El PDF de la guía, listo para leer en el celular. |
+| `docs/` | Los PDF de las guías, listos para leer en el celular. |
 
 ## Cómo aprovecharla
 
@@ -60,7 +60,8 @@ Muchas demos usan el mismo tema: **postulaciones a trabajos** (empresa, puesto, 
 - El cambio de capítulo usa `<ViewTransition>` y `startTransition` (mirá `src/App.tsx`).
 - El título de la pestaña lo pone un `<title>` renderizado dentro de un componente, una novedad de React 19.
 - El tema claro u oscuro de los bloques de código usa `useSyncExternalStore` con una media query (`src/lib/useColorScheme.ts`).
-- El PDF sale de esta misma app, abierta con `?print` en la URL.
+- El progreso de lectura (último capítulo y capítulos leídos) es un store externo leído con `useSyncExternalStore` (`src/lib/progress.ts`).
+- El PDF sale de esta misma app, abierta con `?print=react` en la URL.
 
 ## La versión PDF
 

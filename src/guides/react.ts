@@ -1,49 +1,36 @@
-import type { MDXContent } from 'mdx/types'
+import type { GuideDef, PartDef } from './types'
 
-import Bienvenida from './content/00-empeza-aca/bienvenida.mdx'
-import QueCambio from './content/00-empeza-aca/que-cambio.mdx'
-import ComponentesYProps from './content/01-fundamentos/componentes-y-props.mdx'
-import UseState from './content/01-fundamentos/use-state.mdx'
-import PensarEnReact from './content/01-fundamentos/pensar-en-react.mdx'
-import UseEffect from './content/02-hooks/use-effect.mdx'
-import UseRef from './content/02-hooks/use-ref.mdx'
-import UseContext from './content/02-hooks/use-context.mdx'
-import UseReducer from './content/02-hooks/use-reducer.mdx'
-import CustomHooks from './content/02-hooks/custom-hooks.mdx'
-import Rendimiento from './content/02-hooks/rendimiento.mdx'
-import Transiciones from './content/02-hooks/transiciones.mdx'
-import SuspenseYErrores from './content/02-hooks/suspense-y-errores.mdx'
-import OtrosHooks from './content/02-hooks/otros-hooks.mdx'
-import Actions from './content/03-react-19/actions.mdx'
-import UseActionState from './content/03-react-19/use-action-state.mdx'
-import Formularios from './content/03-react-19/formularios.mdx'
-import UseOptimistic from './content/03-react-19/use-optimistic.mdx'
-import Use from './content/03-react-19/use.mdx'
-import RefsYContext from './content/03-react-19/refs-y-context.mdx'
-import Metadatos from './content/03-react-19/metadatos.mdx'
-import Migracion from './content/03-react-19/migracion.mdx'
-import ActivityChapter from './content/04-novedades/activity.mdx'
-import UseEffectEvent from './content/04-novedades/use-effect-event.mdx'
-import ViewTransitionChapter from './content/04-novedades/view-transition.mdx'
-import FragmentRefs from './content/04-novedades/fragment-refs.mdx'
-import ReactCompiler from './content/04-novedades/react-compiler.mdx'
-import OtrasNovedades from './content/04-novedades/otras-novedades.mdx'
-import ServerComponents from './content/05-next/server-components.mdx'
-import ServerFunctions from './content/05-next/server-functions.mdx'
-import Chuleta from './content/05-next/chuleta.mdx'
-
-type ChapterDef = {
-  slug: string
-  title: string
-  summary: string
-  /** Versión de React donde apareció lo que explica el capítulo. */
-  since?: string
-  /** El capítulo renderiza su propio <title> (ver capítulo de metadatos). */
-  ownsTitle?: boolean
-  Content: MDXContent
-}
-
-type PartDef = { id: string; title: string; intro: string; chapters: ChapterDef[] }
+import Bienvenida from '../content/react/00-empeza-aca/bienvenida.mdx'
+import QueCambio from '../content/react/00-empeza-aca/que-cambio.mdx'
+import ComponentesYProps from '../content/react/01-fundamentos/componentes-y-props.mdx'
+import UseState from '../content/react/01-fundamentos/use-state.mdx'
+import PensarEnReact from '../content/react/01-fundamentos/pensar-en-react.mdx'
+import UseEffect from '../content/react/02-hooks/use-effect.mdx'
+import UseRef from '../content/react/02-hooks/use-ref.mdx'
+import UseContext from '../content/react/02-hooks/use-context.mdx'
+import UseReducer from '../content/react/02-hooks/use-reducer.mdx'
+import CustomHooks from '../content/react/02-hooks/custom-hooks.mdx'
+import Rendimiento from '../content/react/02-hooks/rendimiento.mdx'
+import Transiciones from '../content/react/02-hooks/transiciones.mdx'
+import SuspenseYErrores from '../content/react/02-hooks/suspense-y-errores.mdx'
+import OtrosHooks from '../content/react/02-hooks/otros-hooks.mdx'
+import Actions from '../content/react/03-react-19/actions.mdx'
+import UseActionState from '../content/react/03-react-19/use-action-state.mdx'
+import Formularios from '../content/react/03-react-19/formularios.mdx'
+import UseOptimistic from '../content/react/03-react-19/use-optimistic.mdx'
+import Use from '../content/react/03-react-19/use.mdx'
+import RefsYContext from '../content/react/03-react-19/refs-y-context.mdx'
+import Metadatos from '../content/react/03-react-19/metadatos.mdx'
+import Migracion from '../content/react/03-react-19/migracion.mdx'
+import ActivityChapter from '../content/react/04-novedades/activity.mdx'
+import UseEffectEvent from '../content/react/04-novedades/use-effect-event.mdx'
+import ViewTransitionChapter from '../content/react/04-novedades/view-transition.mdx'
+import FragmentRefs from '../content/react/04-novedades/fragment-refs.mdx'
+import ReactCompiler from '../content/react/04-novedades/react-compiler.mdx'
+import OtrasNovedades from '../content/react/04-novedades/otras-novedades.mdx'
+import ServerComponents from '../content/react/05-next/server-components.mdx'
+import ServerFunctions from '../content/react/05-next/server-functions.mdx'
+import Chuleta from '../content/react/05-next/chuleta.mdx'
 
 const partDefs: PartDef[] = [
   {
@@ -293,17 +280,13 @@ const partDefs: PartDef[] = [
   },
 ]
 
-export type Part = Omit<PartDef, 'chapters'> & { chapters: Chapter[] }
-export type Chapter = ChapterDef & { index: number; part: PartDef }
-
-let index = 0
-export const parts: Part[] = partDefs.map((part) => ({
-  ...part,
-  chapters: part.chapters.map((chapter) => ({ ...chapter, index: index++, part })),
-}))
-
-export const chapters: Chapter[] = parts.flatMap((part) => part.chapters)
-
-export function findChapter(slug: string) {
-  return chapters.find((chapter) => chapter.slug === slug)
+export const reactGuide: GuideDef = {
+  id: 'react',
+  title: 'React moderno',
+  description: 'Repaso de hooks y React 19 a fondo, hasta React 19.3, el React Compiler y el puente a Next.js.',
+  badge: 'React 19.3',
+  icon: '⚛',
+  color: '#087ea4',
+  pdf: 'guia-react-moderno.pdf',
+  parts: partDefs,
 }

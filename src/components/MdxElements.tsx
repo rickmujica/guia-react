@@ -1,4 +1,5 @@
-import { createElement, type ComponentProps, type ReactElement, type ReactNode } from 'react'
+import { createElement, use, type ComponentProps, type ReactElement, type ReactNode } from 'react'
+import { GuideContext } from '../lib/guideContext'
 import { IS_PRINT } from '../lib/print'
 import { slugify, textOf } from '../lib/text'
 import { CodeBlock, CopyButton } from './CodeBlock'
@@ -25,9 +26,17 @@ export const H2 = ({ children }: { children?: ReactNode }) => <Heading level={2}
 export const H3 = ({ children }: { children?: ReactNode }) => <Heading level={3}>{children}</Heading>
 
 export function Anchor({ href = '', children }: ComponentProps<'a'>) {
+  const guide = use(GuideContext)
   if (href.startsWith('#/')) {
-    // Link a otro capítulo: en el PDF apunta al ancla del capítulo.
-    return <a href={IS_PRINT ? `#cap-${href.slice(2)}` : href}>{children}</a>
+    // Link a otro capítulo. `#/slug` es un capítulo de la misma guía y `#/guía/slug`, de cualquiera.
+    const [first = '', second] = href.slice(2).split('/')
+    const sameGuide = second === undefined || second === guide?.id
+    const slug = second ?? first
+    if (IS_PRINT) {
+      // En el PDF apunta al ancla del capítulo. Las otras guías no están en el libro: queda el texto.
+      return sameGuide && slug ? <a href={`#cap-${slug}`}>{children}</a> : <>{children}</>
+    }
+    return <a href={sameGuide && guide && slug ? `#/${guide.id}/${slug}` : href}>{children}</a>
   }
   return (
     <a href={href} target="_blank" rel="noreferrer">

@@ -5,6 +5,9 @@ import '@fontsource-variable/jetbrains-mono'
 import './styles/global.css'
 import App from './App.tsx'
 
+// La app decide dónde queda el scroll al cambiar de capítulo (ver App.tsx), no el navegador.
+history.scrollRestoration = 'manual'
+
 // React 19: createRoot acepta callbacks para centralizar el reporte de errores.
 // En una app real, acá mandarías los errores a Sentry, Datadog, etc.
 createRoot(document.getElementById('root')!, {
