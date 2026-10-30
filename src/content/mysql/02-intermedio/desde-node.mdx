@@ -1,0 +1,176 @@
+Todo lo anterior, ahora desde una aplicación. El driver más usado para MySQL en Node es **mysql2** (con API de promesas). Este capítulo es la parte de SQL; el servidor con Express viene en la guía de Node.
+
+```bash
+npm install mysql2
+```
+
+## Un pool de conexiones
+
+Abrir una conexión a MySQL cuesta (red, autenticación). Un **pool** mantiene varias abiertas y las reparte entre las consultas que llegan. Se crea **uno** para toda la aplicación:
+
+```ts
+// db.ts
+import mysql from 'mysql2/promise'
+
+export const pool = mysql.createPool({
+  host: process.env.DB_HOST ?? 'localhost',
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME,
+  connectionLimit: 10, // como mucho 10 conexiones a la vez
+  timezone: 'Z', // fechas en UTC, sin sorpresas
+})
+```
+
+Los datos de conexión van en **variables de entorno** (un `.env` que no se sube al repo), nunca en el código.
+
+## Consultas con parámetros
+
+```ts
+import type { RowDataPacket } from 'mysql2/promise'
+import { pool } from './db'
+
+interface Oferta extends RowDataPacket {
+  id: number
+  titulo: string
+  salario_max: number | null
+}
+
+export async function ofertasRemotas(minimo: number) {
+  const [filas] = await pool.execute<Oferta[]>(
+    `SELECT id, titulo, salario_max
+     FROM ofertas
+     WHERE modalidad = 'remoto' AND salario_max >= ?
+     ORDER BY salario_max DESC`,
+    [minimo],
+  )
+  return filas // Oferta[]
+}
+```
+
+- Cada `?` es un **parámetro**: el valor viaja **separado** del SQL, y MySQL nunca lo interpreta como código.
+- `execute` usa *prepared statements* (MySQL compila la consulta una vez y la reusa); `query` reemplaza los `?` escapando los valores del lado del cliente. Las dos son seguras **si usás `?`**.
+- Devuelve `[filas, campos]`. Para un `INSERT`, `UPDATE` o `DELETE`, el primer elemento es un `ResultSetHeader` con `insertId` y `affectedRows`.
+
+```ts
+import type { ResultSetHeader } from 'mysql2/promise'
+
+const [resultado] = await pool.execute<ResultSetHeader>(
+  'INSERT INTO postulaciones (oferta_id, fecha) VALUES (?, ?)',
+  [ofertaId, '2026-10-30'],
+)
+console.log(resultado.insertId) // el id nuevo
+```
+
+## SQL injection
+
+El error de seguridad más famoso: **armar el SQL concatenando texto** que viene del usuario.
+
+```ts
+// ✗ NUNCA
+const [filas] = await pool.query(`SELECT titulo FROM ofertas WHERE titulo = '${busqueda}'`)
+```
+
+Si alguien busca `' OR '1'='1`, la consulta que llega a MySQL es esta, y devuelve **todo**:
+
+<Consulta>
+
+```sql
+SELECT titulo FROM ofertas WHERE titulo = '' OR '1'='1';
+```
+
+</Consulta>
+
+Y con un `UNION` puede leer **otras tablas** (por ejemplo, la de usuarios con sus contraseñas):
+
+<Consulta>
+
+```sql
+SELECT titulo FROM ofertas WHERE titulo = '' UNION SELECT CONCAT(nombre, ' · ', pais) FROM empresas -- ';
+```
+
+</Consulta>
+
+El `--` comenta la comilla que sobraba. Con parámetros, ese texto es solo un título raro que no coincide con nada:
+
+```ts
+// ✓ Siempre
+const [filas] = await pool.execute('SELECT titulo FROM ofertas WHERE titulo = ?', [busqueda])
+```
+
+<Ojo title="Lo que no puede ir en un ?">
+Los parámetros son para **valores**, no para nombres de columnas o tablas, ni para `ASC`/`DESC`. Si el usuario elige por qué columna ordenar, validala contra una lista fija:
+
+```ts
+const columnas = { salario: 'salario_max', fecha: 'publicada' } as const
+const columna = columnas[req.query.orden as keyof typeof columnas] ?? 'publicada'
+const sql = `SELECT titulo FROM ofertas ORDER BY ${columna} DESC LIMIT ?`
+```
+
+Para una lista con `IN`, `query` expande un array: `pool.query('… WHERE id IN (?)', [[1, 2, 3]])`.
+</Ojo>
+
+## Transacciones desde el código
+
+Una transacción tiene que ir en **una misma conexión**, así que se pide una al pool:
+
+```ts
+export async function aceptarOferta(postulacionId: number) {
+  const conexion = await pool.getConnection()
+  try {
+    await conexion.beginTransaction()
+    await conexion.execute("UPDATE postulaciones SET estado = 'oferta' WHERE id = ?", [postulacionId])
+    await conexion.execute(
+      "UPDATE entrevistas SET resultado = 'paso' WHERE postulacion_id = ? AND resultado = 'pendiente'",
+      [postulacionId],
+    )
+    await conexion.commit()
+  } catch (error) {
+    await conexion.rollback() // si algo falló, se deshace todo
+    throw error
+  } finally {
+    conexion.release() // la conexión vuelve al pool, pase lo que pase
+  }
+}
+```
+
+Si te olvidás del `release()`, el pool se queda sin conexiones y la aplicación se cuelga esperando.
+
+## El problema N+1
+
+Un clásico en el código de una API: traer una lista y después, **por cada elemento**, hacer otra consulta.
+
+```ts
+// ✗ 1 consulta para las empresas + 1 por cada empresa = N+1 consultas
+const [empresas] = await pool.query<Empresa[]>('SELECT id, nombre FROM empresas')
+for (const empresa of empresas) {
+  const [ofertas] = await pool.execute<Oferta[]>('SELECT titulo FROM ofertas WHERE empresa_id = ?', [empresa.id])
+  empresa.ofertas = ofertas
+}
+```
+
+Con 10 empresas son 11 viajes a la base; con 1000, 1001. Se resuelve con **una** consulta con `JOIN` (y armando la estructura en JavaScript), o con dos: las empresas, y después todas sus ofertas con `WHERE empresa_id IN (?)`. También se puede pedir el JSON armado a MySQL, como en el capítulo de [vistas y JSON](#/vistas-y-mas).
+
+## Lo que devuelve mysql2
+
+- `DATE` y `DATETIME` llegan como objetos `Date` (con `dateStrings: true`, como texto).
+- `DECIMAL` y `BIGINT` llegan como **string**, para no perder precisión en JavaScript. Convertilos a propósito (o usá las opciones `decimalNumbers` y `supportBigNumbers`).
+- `TINYINT(1)` (un `BOOLEAN`) llega como `0` o `1`, no como `true`/`false`.
+- `JSON` llega ya parseado.
+
+## ORMs y query builders
+
+En muchos proyectos no vas a escribir SQL a mano sino con una librería:
+
+| Herramienta | Qué es | Cómo se siente |
+| --- | --- | --- |
+| **Prisma** | ORM con su propio archivo de esquema y un cliente generado, muy tipado | `prisma.oferta.findMany({ where: { modalidad: 'remoto' }, include: { empresa: true } })` |
+| **Drizzle** | Query builder tipado, el esquema se escribe en TypeScript | `db.select().from(ofertas).where(eq(ofertas.modalidad, 'remoto'))` |
+| **Knex** | Query builder clásico, sin tipos fuertes | `knex('ofertas').where({ modalidad: 'remoto' })` |
+| **Sequelize** / **TypeORM** | ORMs con modelos y clases (más comunes en código legacy) | `Oferta.findAll({ where: { modalidad: 'remoto' } })` |
+
+Todos usan parámetros por dentro (te protegen de la inyección), generan las **migraciones** (los cambios de esquema versionados, como commits de la base) y tipan los resultados. Pero el SQL sigue ahí: cuando una consulta es lenta, vas a mirar el SQL que generan y su `EXPLAIN`. Por eso conviene saber lo de esta guía aunque uses un ORM.
+
+<Entrevista>
+"¿Cómo evitás el SQL injection?" → "Nunca armo SQL concatenando datos del usuario: uso consultas con parámetros (los ? de mysql2, o un ORM o query builder que los usa por dentro), así el valor viaja separado del SQL y no se interpreta como código. Lo que no puede ser parámetro, como el nombre de una columna para ordenar, lo valido contra una lista fija. Y además, la aplicación se conecta con un usuario de MySQL con los permisos mínimos."
+</Entrevista>

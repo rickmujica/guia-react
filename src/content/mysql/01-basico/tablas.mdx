@@ -1,0 +1,100 @@
+Antes de consultar datos hay que guardarlos, y antes de guardarlos hay que definir **dónde**: la base de datos y sus tablas. Esa parte de SQL se llama **DDL** (*Data Definition Language*): `CREATE`, `ALTER` y `DROP`.
+
+## Bases de datos
+
+```sql
+CREATE DATABASE guia CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+USE guia;            -- de acá en adelante, las tablas son de esta base
+SHOW DATABASES;
+SHOW TABLES;
+```
+
+<Nota title="utf8mb4">
+Es el juego de caracteres por defecto en MySQL 8 y el que hay que usar: soporta todo Unicode, incluidos emojis y la ñ. El viejo `utf8` (en realidad `utf8mb3`) no los soporta. La *collation* `utf8mb4_0900_ai_ci` compara sin distinguir mayúsculas ni acentos (`ai` = accent insensitive, `ci` = case insensitive): `'tereré' = 'TERERE'` da verdadero.
+</Nota>
+
+## Crear una tabla
+
+<Consulta>
+
+```sql
+CREATE TABLE contactos (
+  id        INT AUTO_INCREMENT PRIMARY KEY,
+  nombre    VARCHAR(100) NOT NULL,
+  email     VARCHAR(255) NOT NULL UNIQUE,
+  empresa_id INT NULL,
+  creado    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (empresa_id) REFERENCES empresas (id)
+);
+DESCRIBE contactos;
+```
+
+</Consulta>
+
+Cada columna tiene un **nombre**, un **tipo** y **restricciones** opcionales.
+
+## Los tipos que vas a usar
+
+| Tipo | Para | Ojo con |
+| --- | --- | --- |
+| `INT` / `BIGINT` | Enteros, ids | `BIGINT` para ids de tablas enormes |
+| `DECIMAL(10, 2)` | **Plata** y cantidades exactas | Nunca uses `FLOAT`/`DOUBLE` para plata: redondean |
+| `VARCHAR(n)` | Textos cortos con largo máximo | `n` es en caracteres, no bytes |
+| `TEXT` | Textos largos (notas, descripciones) | No puede tener `DEFAULT` y se indexa distinto |
+| `CHAR(n)` | Textos de largo fijo (códigos de país) | Rellena con espacios |
+| `DATE` | Fechas (`'2026-10-30'`) | Siempre en formato `AAAA-MM-DD` |
+| `DATETIME` | Fecha y hora, sin zona horaria | Guarda lo que le das |
+| `TIMESTAMP` | Fecha y hora en UTC | Convierte según la zona de la sesión; rango hasta 2038 |
+| `BOOLEAN` | Verdadero/falso | En realidad es `TINYINT(1)`: guarda 0 y 1 |
+| `ENUM('a', 'b')` | Un valor de una lista fija | Agregar opciones requiere `ALTER TABLE` |
+| `JSON` | Datos semiestructurados | Útil, pero no reemplaza a las columnas |
+
+## Restricciones
+
+| Restricción | Qué asegura |
+| --- | --- |
+| `PRIMARY KEY` | Identifica cada fila: única y no nula. Una por tabla (puede tener varias columnas). |
+| `AUTO_INCREMENT` | MySQL asigna el siguiente número si no le pasás el id. |
+| `NOT NULL` | La columna siempre tiene valor. |
+| `UNIQUE` | No se repite (pero puede haber varios `NULL`). |
+| `DEFAULT valor` | El valor si no se especifica uno. |
+| `CHECK (condición)` | Una regla propia, como `empleados > 0`. |
+| `FOREIGN KEY ... REFERENCES` | El valor tiene que existir en otra tabla (lo vemos en [diseño](#/diseno)). |
+
+Las restricciones son tu última línea de defensa: aunque el backend tenga un bug, la base no acepta datos inválidos.
+
+<Consulta error>
+
+```sql
+INSERT INTO empresas (nombre, pais, empleados)
+VALUES ('Nubelia', 'AR', 50);
+```
+
+</Consulta>
+
+## Cambiar y borrar tablas
+
+<Consulta>
+
+```sql
+ALTER TABLE ofertas ADD COLUMN link VARCHAR(255) NULL AFTER titulo;
+ALTER TABLE ofertas MODIFY COLUMN titulo VARCHAR(200) NOT NULL;
+ALTER TABLE ofertas RENAME COLUMN link TO url;
+SELECT id, titulo, url FROM ofertas LIMIT 2;
+```
+
+</Consulta>
+
+```sql
+ALTER TABLE ofertas DROP COLUMN url;   -- borra la columna y sus datos
+DROP TABLE contactos;                  -- borra la tabla entera
+DROP TABLE IF EXISTS contactos;        -- sin error si no existe
+```
+
+<Ojo title="DDL no se deshace">
+En MySQL, `CREATE`, `ALTER` y `DROP` hacen un *commit* implícito: no se pueden deshacer con `ROLLBACK`, aunque estés dentro de una transacción. En producción, los cambios de estructura se hacen con **migraciones** versionadas (Prisma, Drizzle, Knex, Flyway…), nunca a mano.
+</Ojo>
+
+<Entrevista>
+"¿Qué tipo usarías para guardar un precio?" → "DECIMAL, por ejemplo DECIMAL(10, 2). FLOAT y DOUBLE son de punto flotante binario y no representan exacto valores como 0.1, así que los totales terminan con errores de redondeo. Otra opción es guardar centavos en un entero."
+</Entrevista>

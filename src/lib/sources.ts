@@ -12,7 +12,7 @@ const demoModules = import.meta.glob<{ default: ComponentType }>(
   { eager: true },
 )
 const rawFiles = import.meta.glob<string>(
-  ['../demos/**/*.{ts,tsx,css}', '../main.tsx', '../App.tsx', '../../vite.config.ts'],
+  ['../demos/**/*.{ts,tsx,css,sql}', '../main.tsx', '../App.tsx', '../../vite.config.ts'],
   { eager: true, query: '?raw', import: 'default' },
 )
 
@@ -33,5 +33,6 @@ export function getSource(path: string): string {
 
 export function languageOf(path: string) {
   if (path.endsWith('.css')) return 'css'
+  if (path.endsWith('.sql')) return 'sql'
   return 'tsx'
 }
