@@ -1,0 +1,131 @@
+Una tabla por necesidad, con lo que se usa en proyectos reales a fines de 2026. La columna **Expo** dice si es parte del Expo SDK; las marcadas con **DB** necesitan un *development build* (no andan en Expo Go).
+
+<Nota title="Cómo elegir una librería">
+Antes de instalar algo, mirá en [reactnative.directory](https://reactnative.directory): si soporta la Nueva Arquitectura (obligatoria desde el SDK 55), si anda en Expo Go, cuándo fue el último release y cuántas descargas tiene. Y siempre `npx expo install`, para que elija la versión compatible con tu SDK.
+</Nota>
+
+## Navegación y pantalla
+
+| Necesitás | Lo más usado | Expo | |
+| --- | --- | --- | --- |
+| Navegación | **expo-router** | ✓ | |
+| Navegación (proyectos viejos) | React Navigation | | |
+| Safe area | react-native-safe-area-context | | |
+| Splash screen | expo-splash-screen | ✓ | |
+| Barra de estado | expo-status-bar | ✓ | |
+| Íconos | **expo-symbols** (SF Symbols + Material Symbols) | ✓ | |
+| Íconos (sets clásicos: Ionicons, FontAwesome…) | @react-native-vector-icons/* (uno por familia) | | |
+| Componentes nativos de SwiftUI / Compose | **@expo/ui** | ✓ | |
+| Efecto vidrio (iOS 26) | expo-glass-effect | ✓ | |
+| Degradados, desenfoque | expo-linear-gradient, expo-blur | ✓ | |
+
+`@expo/vector-icons`, el paquete de íconos que usaban todas las plantillas, se está deprecando: Expo recomienda pasar a `@react-native-vector-icons` o a `expo-symbols`.
+
+## Estilos y componentes
+
+| Necesitás | Lo más usado | Expo | |
+| --- | --- | --- | --- |
+| Tailwind | **NativeWind**, **Uniwind** | | |
+| StyleSheet con temas y breakpoints | Unistyles 3 | | DB |
+| Kit de componentes + compilador | Tamagui | | |
+| Material Design | React Native Paper | | |
+| Componentes accesibles listos | HeroUI Native, gluestack-ui | | |
+| Bottom sheet | **@gorhom/bottom-sheet** (o una ruta `formSheet`) | | |
+| Toasts | sonner-native, burnt | | |
+
+## Listas, animaciones y gestos
+
+| Necesitás | Lo más usado | Expo | |
+| --- | --- | --- | --- |
+| Listas largas | **@shopify/flash-list**, @legendapp/list | | |
+| Animaciones | **react-native-reanimated** | | |
+| Gestos | **react-native-gesture-handler** | | |
+| Teclado | **react-native-keyboard-controller** | | |
+| Animaciones de After Effects | lottie-react-native | | |
+| Dibujo y efectos 2D | @shopify/react-native-skia | | |
+| Gráficos | victory-native, react-native-gifted-charts | | |
+| Háptica | expo-haptics | ✓ | |
+
+## Datos, estado y almacenamiento
+
+| Necesitás | Lo más usado | Expo | |
+| --- | --- | --- | --- |
+| Datos del servidor | **@tanstack/react-query** | | |
+| Estado global | **zustand**, jotai, Redux Toolkit | | |
+| Formularios | **react-hook-form** + **zod**, TanStack Form | | |
+| Clave-valor | @react-native-async-storage/async-storage | | |
+| Clave-valor rápido y sincrónico | react-native-mmkv | | DB |
+| Tokens y secretos | expo-secure-store | ✓ | |
+| Base de datos | **expo-sqlite** + drizzle-orm | ✓ | |
+| Archivos | expo-file-system | ✓ | |
+| Offline con sincronización | PowerSync, Legend State | | |
+| Backend como servicio | **Supabase**, Firebase (@react-native-firebase) | | Firebase: DB |
+
+## Login y pagos
+
+| Necesitás | Lo más usado | Expo | |
+| --- | --- | --- | --- |
+| OAuth (GitHub, cualquier proveedor) | expo-auth-session + expo-web-browser | ✓ | |
+| Sign in with Apple | expo-apple-authentication | ✓ | |
+| Google Sign-In nativo | @react-native-google-signin/google-signin | | DB |
+| Auth como servicio | Clerk (@clerk/expo), Supabase Auth, Better Auth | | |
+| Biometría | expo-local-authentication | ✓ | |
+| Suscripciones y compras dentro de la app | **react-native-purchases** (RevenueCat), expo-iap | | DB |
+| Pagos de cosas físicas o servicios | @stripe/stripe-react-native | | Apple/Google Pay: DB |
+
+<Ojo title="Compras dentro de la app: no podés usar Stripe para todo">
+Si vendés algo **digital que se usa dentro de la app** (una suscripción premium, monedas, desbloquear funciones), Apple y Google exigen usar **su** sistema de pagos (In-App Purchase / Google Play Billing), que se queda con un 15–30 %. Stripe es para cosas físicas o servicios fuera de la app (un envío, un turno, una entrada). Lo vemos en [requisitos](#/requisitos). Por eso existe RevenueCat: maneja las suscripciones de las dos tiendas con una sola API.
+</Ojo>
+
+## Funciones del teléfono
+
+| Necesitás | Lo más usado | Expo | |
+| --- | --- | --- | --- |
+| Elegir fotos | expo-image-picker | ✓ | |
+| Cámara, QR | expo-camera | ✓ | |
+| Cámara avanzada (procesar cuadros) | react-native-vision-camera | | DB |
+| Ubicación | expo-location | ✓ | |
+| Mapas | react-native-maps, expo-maps | expo-maps ✓ | expo-maps: DB |
+| Notificaciones | **expo-notifications** | ✓ | push en Android: DB |
+| Notificaciones con más control / campañas | Notifee, OneSignal | | DB |
+| Video, audio | expo-video, expo-audio | ✓ | |
+| Imágenes | **expo-image** | ✓ | |
+| WebView | react-native-webview | | |
+| Idioma del usuario | expo-localization | ✓ | |
+| Pagos con Apple Pay / Google Pay | @stripe/stripe-react-native | | DB |
+
+## Calidad y producción
+
+| Necesitás | Lo más usado | Expo | |
+| --- | --- | --- | --- |
+| Tests | **jest-expo** + **@testing-library/react-native** | ✓ (jest-expo) | |
+| Tests de punta a punta | **Maestro** | | |
+| Errores en producción | **@sentry/react-native** | | |
+| Analytics y feature flags | PostHog, Firebase Analytics, Amplitude | | |
+| Traducciones | **i18next** + react-i18next, Lingui | | |
+| Fechas | date-fns, dayjs (y `Intl`, que Hermes soporta) | | |
+| Builds, envío a tiendas, actualizaciones | **EAS** (Build, Submit, Update, Workflows) | ✓ | |
+
+## Traducciones, por ser lo más pedido
+
+```ts
+// src/lib/i18n.ts
+import { getLocales } from 'expo-localization'
+import i18n from 'i18next'
+import { initReactI18next } from 'react-i18next'
+
+i18n.use(initReactI18next).init({
+  resources: {
+    es: { translation: { ofertas: 'Ofertas', guardar: 'Guardar' } },
+    en: { translation: { ofertas: 'Jobs', guardar: 'Save' } },
+  },
+  lng: getLocales()[0]?.languageCode ?? 'es',  // el idioma del teléfono
+  fallbackLng: 'es',
+})
+
+// En un componente
+const { t } = useTranslation()
+<Text>{t('ofertas')}</Text>
+```
+
+Para que la tienda muestre tu app como disponible en varios idiomas, también se traducen el nombre de la app y los textos de los permisos, con la clave `locales` de `app.json` (un JSON por idioma).

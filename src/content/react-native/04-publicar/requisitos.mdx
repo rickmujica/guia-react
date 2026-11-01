@@ -1,0 +1,142 @@
+Lo que Apple y Google revisan antes de aprobar una app, y lo que te van a pedir completar en sus consolas. Las reglas cambian todos los años; esta es la foto de **noviembre de 2026**. Las fuentes oficiales: las *App Review Guidelines* de Apple (developer.apple.com/app-store/review/guidelines) y el *Policy Center* de Google Play.
+
+## Requisitos técnicos con fecha
+
+| Tienda | Requisito | Desde | Con Expo |
+| --- | --- | --- | --- |
+| Apple | Compilar con **Xcode 26** y el **SDK de iOS 26** | 28 de abril de 2026 | EAS usa la imagen correcta; el SDK 58 pide Xcode 26.4+. |
+| Google | Apps nuevas y actualizaciones con **target API 36** (Android 16) | 31 de agosto de 2026 (se podía pedir prórroga hasta el 1 de noviembre) | El SDK 58 compila con target 36. |
+| Google | Las apps existentes con target menor a **35** dejan de mostrarse a usuarios nuevos | 31 de agosto de 2026 | Actualizá el SDK al menos una vez por año. |
+| Google | Soportar páginas de memoria de **16 KB** | 1 de noviembre de 2025 | React Native y Expo ya lo soportan. |
+| Google | Publicar en formato **AAB** (no APK) | 2021 | El perfil de producción genera `.aab`. |
+| Apple | **Privacy manifest** y razones para APIs sensibles | 1 de mayo de 2024 | Las librerías de Expo traen el suyo; lo tuyo va en `ios.privacyManifests`. |
+
+La regla práctica: **un SDK de Expo de menos de un año cumple los requisitos técnicos de las dos tiendas**. Si te quedás dos o tres SDK atrás, un día no vas a poder subir una actualización.
+
+## Lo que piden las dos
+
+### Política de privacidad
+
+Una URL pública con tu política de privacidad, aunque la app no junte datos. Tiene que decir qué datos juntás, para qué, con quién los compartís (incluidos los SDK de terceros como analytics o Sentry), cuánto tiempo los guardás y cómo pedir que los borren. Además, tiene que haber un link a la política **dentro de la app** (en el perfil o la configuración).
+
+### Declarar qué datos juntás
+
+- **Apple: "App Privacy"** (las etiquetas de privacidad que se ven en la ficha): qué datos juntás (email, ubicación, identificadores, datos de uso, crashes…), si se vinculan a la identidad del usuario y si se usan para *tracking*.
+- **Google: "Seguridad de los datos"** (*Data safety*): lo mismo, más si los datos viajan cifrados y si el usuario puede pedir borrarlos.
+
+Tienen que coincidir con lo que la app hace de verdad, **incluyendo lo que hacen tus librerías**: si usás Sentry, juntás datos de crashes; si usás Firebase Analytics, datos de uso e identificadores. Declarar de menos es motivo de rechazo o de suspensión.
+
+### Borrar la cuenta desde la app
+
+Si la app permite **crear una cuenta**, tiene que permitir **borrarla desde la app**, de forma fácil de encontrar (en el perfil o la configuración). No alcanza con desactivarla ni con "escribinos un email". Apple lo exige desde 2022; Google, además, pide una **URL web** donde se pueda pedir el borrado sin tener la app instalada.
+
+```tsx
+// En el perfil: un botón que confirma y llama a tu backend
+async function borrarCuenta() {
+  await api('/cuenta', { method: 'DELETE' })   // el backend borra los datos de verdad
+  useSesion.getState().cerrarSesion()
+}
+```
+
+### Un usuario de prueba para el revisor
+
+Si hay login, en la información para la revisión ponés un **usuario y contraseña que funcionen**, con datos cargados para que vea la app completa. Si el login es por SMS o con un dispositivo especial, explicá cómo probarla (o dejá un modo demo). "No pudimos entrar" es uno de los rechazos más comunes (*Guideline 2.1, App Completeness*). En Google es la declaración **"Acceso a la app"**.
+
+### Permisos justificados
+
+- Pedí **solo** los permisos que usás, y en el momento en que los usás.
+- En iOS, el texto de cada permiso tiene que explicar **para qué** en concreto (*Guideline 5.1.1*). "Usamos la cámara para que saques tu foto de perfil" se aprueba; "La app necesita acceso a la cámara" no.
+- Revisá los permisos que agregan tus librerías (`npx expo config --type introspect`) y bloqueá los que no usás:
+
+```json
+"android": {
+  "blockedPermissions": ["android.permission.RECORD_AUDIO", "android.permission.ACCESS_BACKGROUND_LOCATION"]
+}
+```
+
+### Compras: el sistema de pagos de la tienda
+
+| Vendés | Cómo cobrás |
+| --- | --- |
+| Algo **digital que se usa en la app**: suscripción premium, monedas, desbloquear funciones, contenido | **Obligatorio** el sistema de la tienda: In-App Purchase (Apple) / Google Play Billing. Comisión del 15–30 %. |
+| Bienes físicos o servicios fuera de la app: un producto, un viaje, un turno, una entrada | Tu procesador de pagos (Stripe, Mercado Pago…). Sin comisión de la tienda. |
+| Una app "lectora" (contenido que se compra en otro lado: Netflix, Spotify) | Puede no vender en la app; las reglas para poner un link afuera dependen del país. |
+
+La comisión es del **15 %** para desarrolladores que facturan menos de un millón de dólares por año (*Small Business Program* de Apple, y el primer millón en Google) y para suscripciones después del primer año. En algunos países (Estados Unidos, la Unión Europea, Corea, Japón) hoy se permiten links o sistemas de pago alternativos, con condiciones que cambiaron varias veces desde 2024: si tu modelo depende de eso, leé las reglas vigentes para cada país.
+
+Las suscripciones también tienen reglas: mostrar el precio y el período claramente antes de comprar, un botón de **restaurar compras**, y links a los términos y a la política de privacidad en la pantalla de compra.
+
+### Funcionalidad mínima y contenido
+
+- **No una web envuelta**: una app que solo muestra un sitio en un WebView se rechaza (*Guideline 4.2, Minimum Functionality*). Tiene que aportar algo de app.
+- **Nada a medio hacer**: botones que no hacen nada, pantallas de "próximamente", texto de ejemplo, links rotos.
+- **Metadatos honestos**: las capturas muestran la app real, la descripción no promete lo que no hace, y el nombre no usa marcas ajenas.
+- **Contenido generado por usuarios** (un chat, comentarios, perfiles): hace falta poder **reportar** contenido, **bloquear** usuarios, filtrar lo ofensivo, y tener un contacto.
+- **No copiar**: apps casi iguales a otras ya publicadas (o muchas apps tuyas casi iguales) se rechazan como spam (*Guideline 4.3*).
+
+## Solo Apple
+
+| Requisito | Qué hay que hacer |
+| --- | --- |
+| **Sign in with Apple** (o equivalente) | Si ofrecés login con Google, Facebook u otro tercero, también una opción que cuide la privacidad: Sign in with Apple la cumple ([auth](#/auth)). |
+| **Clasificación por edad** | El cuestionario nuevo (clasificaciones 4+, 9+, 13+, 16+ y 18+) tenía que estar respondido para enero de 2026 para poder publicar actualizaciones. |
+| **App Tracking Transparency** | Si rastreás al usuario entre apps de otras empresas (publicidad personalizada, compartir datos con data brokers), pedir permiso con el diálogo del sistema (`expo-tracking-transparency`). Sin permiso, no podés usar el identificador de publicidad. |
+| **Privacy manifest** | Un archivo que declara qué APIs "sensibles" usa la app y por qué. Las librerías de Expo traen el suyo; si tu código o una librería sin manifest usa una de esas APIs, se declara en `app.json` (ejemplo abajo). |
+| **Cifrado (export compliance)** | En cada build Apple pregunta si usás cifrado. Si solo usás HTTPS, con `ios.config.usesNonExemptEncryption: false` (como la app de la guía) no pregunta más. |
+| **Estado de "trader" en la UE** | Por la ley de servicios digitales europea, declarar si sos comerciante (con datos de contacto públicos). Sin eso, la app no se publica en la Unión Europea. |
+| **Ícono para iOS 26** | Los íconos de iOS 26 tienen capas (Liquid Glass). La plantilla de Expo usa un archivo `.icon` de Icon Composer (`ios.icon` en `app.json`). |
+
+```json
+// app.json: declarar el uso de UserDefaults (lo usan AsyncStorage y otras librerías)
+"ios": {
+  "privacyManifests": {
+    "NSPrivacyAccessedAPITypes": [
+      {
+        "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryUserDefaults",
+        "NSPrivacyAccessedAPITypeReasons": ["CA92.1"]
+      }
+    ]
+  }
+}
+```
+
+## Solo Google
+
+Las declaraciones de la sección **"Contenido de la app"** de Play Console (se completan una vez y se actualizan si cambia algo):
+
+| Declaración | Qué preguntan |
+| --- | --- |
+| **Política de privacidad** | La URL. |
+| **Acceso a la app** | Si hay partes con login, las credenciales de prueba. |
+| **Anuncios** | Si la app muestra publicidad (se muestra un sello en la ficha). |
+| **Clasificación del contenido** | Un cuestionario (IARC) que da la clasificación para cada país. |
+| **Público objetivo** | Para qué edades es. Si incluye menores de 13, se aplican las reglas de *Familias*, mucho más estrictas. |
+| **Seguridad de los datos** | Qué datos juntás y para qué (ver arriba). |
+| **Apps de gobierno, financieras, de salud, de noticias** | Si la app es de alguno de esos tipos, declaraciones y documentación extra. |
+| **ID de publicidad** | Si usás el identificador de publicidad. |
+
+Y las políticas de permisos más estrictas:
+
+- **Fotos y videos**: las apps solo pueden pedir acceso a toda la galería (`READ_MEDIA_IMAGES`) si es su función principal (una galería, un editor). El resto tiene que usar el **selector de fotos del sistema**, que no pide permiso. `expo-image-picker` ya lo usa.
+- **Ubicación en segundo plano**: una declaración con un **video** que muestre la función, y que sea esencial para la app.
+- **Servicios en primer plano** (*foreground services*, como un reproductor o un GPS activo): declarar el tipo y justificarlo.
+- **Alarmas exactas**, **acceso a todos los archivos**, **lista de apps instaladas**, **accesibilidad**: permisos restringidos que se aprueban solo para casos puntuales.
+
+## Los rechazos más comunes
+
+| Motivo | Regla | Cómo evitarlo |
+| --- | --- | --- |
+| El revisor no pudo entrar o algo no funcionó | Apple 2.1 | Usuario de prueba con datos; probá la build de producción. |
+| Textos de permisos vagos | Apple 5.1.1 | Explicá para qué, en concreto. |
+| Login con Google sin opción de Apple | Apple 4.8 | Agregá Sign in with Apple. |
+| No se puede borrar la cuenta | Apple 5.1.1(v) / Google | Botón de borrar cuenta en la app. |
+| Vender contenido digital con Stripe | Apple 3.1.1 / Google Payments | In-App Purchase / Play Billing. |
+| Es solo una web | Apple 4.2 | Funciones nativas, contenido propio, que funcione sin ser una web. |
+| Capturas que no son la app, metadatos engañosos | Apple 2.3 / Google Metadata | Capturas reales, descripción honesta. |
+| Declaración de datos incompleta | Google Data safety / Apple 5.1.2 | Incluí lo que juntan tus librerías. |
+| Permiso de fotos o ubicación sin justificar | Google | Selector de fotos; ubicación solo en uso. |
+| Crash al abrir | Apple 2.1 / Google | Probá en un teléfono real con la build de producción. |
+
+<Entrevista>
+"¿Qué tenés en cuenta para publicar una app?" Una respuesta completa: cuentas (Apple USD 99 por año, Google USD 25), builds firmadas con EAS, TestFlight y las pistas de prueba de Google (con los 12 testers por 14 días en cuentas personales nuevas), política de privacidad y declaraciones de datos, borrar la cuenta desde la app, Sign in with Apple si hay login social, In-App Purchase para contenido digital, textos de permisos claros, un usuario de prueba para la revisión, y mantener el target SDK de Android al día cada año.
+</Entrevista>

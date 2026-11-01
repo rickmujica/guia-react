@@ -47,6 +47,8 @@ try {
 async function printGuide(page, url) {
   await page.goto(url, { waitUntil: 'networkidle' })
   await page.evaluate(() => document.fonts.ready)
+  // Las demos de React Native se cargan con lazy(): esperar a que no quede ningún "Cargando…"
+  await page.waitForFunction(() => !document.querySelector('.telefono-cargando'), null, { timeout: 30_000 })
   const headings = await page.$$eval('h1, h2, h3, h4, h5, h6', (elements) =>
     elements.map((element) => element.textContent.replace(/\s+/g, ' ').trim()),
   )

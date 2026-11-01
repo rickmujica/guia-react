@@ -1,0 +1,107 @@
+Traer datos de una API en React Native es casi igual que en la web: `fetch` existe y funciona igual. Lo que cambia es el entorno: la red se corta seguido, la app pasa a segundo plano, y "localhost" no es lo que pensás.
+
+## fetch, con tres diferencias
+
+```ts
+const respuesta = await fetch('https://api.ejemplo.com/ofertas')
+const ofertas = await respuesta.json()
+```
+
+1. **No hay CORS** en el celular. CORS es una regla de los navegadores; tu app puede llamar a cualquier API. (En la versión web de tu app, sí aplica).
+2. **`localhost` es el teléfono**, no tu computadora. Para llamar a tu backend local desde el celular, usá la IP de tu compu en la red (`http://192.168.0.10:3000`). En el emulador de Android, tu computadora es `10.0.2.2`.
+3. **HTTP sin S está bloqueado** por defecto en iOS y en Android (en las builds de producción). Tu API tiene que ser `https://`.
+
+Si necesitás leer una respuesta de a pedazos (streaming, como un chat con IA), `import { fetch } from 'expo/fetch'` es un `fetch` compatible con el estándar que soporta streams.
+
+## Un cliente de API
+
+En lugar de repetir la URL base, los headers y el manejo de errores en cada llamada, se arma una función:
+
+<Source path="app-expo/src/ejemplos/cliente-api.ts" />
+
+El token se lee con `useSesion.getState()`: los stores de Zustand se pueden leer fuera de un componente. Y el `AbortSignal.timeout` es importante en el celular: con una conexión mala, un `fetch` sin timeout puede quedar colgado para siempre.
+
+## TanStack Query
+
+Para datos del servidor, **TanStack Query** (ex React Query) es el estándar, igual que en la web: caché, reintentos, estados de carga y error, paginación, y refresco automático. Se configura una vez en el layout raíz:
+
+```tsx
+// app/_layout.tsx
+const queryClient = new QueryClient({
+  defaultOptions: { queries: { staleTime: 60_000, retry: 2 } },  // los datos valen 1 minuto
+})
+
+<QueryClientProvider client={queryClient}>…</QueryClientProvider>
+```
+
+Y cada pantalla usa un hook. La app tiene dos: una lista paginada y el detalle:
+
+<Source path="app-expo/src/hooks/use-ofertas.ts" />
+
+`useInfiniteQuery` junta las páginas en `data.pages`, y `fetchNextPage` trae la siguiente usando lo que devuelve `getNextPageParam`. Conectado a `onEndReached` de la lista, es el scroll infinito de la [pantalla de ofertas](#/listas). La API de la app es falsa (devuelve datos con un retraso para simular la red):
+
+<Source path="app-expo/src/api/ofertas.ts" />
+
+### Mutaciones con actualización optimista
+
+```tsx
+const queryClient = useQueryClient()
+
+const postularme = useMutation({
+  mutationFn: (id: number) => api(`/ofertas/${id}/postulaciones`, { method: 'POST' }),
+  // Antes de que responda el servidor: marcala como postulada en la caché
+  onMutate: async (id) => {
+    await queryClient.cancelQueries({ queryKey: ['oferta', id] })
+    const anterior = queryClient.getQueryData<Oferta>(['oferta', id])
+    queryClient.setQueryData(['oferta', id], { ...anterior, postulado: true })
+    return { anterior }
+  },
+  onError: (_error, id, contexto) => queryClient.setQueryData(['oferta', id], contexto?.anterior), // deshacer
+  onSettled: (_data, _error, id) => queryClient.invalidateQueries({ queryKey: ['oferta', id] }),
+})
+```
+
+## Lo que en el celular hay que configurar a mano
+
+En la web, TanStack Query refresca los datos cuando volvés a la pestaña del navegador y pausa las consultas cuando se corta internet. En el celular no hay `window`: hay que contarle cuándo la app vuelve a primer plano (con `AppState`) y cuándo cambia la conexión (con `expo-network`):
+
+<Source path="app-expo/src/ejemplos/conectividad.ts" />
+
+Y como las pantallas de un Stack no se desmontan, una consulta de una pantalla que quedó atrás sigue escuchando cambios. Para pausarla mientras no se ve:
+
+```tsx
+import { useIsFocused } from 'expo-router'
+
+const enPantalla = useIsFocused()
+const { data } = useQuery({ queryKey: ['guardadas'], queryFn: traerGuardadas, subscribed: enPantalla })
+```
+
+## Offline
+
+Una app de celular se abre en el subte, en un avión, con una señal. Lo mínimo:
+
+1. **Mostrar algo útil sin conexión**: con `useSinConexion()` (del ejemplo de arriba), un aviso arriba de la pantalla.
+2. **Guardar la caché en el disco**: con `@tanstack/query-async-storage-persister` y `PersistQueryClientProvider`, la app abre mostrando los últimos datos que vio, y los actualiza cuando hay red.
+3. **Encolar lo que el usuario hace sin red**: las mutaciones de TanStack Query se pausan solas sin conexión y se reintentan al volver (con `networkMode` por defecto).
+
+Para apps que tienen que funcionar 100 % offline (con sincronización), hay librerías específicas: **PowerSync**, **ElectricSQL**, **Legend State** con sync, o SQLite con tu propia sincronización.
+
+## Subir archivos
+
+`FormData` funciona, con una particularidad de React Native: un archivo es un objeto con `uri`, `name` y `type`:
+
+```ts
+const datos = new FormData()
+datos.append('cv', { uri: archivo.uri, name: 'cv.pdf', type: 'application/pdf' } as unknown as Blob)
+await fetch(`${BASE_URL}/cv`, { method: 'POST', body: datos })
+```
+
+## Otras opciones
+
+| Necesitás | Opción |
+| --- | --- |
+| Ya usás Redux Toolkit | **RTK Query** (lo viste en la [guía de estado](#/estado/rtk-query)): mismo concepto que TanStack Query. |
+| GraphQL | **Apollo Client** o **urql**. |
+| Backend propio en TypeScript con tipos de punta a punta | **tRPC** u **oRPC**. |
+| Backend listo (auth, base de datos, archivos) | **Supabase** o **Firebase** (lo vemos en [librerías](#/librerias)). |
+| Tiempo real | `WebSocket` viene incluido; o los canales de Supabase / Firebase. |

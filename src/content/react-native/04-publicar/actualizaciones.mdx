@@ -1,0 +1,133 @@
+Publicar una corrección en la tienda lleva tiempo: compilar, subir, esperar la revisión, y que cada usuario actualice. **EAS Update** permite mandar cambios de **JavaScript, estilos e imágenes** directo a las apps ya instaladas, en minutos. Es una de las grandes ventajas de React Native frente a una app 100 % nativa.
+
+## Cómo funciona
+
+Una build tiene dos capas:
+
+- **La capa nativa**: el código compilado (React Native, Hermes, las librerías nativas, los permisos, el ícono). No se puede cambiar sin una build nueva.
+- **La capa de JavaScript**: tu bundle y tus imágenes. Esta se puede reemplazar con una actualización.
+
+Al abrir la app, `expo-updates` pregunta si hay una actualización para su **canal** y su **runtime version**. Si hay, la descarga en segundo plano y la aplica **la próxima vez que se abre** la app (por defecto).
+
+## Configurar
+
+```bash
+npx expo install expo-updates
+eas update:configure    # agrega runtimeVersion y updates.url a app.json
+```
+
+Las builds se conectan a un canal con `channel` en `eas.json` (la app de la guía ya lo tiene: `development`, `preview`, `production`). Después de compilar con esos perfiles, publicar es:
+
+```bash
+eas update --channel production --environment production --message "Arreglo del filtro de búsqueda"
+```
+
+## Runtime version: que la actualización sea compatible
+
+Una actualización solo puede llegar a las builds cuya parte nativa sea compatible. Si agregaste `expo-camera` en el JavaScript nuevo, pero la build instalada no tiene el código nativo de la cámara, la app crashearía. La **runtime version** es la etiqueta que lo evita: una actualización solo llega a builds con la misma runtime version.
+
+```json
+// app.json
+"runtimeVersion": { "policy": "fingerprint" }
+```
+
+| Política | Cuándo cambia la runtime version |
+| --- | --- |
+| `"appVersion"` | Cuando subís `version`. Simple, pero si agregás una librería nativa y te olvidás de subir la versión, mandás una actualización incompatible. |
+| `"fingerprint"` | Cuando cambia **cualquier cosa nativa** (calcula una huella de las dependencias nativas y la configuración). La más segura. |
+| Un string fijo (`"1.0.0"`) | Cuando vos lo cambiás a mano. |
+
+## Qué se puede mandar por OTA y qué no
+
+| Se puede | No se puede (necesita build y tienda) |
+| --- | --- |
+| Corregir un bug en tu código | Agregar o actualizar una librería nativa |
+| Cambiar textos, estilos, colores, pantallas | Cambiar permisos, el ícono, el nombre, el splash |
+| Agregar imágenes y pantallas nuevas | Actualizar el SDK de Expo o React Native |
+| Cambiar la lógica de un flujo | Cambiar cualquier cosa de `app.json` que afecte lo nativo |
+
+<Ojo title="Las reglas de las tiendas también aplican">
+Apple y Google permiten actualizar código interpretado (JavaScript) sin revisión, **siempre que no cambies el propósito de la app** ni agregues funciones que esquiven la revisión. Corregir bugs y mejorar pantallas, sí; convertir una app de notas en un casino, no. Cambios grandes, por la tienda.
+</Ojo>
+
+## Desplegar con cuidado
+
+- **Probar antes**: publicá primero en el canal `preview` (las builds de preview lo leen) y probalo. Desde un development build también podés abrir cualquier actualización.
+- **Rollouts**: `eas update --channel production --rollout-percentage 10` la manda al 10 % de los usuarios. Si los errores no suben, la ampliás.
+- **Rollback**: `eas update:rollback` vuelve a la actualización anterior (o a la que venía en la build).
+- **Recuperación automática**: si una actualización crashea al arrancar, `expo-updates` vuelve sola a la versión anterior que funcionaba.
+
+### Aplicar la actualización enseguida
+
+Por defecto se aplica al **siguiente** arranque. Para una corrección urgente, la app puede chequear y recargar:
+
+```tsx
+import * as Updates from 'expo-updates'
+
+function AvisoDeActualizacion() {
+  const { isUpdatePending } = Updates.useUpdates()
+  if (!isUpdatePending) return null
+  return <Button title="Hay una versión nueva: reiniciar" onPress={() => Updates.reloadAsync()} />
+}
+```
+
+## CI/CD con EAS Workflows
+
+**EAS Workflows** es el CI/CD de Expo: archivos YAML en `.eas/workflows/` que corren en la nube de EAS cuando hacés push (o a mano). Un flujo típico: en cada push a `main`, si cambió algo nativo hace una build nueva y la manda a las tiendas; si no, publica una actualización OTA.
+
+```yaml
+# .eas/workflows/produccion.yml (solo Android; para iOS se repiten los mismos pasos)
+name: Producción
+
+on:
+  push:
+    branches: ['main']
+
+jobs:
+  huella:
+    type: fingerprint                 # una huella de todo lo nativo del proyecto
+    environment: production
+
+  buscar_build:
+    needs: [huella]
+    type: get-build                   # ¿ya hay una build de producción con esta huella?
+    params:
+      fingerprint_hash: ${{ needs.huella.outputs.android_fingerprint_hash }}
+      profile: production
+
+  build:
+    needs: [buscar_build]
+    if: ${{ !needs.buscar_build.outputs.build_id }}   # no hay: cambió algo nativo, compilar
+    type: build
+    params:
+      platform: android
+      profile: production
+
+  enviar:
+    needs: [build]
+    type: submit
+    params:
+      build_id: ${{ needs.build.outputs.build_id }}
+
+  actualizar:
+    needs: [buscar_build]
+    if: ${{ needs.buscar_build.outputs.build_id }}    # hay: alcanza con una actualización OTA
+    type: update
+    params:
+      branch: production
+      platform: android
+```
+
+```bash
+eas workflow:run produccion.yml   # correrlo a mano
+```
+
+Hay tipos de job prehechos para casi todo: `build`, `submit`, `testflight`, `update`, `fingerprint`, `get-build`, `maestro` (tests E2E), `slack` (avisar). Es el flujo que Expo llama *golden workflow*. Si ya usás GitHub Actions, también podés correr `eas build` y `eas update` desde ahí con un token (`EXPO_TOKEN`).
+
+## El ciclo completo
+
+1. Desarrollás con `npx expo start` (Expo Go o development build).
+2. Push a una rama → build de **preview** → la prueba el equipo (o un cliente) con un link.
+3. Merge a `main` → build de **producción** + `eas submit` → TestFlight y prueba interna de Google → revisión → tiendas.
+4. Bug en producción → corregís → `eas update` al canal `production` → los usuarios lo tienen al abrir la app.
+5. Cambio nativo (librería, permiso, SDK nuevo) → otra vez el paso 3.

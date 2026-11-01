@@ -1,0 +1,128 @@
+## Crear el proyecto
+
+```bash
+npx create-expo-app@latest mi-app
+cd mi-app
+npx expo start
+```
+
+La plantilla por defecto ya trae **TypeScript**, **Expo Router** con pestañas, el **React Compiler** activado y modo oscuro. Si querés arrancar de cero: `npx create-expo-app@latest mi-app --template blank-typescript`.
+
+Necesitás **Node 22.13 o más nuevo** (el SDK 58 lo exige). No hace falta instalar Xcode ni Android Studio para empezar: con Expo Go en el teléfono alcanza.
+
+## La estructura
+
+Así quedó la app de esta guía (`app-expo/`), que salió de esa plantilla:
+
+```text
+app-expo/
+├── app.json              ← configuración de la app: nombre, ícono, permisos, plugins
+├── eas.json              ← perfiles de build para EAS (lo vemos al publicar)
+├── package.json          ← "main": "expo-router/entry"
+├── tsconfig.json         ← alias @/ → src/
+├── assets/               ← íconos, splash, imágenes, fuentes
+└── src/
+    ├── app/              ← las PANTALLAS: cada archivo es una ruta (Expo Router)
+    │   ├── _layout.tsx   ← el layout raíz: providers, Stack, splash
+    │   ├── login.tsx     ← /login
+    │   ├── (tabs)/       ← un grupo con pestañas (no suma nada a la URL)
+    │   └── oferta/[id].tsx  ← /oferta/5
+    ├── components/       ← componentes reutilizables
+    ├── hooks/  stores/  api/  lib/
+    └── demos/            ← las demos de esta guía
+```
+
+La regla de Expo Router: **en `src/app/` solo van pantallas y layouts**. Cualquier otro archivo que pongas ahí se convierte en una ruta. Los componentes, hooks y utilidades van afuera.
+
+## app.json: la configuración de la app
+
+Todo lo que en un proyecto nativo estaría repartido entre Xcode y Android Studio (nombre, ícono, identificador, permisos, splash) va en `app.json`. Expo genera los proyectos nativos a partir de este archivo.
+
+<Source path="app-expo/app.json" />
+
+Lo más importante:
+
+| Clave | Para qué |
+| --- | --- |
+| `name` | El nombre que se ve debajo del ícono. |
+| `slug` | El nombre del proyecto en tu cuenta de Expo. |
+| `version` | La versión visible para los usuarios (`1.0.0`). |
+| `scheme` | Para los deep links: `busquedarn://oferta/5` abre la app. |
+| `ios.bundleIdentifier` / `android.package` | El identificador único en las tiendas. **No se puede cambiar** después de publicar. |
+| `plugins` | Config plugins: cada librería nativa agrega lo suyo (permisos, textos, claves). |
+| `experiments.typedRoutes` | Tipos para las rutas: `router.push('/ofertaa')` no compila. |
+| `experiments.reactCompiler` | El [React Compiler](#/react/react-compiler): memoiza solo, sin `useMemo` ni `memo`. |
+
+Cuando necesitás lógica (variables de entorno, distintas variantes), usás `app.config.ts`. Recibe lo que haya en `app.json` y devuelve la configuración final:
+
+<Source path="app-expo/src/ejemplos/app.config.ejemplo.ts" />
+
+## Los comandos del día a día
+
+```bash
+npx expo start            # servidor de desarrollo (Metro) + QR para Expo Go
+npx expo start --clear    # lo mismo, borrando la caché de Metro
+npx expo install expo-camera   # instala la versión compatible con tu SDK
+npx expo install --fix    # corrige versiones incompatibles
+npx expo-doctor           # revisa el proyecto: versiones, configuración, problemas comunes
+npx expo prebuild         # genera ios/ y android/ desde app.json (casi nunca hace falta)
+npx expo run:ios          # compila e instala en el simulador (necesita Xcode)
+npx expo run:android      # compila e instala en el emulador (necesita Android Studio)
+npx expo export --platform web   # build estático para la web
+```
+
+Con el servidor andando, en la terminal: `r` recarga, `m` abre el menú de desarrollo en el teléfono, `j` abre las DevTools, `i`/`a`/`w` abren iOS, Android o web. En el teléfono, sacudilo para abrir el menú.
+
+<Ojo title="npx expo install, no npm install">
+Cada SDK de Expo funciona con versiones puntuales de las librerías nativas (react-native-reanimated, react-native-screens, etc.). `npx expo install` elige la compatible con tu SDK; `npm install` instala la última, que puede no funcionar. Para librerías de JavaScript puro (zod, date-fns, zustand) da igual, pero acostumbrate a usar siempre `npx expo install`.
+</Ojo>
+
+## Código distinto por plataforma
+
+Tres formas, de la más chica a la más grande:
+
+```tsx
+import { Platform } from 'react-native'
+
+// 1. Una condición
+const esIos = Platform.OS === 'ios' // 'ios' | 'android' | 'web'
+
+// 2. Un valor por plataforma
+const sombra = Platform.select({
+  ios: { shadowOpacity: 0.2, shadowRadius: 8 },
+  android: { elevation: 4 },
+  default: {},
+})
+```
+
+3. **Un archivo por plataforma**: si existen `Mapa.ios.tsx` y `Mapa.android.tsx`, `import Mapa from './Mapa'` elige el correcto al compilar. La app de la guía lo usa para las pestañas: `(tabs)/_layout.tsx` usa las pestañas nativas, y `(tabs)/_layout.web.tsx` las reemplaza solo en la web:
+
+<Source path="app-expo/src/app/(tabs)/_layout.web.tsx" />
+
+## Variables de entorno
+
+Expo carga solo los archivos `.env`. Las variables que empiezan con `EXPO_PUBLIC_` quedan disponibles en tu código:
+
+```bash
+# .env
+EXPO_PUBLIC_API_URL=https://api.ejemplo.com
+```
+
+```ts
+const url = process.env.EXPO_PUBLIC_API_URL
+```
+
+<Ojo title="Todo lo que va en la app es público">
+Esas variables se copian dentro del bundle de JavaScript, y cualquiera puede descomprimir una app y leerlo. En una app **no hay secretos**: ni claves de Stripe secretas, ni la contraseña de la base de datos, ni la API key de OpenAI. Eso va en tu backend, y la app le pide a tu backend. Para las builds en la nube existen las [variables de entorno de EAS](#/eas).
+</Ojo>
+
+## Actualizar de SDK
+
+Cada SDK nuevo (3 por año) trae una versión nueva de React Native. Para actualizar:
+
+```bash
+npx expo install expo@^59 --fix   # sube expo y ajusta todas las librerías
+npx expo-doctor
+```
+
+Antes, leé el *changelog* del SDK en el blog de Expo: ahí están los cambios que rompen cosas. Conviene no quedarse más de un SDK atrás, porque las tiendas suben sus requisitos todos los años (lo vemos en [requisitos](#/requisitos)) y un SDK viejo no los cumple.

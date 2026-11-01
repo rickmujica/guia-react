@@ -1,0 +1,147 @@
+En React Native no hay HTML. Hay componentes que React Native traduce a vistas nativas. La buena noticia: son pocos, y casi todos tienen un equivalente web obvio.
+
+| En la web | En React Native | De dónde |
+| --- | --- | --- |
+| `<div>` | `View` | react-native |
+| `<p>`, `<span>`, `<h1>` | `Text` | react-native |
+| `<img>` | `Image` | **expo-image** (mejor que el de react-native) |
+| `<button>` | `Pressable` | react-native |
+| `<input>`, `<textarea>` | `TextInput` | react-native |
+| un `<div>` con `overflow: auto` | `ScrollView` | react-native |
+| `<ul>` con muchos items | `FlatList`, `SectionList`, `FlashList` | react-native, @shopify/flash-list |
+| `<dialog>` | `Modal` (o una ruta modal) | react-native, expo-router |
+| `<a href>` | `Link` | expo-router |
+| `<input type="checkbox">` | `Switch` | react-native |
+| un spinner | `ActivityIndicator` | react-native |
+
+## Las reglas que cambian
+
+1. **El texto solo puede ir dentro de `<Text>`.** Un string suelto dentro de un `View` tira el error *"Text strings must be rendered within a `<Text>` component"*. Ojo con `{cantidad && <Text>…</Text>}`: si `cantidad` es `0`, React intenta renderizar el `0` suelto y la app explota. Usá `{cantidad > 0 && …}`.
+2. **No hay CSS ni `className`**: los estilos son objetos de JavaScript en la prop `style` (lo vemos en [estilos](#/estilos)).
+3. **No hay `onClick`**: se usa `onPress`. Y no hay hover (salvo en la web).
+4. **Los estilos no se heredan**, salvo entre `Text` anidados. Un `color` en un `View` no le cambia el color al texto de adentro.
+5. **Todo es flexbox, en columna**: `display: flex` y `flexDirection: 'column'` por defecto.
+
+## View y Text
+
+`View` es la caja: agrupa, da layout y fondo. `Text` muestra texto, y es el único que lo hace. Mirá la demo de la bienvenida de nuevo, ahora con el código en mente:
+
+<DemoNativa file="componentes/PrimeraPantalla" title="View, Text y ScrollView" highlight="12-24,27-30" />
+
+Lo que conviene saber de `Text`:
+
+- **`numberOfLines`** corta el texto y agrega "…". Es la forma de evitar que un título largo rompa la tarjeta.
+- **Anidar `Text`** suma estilos: el de adentro hereda el tamaño y color del de afuera. Así se hace una palabra en negrita en medio de un párrafo.
+- **`selectable`** deja copiar el texto (por defecto no se puede).
+- **`onPress`** funciona en `Text`: útil para un link dentro de un párrafo.
+- El tamaño respeta la **accesibilidad del sistema**: si el usuario agrandó la letra, tu `fontSize: 15` se ve más grande. Diseñá para eso (o limitá con `maxFontSizeMultiplier`).
+
+## ScrollView
+
+En el celular, nada scrollea solo: si el contenido no entra, se corta. `ScrollView` lo hace desplazable.
+
+```tsx
+<ScrollView
+  style={{ flex: 1 }}                       // el tamaño del ScrollView (la "ventana")
+  contentContainerStyle={{ padding: 16, gap: 12 }}  // el estilo del contenido de adentro
+  keyboardShouldPersistTaps="handled"       // tocar un botón con el teclado abierto funciona al primer toque
+  refreshControl={<RefreshControl refreshing={cargando} onRefresh={recargar} />}
+>
+  {/* ... */}
+</ScrollView>
+```
+
+`ScrollView` renderiza **todos** sus hijos de una vez. Para 10 tarjetas está perfecto; para 500 filas, usá una [lista](#/listas), que renderiza solo lo que se ve. La diferencia entre `style` y `contentContainerStyle` confunde siempre: el padding y el `gap` van en `contentContainerStyle`.
+
+## Pressable: todo lo que se toca
+
+`Pressable` es la base de botones, tarjetas tocables y filas de una lista. Recibe una **función de estilo** que sabe si está presionado, para dar feedback visual:
+
+<DemoNativa file="componentes/Botones" title="Pressable, Button y Switch" />
+
+- **`onPress`**, **`onLongPress`**, **`onPressIn`**/**`onPressOut`**.
+- **`hitSlop`** agranda el área tocable sin cambiar el tamaño visible. Apple recomienda que todo lo tocable mida **al menos 44×44 puntos** (Google dice 48).
+- **`disabled`** desactiva el toque (y avisa a los lectores de pantalla).
+- `Button` es el botón del sistema: casi no se puede estilizar. En apps reales se arma uno propio con `Pressable`.
+
+<Nota title="TouchableOpacity y compañía">
+Vas a ver `TouchableOpacity`, `TouchableHighlight` y `TouchableWithoutFeedback` en código viejo y en tutoriales. Siguen funcionando, pero `Pressable` los reemplaza a todos. En una entrevista, decí `Pressable`.
+</Nota>
+
+## Image: mejor con expo-image
+
+El `Image` de react-native funciona, pero **expo-image** es lo que se usa: cachea en disco, muestra un placeholder borroso mientras carga, hace transiciones y soporta más formatos (WebP, AVIF, SVG, GIF animado).
+
+```tsx
+import { Image } from 'expo-image'
+
+<Image
+  source={{ uri: oferta.logoUrl }}
+  placeholder={{ blurhash: 'L6PZfSi_.AyE_3t7t7R**0o#DgR4' }}  // se ve mientras carga
+  contentFit="cover"         // como object-fit en CSS
+  transition={200}           // fundido al aparecer
+  style={{ width: 48, height: 48, borderRadius: 24 }}
+  accessibilityLabel={`Logo de ${oferta.empresa}`}
+/>
+
+// Una imagen local: require() para que Metro la incluya en el bundle
+<Image source={require('@/assets/images/icon.png')} style={{ width: 80, height: 80 }} />
+```
+
+Las imágenes remotas **necesitan un tamaño** (`width` y `height`, o `flex`/`aspectRatio`): el celular no sabe cuánto mide una imagen hasta descargarla, y no va a mover el layout cuando llegue. En la pestaña Perfil de la app se usa con la foto que elegís de la galería.
+
+## Modal
+
+Un `Modal` se dibuja por encima de todo. La demo usa uno **transparente** con fondo oscuro, para un diálogo de confirmación:
+
+<DemoNativa file="componentes/Confirmar" title="Modal" />
+
+- **`visible`** lo muestra u oculta (lo controlás con estado).
+- **`transparent`** deja ver lo de atrás; sin eso, el modal ocupa toda la pantalla con fondo blanco.
+- **`animationType`**: `'none'`, `'fade'` o `'slide'`.
+- **`onRequestClose`** es obligatorio en la práctica: se llama cuando el usuario aprieta "atrás" en Android o desliza para cerrar en iOS.
+
+Para pantallas completas que se abren desde abajo (un formulario, un filtro), en apps con Expo Router se usa una **ruta modal** en lugar del componente `Modal`, porque así tiene URL, botón de cerrar nativo y gesto de deslizar. Lo vemos en [navegación](#/navegacion).
+
+## Safe area: la isla, el notch y la barra de gestos
+
+Los teléfonos tienen partes de la pantalla tapadas: la Dynamic Island o el notch arriba, la barra de gestos abajo. Y desde Android 15 todas las apps se dibujan **de borde a borde** (detrás de la barra de estado y de navegación); en las versiones actuales de Expo es obligatorio. Tu contenido tiene que correrse para no quedar tapado:
+
+```tsx
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
+
+// Opción 1: un contenedor que agrega el padding justo
+<SafeAreaView edges={['top']} style={{ flex: 1 }}>
+  {/* ... */}
+</SafeAreaView>
+
+// Opción 2: los valores, para usarlos donde quieras
+const insets = useSafeAreaInsets()
+<View style={{ paddingBottom: insets.bottom + 16 }}>…</View>
+```
+
+Usá el de **react-native-safe-area-context**, no el `SafeAreaView` de react-native (que solo funcionaba en iOS y está deprecado). Si la pantalla tiene un header de Expo Router, el header ya se ocupa de la parte de arriba. La pantalla de ofertas de la app usa `edges={['top']}` porque no tiene header.
+
+## StatusBar
+
+La barra de arriba (hora, batería) tiene íconos claros u oscuros. Con `expo-status-bar` lo elegís según tu fondo:
+
+```tsx
+import { StatusBar } from 'expo-status-bar'
+
+<StatusBar style="dark" />   // íconos oscuros, para fondo claro. "light" para fondo oscuro, "auto" sigue al tema
+```
+
+## Componentes que vas a ver en código viejo
+
+| Componente | Qué pasó |
+| --- | --- |
+| `TouchableOpacity`, `TouchableHighlight` | Reemplazados por `Pressable`. |
+| `SafeAreaView` de react-native | Deprecado: usá el de react-native-safe-area-context. |
+| `ImageBackground` | Deprecado en el SDK 58: una `Image` con `StyleSheet.absoluteFill` detrás del contenido. |
+| `AsyncStorage` de react-native | Se sacó hace años: ahora es `@react-native-async-storage/async-storage`. |
+| `Picker`, `DatePickerIOS`, `ProgressViewIOS` | Se sacaron del core: hay librerías de la comunidad, o `@expo/ui`. |
+
+<Tip title="Componentes 100 % nativos: Expo UI">
+`@expo/ui` (estable desde el SDK 56) te da componentes de **SwiftUI** en iOS y de **Jetpack Compose** en Android: menús contextuales, pickers, sliders, date pickers, con el look exacto del sistema. Útil cuando querés que un control se vea idéntico al de las apps de Apple o Google.
+</Tip>

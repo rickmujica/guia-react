@@ -1,0 +1,113 @@
+Cuando cerrás una app del todo y la volvés a abrir, React arranca de cero: todo lo que estaba en `useState` se perdió. Lo que tiene que sobrevivir (la sesión, las preferencias, lo que guardaste) va al almacenamiento del teléfono. La pregunta es **dónde**, porque hay varios lugares y cada uno sirve para otra cosa.
+
+## Qué va en cada lado
+
+| Qué | Dónde | Por qué |
+| --- | --- | --- |
+| Estado de una pantalla (un campo, un modal abierto) | `useState` | No tiene que sobrevivir. |
+| Datos del servidor (ofertas, perfil) | **TanStack Query** | Ya tiene caché; el servidor es la fuente de verdad. |
+| Estado global de la app (filtros, carrito) | **Zustand** (o Redux Toolkit, Jotai) | Lo comparten varias pantallas. |
+| Preferencias y datos chicos que no son secretos | **AsyncStorage**, **MMKV** o `expo-sqlite/kv-store` | Clave-valor, como `localStorage`. |
+| Tokens, contraseñas, claves | **expo-secure-store** | Cifrado por el sistema (Keychain / Keystore). |
+| Muchos datos con estructura, búsquedas, offline | **expo-sqlite** (+ Drizzle) | Una base de datos de verdad. |
+| Archivos (fotos, PDFs, descargas) | **expo-file-system** | El disco de la app. |
+
+<Entrevista>
+"¿Dónde guardás el token de sesión?" En **SecureStore** (Keychain en iOS, Keystore en Android), nunca en AsyncStorage: AsyncStorage es texto plano en el disco de la app. Y nada de secretos de la app (claves de APIs privadas) en el bundle: van en el backend.
+</Entrevista>
+
+## Zustand con persistencia
+
+Zustand se usa igual que en la web (lo viste en la [guía de estado](#/estado/zustand)). El middleware `persist` guarda el estado en el almacenamiento que le digas, y lo vuelve a cargar al abrir la app. Las ofertas guardadas van a AsyncStorage:
+
+<Source path="app-expo/src/stores/guardadas.ts" />
+
+**AsyncStorage** es el `localStorage` de React Native: clave-valor, solo strings, pero **asincrónico** (todo devuelve promesas). Para unos cientos de ofertas está perfecto; para miles de registros con búsquedas, SQLite.
+
+## La sesión, cifrada
+
+La sesión usa el mismo `persist`, pero con un adaptador sobre **expo-secure-store**:
+
+<Source path="app-expo/src/lib/almacenamiento-seguro.ts" />
+
+<Source path="app-expo/src/stores/sesion.ts" />
+
+- **`partialize`** elige qué guardar: los datos, no las funciones.
+- SecureStore está pensado para valores **chicos** (un token, un id), no para un JSON grande.
+- En la web no hay Keychain: el adaptador cae a `localStorage` (con Platform, como vimos en [proyecto](#/proyecto)).
+
+### Esperar a que cargue
+
+Como el almacenamiento es asincrónico, durante unos milisegundos al abrir la app Zustand todavía no leyó la sesión: `token` es `null` aunque el usuario esté logueado. Si mostrás el login en ese momento, parpadea. La solución es esperar a que termine de **hidratar** con el splash todavía visible:
+
+```tsx
+// app/_layout.tsx
+SplashScreen.preventAutoHideAsync()   // el splash no se va solo
+
+export default function RootLayout() {
+  const hidratada = useSyncExternalStore(useSesion.persist.onFinishHydration, useSesion.persist.hasHydrated)
+
+  useEffect(() => {
+    if (hidratada) SplashScreen.hideAsync()
+  }, [hidratada])
+
+  if (!hidratada) return null   // mientras tanto se sigue viendo el splash
+  // ...
+}
+```
+
+## MMKV: cuando AsyncStorage es lento
+
+**react-native-mmkv** es un almacenamiento clave-valor hecho en C++ por WeChat: **sincrónico** (sin `await`) y unas 30 veces más rápido que AsyncStorage. Es muy usado en apps grandes, sobre todo para leer preferencias al arrancar sin esperar. Necesita un development build.
+
+```ts
+import { createMMKV } from 'react-native-mmkv'
+
+export const almacen = createMMKV()
+
+almacen.set('tema', 'oscuro')
+const tema = almacen.getString('tema') // sincrónico
+almacen.remove('tema')
+
+// Con Zustand: getItem/setItem/removeItem que llaman a almacen.getString/set/remove
+```
+
+Una alternativa que **sí anda en Expo Go**: `expo-sqlite/kv-store`, con la misma API que AsyncStorage más versiones sincrónicas (`Storage.getItemSync`). Y si una librería espera `localStorage`, `import 'expo-sqlite/localStorage/install'` lo crea sobre SQLite.
+
+## SQLite
+
+Cuando tenés muchos datos con estructura (miles de registros, filtros, ordenar, relaciones), o la app tiene que funcionar offline, se usa **SQLite**: una base de datos de verdad, en un archivo dentro de la app. `expo-sqlite` viene en el Expo SDK y anda en Expo Go:
+
+<Source path="app-expo/src/ejemplos/BaseDeDatos.tsx" />
+
+- **`SQLiteProvider`** abre la base una vez y corre `onInit` (las migraciones) antes de mostrar la app.
+- **`useSQLiteContext()`** da la base en cualquier componente.
+- **`db.sql`** es un *tagged template*: los `${valores}` se mandan como parámetros, así que no hay inyección SQL. La API clásica (`runAsync`, `getAllAsync` con `?`) es igual de segura.
+- Leer y escribir es asincrónico, así que se usa **TanStack Query** igual que con una API: `useQuery` para leer, `useMutation` para escribir, e `invalidateQueries` para que la lista se vuelva a leer.
+- Las **migraciones con `PRAGMA user_version`**: la app se actualiza en teléfonos que tienen la base vieja, así que cada cambio de esquema es un paso numerado.
+
+Si venís de la [guía de MySQL](#/mysql/bienvenida), el SQL es prácticamente el mismo.
+
+<Tip title="Drizzle ORM">
+En proyectos reales se suele usar **Drizzle** sobre expo-sqlite: definís las tablas en TypeScript, las consultas quedan tipadas, `drizzle-kit` genera las migraciones, y `useLiveQuery` re-renderiza el componente cuando cambian los datos.
+</Tip>
+
+## Archivos
+
+`expo-file-system` tiene una API con clases: `File`, `Directory` y `Paths`.
+
+```ts
+import { Directory, File, Paths } from 'expo-file-system'
+
+const archivo = new File(Paths.document, 'postulaciones.json')   // Paths.cache se puede borrar solo
+await archivo.write(JSON.stringify(postulaciones))               // desde el SDK 58, write() es async
+const texto = await archivo.text()
+
+const carpeta = new Directory(Paths.document, 'cvs')
+if (!carpeta.exists) carpeta.create()
+
+// Descargar un archivo
+const pdf = await File.downloadFileAsync('https://ejemplo.com/cv.pdf', carpeta)
+```
+
+`Paths.document` es permanente (y entra en el backup de iCloud); `Paths.cache` es para lo que se puede volver a descargar, y el sistema lo puede borrar si falta espacio.

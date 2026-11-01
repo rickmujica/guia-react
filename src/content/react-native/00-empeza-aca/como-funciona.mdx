@@ -1,0 +1,78 @@
+No hace falta saber cómo funciona por dentro para hacer una app, pero te lo van a preguntar en entrevistas, y ayuda a entender por qué algunas cosas son lentas, por qué algunas librerías no andan en Expo Go y qué significa "Nueva Arquitectura".
+
+## Tres partes: JavaScript, nativo y el puente entre los dos
+
+Una app de React Native es una app nativa normal (un proyecto de Xcode y uno de Android Studio) que trae adentro:
+
+- **Hermes**, un motor de JavaScript hecho para React Native. Compila tu código a *bytecode* al hacer el build, así la app arranca rápido y usa poca memoria. Desde el SDK 56, Expo usa **Hermes v1**.
+- **Tu bundle de JavaScript**: todos tus componentes, empaquetados por **Metro** (el "Vite" de React Native).
+- **El renderer (Fabric)**: cuando React calcula qué cambió, Fabric crea o actualiza las vistas nativas. Tu `<Text>` termina siendo un `UITextView`/`TextView` de verdad.
+
+```text
+Tu código (React, TS) ──Metro──▶ bundle ──Hermes──▶ árbol de React
+                                                      │
+                                     Fabric (C++)     ▼
+                                   vistas nativas: UIView / android.view.View
+```
+
+## La Nueva Arquitectura
+
+Hasta 2024, JavaScript y lo nativo se hablaban por un **bridge**: mensajes JSON asincrónicos, en tandas. Era lento para cosas como medir un elemento o seguir el dedo en un gesto. La **Nueva Arquitectura** lo reemplazó por **JSI** (JavaScript Interface): JavaScript llama funciones de C++ directamente, de forma sincrónica si hace falta, sin serializar nada.
+
+| Pieza | Qué hace |
+| --- | --- |
+| **JSI** | JavaScript tiene referencias a objetos de C++ y llama sus métodos directo. |
+| **Fabric** | El renderer nuevo: soporta las features concurrentes de React 18/19 (`useTransition`, Suspense) y medir el layout sincrónicamente. |
+| **TurboModules** | Los módulos nativos (cámara, almacenamiento…) se cargan recién cuando los usás. |
+| **Codegen** | Genera el código que une los tipos de TypeScript con el lado nativo. |
+
+Desde el **SDK 55** la arquitectura vieja ya no existe: todas las librerías que uses tienen que ser compatibles con la nueva. Las populares lo son hace rato.
+
+<Entrevista>
+"¿Qué es la Nueva Arquitectura?" Respuesta corta: reemplaza el bridge asincrónico (mensajes JSON) por JSI, que permite llamar código nativo directo desde JavaScript; Fabric es el nuevo renderer y TurboModules los módulos nativos con carga diferida. El resultado: menos latencia, layout sincrónico, y soporte para las features concurrentes de React.
+</Entrevista>
+
+## Hilos: por qué una animación se traba
+
+React Native usa principalmente dos hilos:
+
+- **El hilo de JavaScript**: corre React, tus componentes, tus `useEffect`, tus `fetch`.
+- **El hilo principal (UI)**: dibuja la pantalla y recibe los toques.
+
+Si el hilo de JS está ocupado (un render enorme, un `JSON.parse` de 5 MB, un loop pesado), todo lo que dependa de él se congela: un botón tarda en responder, una animación hecha con `setState` salta. Por eso las animaciones y gestos serios corren en el hilo de UI con **Reanimated** (lo vemos en [interacción](#/interaccion)) y las listas largas virtualizan las filas.
+
+La meta es **60 cuadros por segundo** (120 en pantallas ProMotion): unos 16 ms por cuadro.
+
+## Por qué Expo
+
+Podés crear una app con React Native "pelado" (`npx @react-native-community/cli init`), pero tendrías que resolver vos la navegación, los íconos, el splash, los permisos, las builds, las firmas… Expo es el framework que trae todo eso, y la documentación oficial de React Native recomienda empezar con un framework.
+
+| Pieza de Expo | Qué resuelve |
+| --- | --- |
+| **Expo SDK** | Más de 50 librerías (`expo-camera`, `expo-image`, `expo-notifications`…) que funcionan igual en iOS, Android y web. |
+| **Expo Router** | Navegación con archivos, como en Next.js. |
+| **Prebuild (CNG)** | Las carpetas `ios/` y `android/` se **generan** a partir de `app.json`. No las editás a mano ni las subís a git. |
+| **Config plugins** | Cada librería sabe qué cambiar en esos proyectos nativos (permisos, claves). |
+| **Expo Go** | Una app de las tiendas para probar tu proyecto sin compilar nada. |
+| **Development builds** | Tu propia "Expo Go", con tus librerías nativas. |
+| **EAS** | Servicios en la nube: Build, Submit, Update, Workflows. |
+
+<Nota title="CNG: Continuous Native Generation">
+Es la idea más importante de Expo. Las carpetas nativas son un resultado, como `dist/` en Vite: `npx expo prebuild` las genera desde `app.json` y los config plugins. Por eso el `.gitignore` del proyecto tiene `/ios` y `/android`. Si necesitás tocar algo nativo, lo hacés con un config plugin, y el cambio sobrevive a cada actualización del SDK.
+</Nota>
+
+## Expo Go o development build
+
+**Expo Go** es una app que ya trae compiladas todas las librerías del Expo SDK. Por eso podés escanear un QR y ver tu app sin instalar Xcode: tu JavaScript se carga adentro de Expo Go. Es ideal para aprender y para esta guía.
+
+El límite: **solo tiene las librerías nativas que trae**. Si instalás una que no está (por ejemplo `react-native-mmkv`, Stripe o Sentry con código nativo), necesitás un **development build**: una versión de Expo Go hecha con tus dependencias. Se crea con `eas build --profile development` o localmente con `npx expo run:ios` / `npx expo run:android`.
+
+| | Expo Go | Development build |
+| --- | --- | --- |
+| Instalar | Desde la tienda | La compilás vos (EAS o local) |
+| Librerías nativas | Solo las del Expo SDK | Cualquiera |
+| Ícono, nombre, splash, permisos propios | No (son los de Expo Go) | Sí |
+| Notificaciones push en Android | No | Sí |
+| Para | Aprender, prototipos | Cualquier proyecto real |
+
+En la práctica: arrancás con Expo Go, y el día que agregás una librería nativa que no está, pasás a un development build. Tu código no cambia.

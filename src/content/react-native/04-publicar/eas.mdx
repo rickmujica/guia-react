@@ -1,0 +1,98 @@
+Hasta acá corriste la app en Expo Go. Para instalarla como una app de verdad (con su ícono, su nombre y sus permisos) o subirla a las tiendas, hay que **compilarla**: generar un `.ipa` para iOS y un `.aab` o `.apk` para Android, firmados con tus certificados. **EAS Build** lo hace en la nube, así que no necesitás una Mac para compilar para iOS.
+
+## EAS en una tabla
+
+| Servicio | Qué hace |
+| --- | --- |
+| **EAS Build** | Compila tu app en servidores de Expo (macOS para iOS, Linux para Android) y maneja las firmas. |
+| **EAS Submit** | Sube la build a App Store Connect y a Google Play Console. |
+| **EAS Update** | Manda cambios de JavaScript a las apps ya instaladas, sin pasar por la tienda ([actualizaciones](#/actualizaciones)). |
+| **EAS Workflows** | CI/CD: encadena build, tests, submit y update cuando hacés push. |
+
+Tienen un plan gratuito (con un límite de builds por mes y una cola más lenta) que alcanza para proyectos personales. Y todo se puede hacer sin EAS: `npx expo prebuild` genera los proyectos nativos y compilás con Xcode y Android Studio, o `eas build --local` usa EAS en tu máquina.
+
+## Empezar
+
+```bash
+npm install --global eas-cli
+eas login              # tu cuenta de expo.dev
+eas init               # crea el proyecto en EAS y agrega su id a app.json
+eas build:configure    # crea eas.json
+```
+
+## eas.json: los perfiles
+
+Un **perfil** es una forma de compilar. Lo normal es tener tres:
+
+<Source path="app-expo/eas.json" />
+
+| Perfil | Para qué | Cómo se instala |
+| --- | --- | --- |
+| **development** | Tu propia "Expo Go", con tus librerías nativas. Se conecta a `npx expo start`. | Link o QR (distribución interna) |
+| **preview** | Una build de release para que la pruebe tu equipo o un cliente. | Link o QR; en Android, un `.apk` |
+| **production** | La que va a las tiendas. | Por la tienda (TestFlight / Play) |
+
+- **`distribution: "internal"`** genera una build que se instala con un link, sin tienda. En iOS, los iPhone tienen que estar **registrados** en tu cuenta de Apple (`eas device:create` arma un link para registrarlos).
+- **`channel`** une la build con un canal de [EAS Update](#/actualizaciones).
+- **`env`** define variables al compilar: acá `APP_VARIANT`, que usa el [`app.config.ts` de ejemplo](#/proyecto) para cambiar el nombre y el identificador, y poder tener la versión de desarrollo y la de producción instaladas a la vez.
+- **`autoIncrement`** + **`appVersionSource: "remote"`**: EAS lleva la cuenta del número de build y lo sube solo en cada build de producción.
+
+```bash
+eas build --profile development --platform ios
+eas build --profile preview --platform android
+eas build --profile production --platform all
+```
+
+Al terminar, EAS te da un link y un QR para instalar la build.
+
+<Tip title="Sin cuenta de Apple, para el simulador">
+Para instalar en un iPhone de verdad necesitás la cuenta paga de Apple (USD 99 por año), aunque sea una build interna. Para el **simulador** de iOS no: un perfil con `"ios": { "simulator": true }` compila sin firmar.
+</Tip>
+
+## Versión y número de build
+
+Cada tienda pide dos números:
+
+| | Qué es | Dónde | Ejemplo |
+| --- | --- | --- | --- |
+| **Versión** | La que ven los usuarios. La subís vos. | `version` en `app.json` | `1.2.0` |
+| **Número de build** | Un entero que tiene que crecer en **cada** subida, aunque la versión sea la misma. | `ios.buildNumber` / `android.versionCode` (o EAS, con `autoIncrement`) | `14` |
+
+Si subís dos builds con el mismo número, la tienda rechaza la segunda. Con `appVersionSource: "remote"` y `autoIncrement`, no te tenés que acordar.
+
+## Credenciales: las firmas
+
+Toda app tiene que estar **firmada**, para que el sistema sepa que viene de vos. Es la parte más temida del desarrollo móvil, y EAS la resuelve casi entera:
+
+- **iOS**: un certificado de distribución y un *provisioning profile* por app. EAS los crea en tu cuenta de Apple la primera vez (te pide tu Apple ID) y los guarda.
+- **Android**: un *keystore* (un archivo con la clave). EAS lo genera y lo guarda. Con **Play App Signing** (obligatorio para apps nuevas), Google firma la versión final, y tu keystore es solo la "clave de subida".
+
+```bash
+eas credentials   # ver, descargar o cambiar las credenciales
+```
+
+<Ojo title="Hacé un backup del keystore">
+Si perdés la clave de subida de Android, se puede pedir a Google que la reemplace, pero es un trámite. Descargá un backup con `eas credentials` y guardalo en un lugar seguro (no en git).
+</Ojo>
+
+## Variables de entorno y secretos de build
+
+Las variables `EXPO_PUBLIC_` del `.env` sirven en tu máquina, pero el `.env` no se sube a git y EAS compila desde tu repo. Para las builds en la nube, las variables se guardan en EAS por ambiente (development, preview, production):
+
+```bash
+eas env:create --name EXPO_PUBLIC_API_URL --value https://api.ejemplo.com --environment production
+eas env:create --name SENTRY_AUTH_TOKEN --value xxxx --environment production --visibility secret
+eas env:pull --environment development   # las baja a tu .env local
+```
+
+Una variable **secreta** sirve para el proceso de build (subir source maps a Sentry, bajar un paquete privado), pero nunca debe terminar en el código de la app.
+
+## Development builds en el día a día
+
+Cuando tu app necesita una librería nativa que no está en Expo Go, el flujo pasa a ser:
+
+1. `eas build --profile development --platform android` (una vez, o cuando cambiás algo nativo).
+2. Instalás esa build en el teléfono.
+3. `npx expo start` y la abrís: funciona igual que Expo Go, con Fast Refresh, pero con tus librerías.
+
+Solo hace falta compilar de nuevo cuando **agregás o actualizás una librería nativa** o cambiás `app.json` (permisos, plugins). Si solo cambiás JavaScript, alcanza con recargar.

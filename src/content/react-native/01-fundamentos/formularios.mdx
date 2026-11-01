@@ -1,0 +1,104 @@
+Los formularios en el celular tienen dos problemas que en la web casi no existen: **el teclado tapa la mitad de la pantalla** y **cada campo necesita el teclado correcto**. Un formulario cómodo en el teléfono se nota en esos detalles.
+
+## TextInput
+
+```tsx
+const [email, setEmail] = useState('')
+
+<TextInput
+  value={email}
+  onChangeText={setEmail}          // recibe el texto directo, no un evento
+  placeholder="tu@email.com"
+  placeholderTextColor="#94a3b8"   // en Android el gris por defecto casi no se ve
+  keyboardType="email-address"     // el teclado con @
+  autoCapitalize="none"            // si no, la primera letra va en mayúscula
+  autoCorrect={false}
+  autoComplete="email"             // sugerencias y autocompletado del sistema
+  textContentType="emailAddress"   // lo mismo, para iOS
+  returnKeyType="next"             // el texto de la tecla Enter
+  onSubmitEditing={() => passwordRef.current?.focus()}
+/>
+```
+
+Las diferencias con un `<input>`:
+
+- **`onChangeText`** recibe el string. Existe `onChange`, pero casi nunca se usa.
+- **No hay `type`**: el tipo de teclado sale de `keyboardType` (`'default'`, `'email-address'`, `'numeric'`, `'number-pad'`, `'decimal-pad'`, `'phone-pad'`, `'url'`) y la contraseña de `secureTextEntry`.
+- **`multiline`** lo convierte en un textarea.
+- **El estilo no viene de fábrica**: sin `style`, un `TextInput` es invisible (sin borde ni fondo).
+
+### Autocompletar contraseñas y códigos
+
+Con `autoComplete` y `textContentType`, iOS y Android ofrecen las contraseñas guardadas, sugieren una segura al registrarse y leen el código que llega por SMS:
+
+| Campo | `autoComplete` | `textContentType` (iOS) |
+| --- | --- | --- |
+| Email de login | `'email'` | `'username'` |
+| Contraseña | `'current-password'` | `'password'` |
+| Contraseña nueva | `'new-password'` | `'newPassword'` |
+| Código por SMS | `'one-time-code'` (iOS), `'sms-otp'` (Android) | `'oneTimeCode'` |
+| Nombre | `'name'` | `'name'` |
+| Teléfono | `'tel'` | `'telephoneNumber'` |
+
+Es un detalle que los revisores de las tiendas y los usuarios notan. Y para que iOS asocie las contraseñas con tu sitio web, se configuran los *associated domains* en `app.json`.
+
+## El flujo entre campos
+
+En un formulario de celular, la tecla Enter del teclado dice **"Siguiente"** y te lleva al próximo campo; en el último dice **"Enviar"** y envía. Se hace con refs:
+
+<DemoNativa file="formularios/Postulacion" title="Formulario, validación y teclado" />
+
+Tres detalles del código:
+
+1. Las refs se tipan con **`TextInputInstance`**. Desde React Native 0.87 los tipos son más estrictos ("Strict TypeScript API") y `useRef<TextInput>` ya no es correcto. Si venís de la [guía de TypeScript](#/typescript/refs), es la misma idea que `useRef<HTMLInputElement>`.
+2. **`submitBehavior="submit"`** en los campos intermedios hace que al apretar "Siguiente" el teclado no se cierre y se vuelva a abrir.
+3. Los errores se muestran **recién después del primer intento** de enviar: marcar en rojo un campo que el usuario todavía no tocó es molesto.
+
+## El teclado que tapa todo
+
+Cuando aparece el teclado, ocupa un 40 % de la pantalla y puede tapar el campo donde estás escribiendo o el botón de enviar.
+
+**`KeyboardAvoidingView`** viene con React Native: achica o corre su contenido cuando aparece el teclado. En iOS se usa `behavior="padding"`; en Android el sistema ya hace algo parecido solo.
+
+```tsx
+<KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+  <ScrollView keyboardShouldPersistTaps="handled">{/* campos */}</ScrollView>
+</KeyboardAvoidingView>
+```
+
+- **`keyboardShouldPersistTaps="handled"`** en el `ScrollView`: sin esto, tocar el botón "Enviar" con el teclado abierto solo cierra el teclado, y hay que tocarlo dos veces.
+- **`Keyboard.dismiss()`** cierra el teclado desde código.
+- **`keyboardDismissMode="on-drag"`** lo cierra al scrollear.
+
+<Tip title="react-native-keyboard-controller">
+`KeyboardAvoidingView` tiene sus mañas (sobre todo en Android, con las apps de borde a borde). En proyectos reales se usa **react-native-keyboard-controller**: su `KeyboardAwareScrollView` scrollea solo hasta el campo activo, `KeyboardToolbar` agrega la barra con "anterior / siguiente / listo", y anima al mismo ritmo que el teclado. Viene incluida en Expo Go.
+</Tip>
+
+## react-hook-form + Zod
+
+Para formularios de verdad, la combinación más usada es la misma que en la web: **react-hook-form** maneja el estado y los errores, y **Zod** define las reglas. La diferencia: `TextInput` no es un `<input>`, así que en vez de `register` se usa **`Controller`**. Así es el login de la app:
+
+<Source path="app-expo/src/app/login.tsx" highlight="18-22,50-70" />
+
+- `zodResolver(esquema)` conecta las reglas de Zod; `z.infer` saca el tipo de los datos.
+- El `ref` que da `Controller` va al `TextInput`, y así `setFocus('password')` pasa al campo siguiente.
+- `setError('root', …)` muestra un error que no es de un campo ("contraseña incorrecta").
+- El botón llama `handleSubmit(entrar)()` dentro de una función: con los tipos estrictos de React Native, `onPress={handleSubmit(entrar)}` no compila, porque el evento de un toque no es el de un formulario web.
+
+Una alternativa que crece: **TanStack Form**, con validación por campo y muy buen tipado.
+
+<Nota title="¿Y las Actions de React 19?">
+`<form action={...}>` es de la web: en React Native no hay `<form>`. Pero `useActionState`, `useOptimistic` y `useTransition` funcionan igual: llamás a la acción desde el `onPress`. Lo de la [guía de React 19](#/react/use-optimistic) aplica tal cual.
+</Nota>
+
+## Selects, fechas y otros controles
+
+No hay `<select>` ni `<input type="date">`. Las opciones:
+
+| Necesitás | Opción |
+| --- | --- |
+| Elegir una opción de pocas | Botones tipo chip, o un menú nativo con `@expo/ui` |
+| Elegir de una lista larga | Una ruta modal o un bottom sheet con una lista y buscador |
+| Una fecha u hora | `@react-native-community/datetimepicker`, o el `DateTimePicker` de `@expo/ui` |
+| Un menú de acciones (iOS) | `ActionSheetIOS.showActionSheetWithOptions` |
+| Un slider | `@expo/ui` o `@react-native-community/slider` |

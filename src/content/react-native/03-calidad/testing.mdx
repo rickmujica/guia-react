@@ -1,0 +1,107 @@
+Los tests en React Native son los mismos de la web: **Jest** como runner y **Testing Library** para renderizar componentes y usarlos como lo haría una persona. Lo que cambia: los módulos nativos no existen en Node, así que se reemplazan por versiones falsas (*mocks*).
+
+## Jest con jest-expo
+
+`jest-expo` es una configuración de Jest preparada para Expo: transforma el código, simula los módulos del Expo SDK y entiende los archivos `.ios.tsx` / `.android.tsx`. En el `package.json` de la app:
+
+```json
+"scripts": { "test": "jest" },
+"jest": {
+  "preset": "jest-expo",
+  "transformIgnorePatterns": [
+    "/node_modules/(?!(.pnpm|react-native|@react-native|@react-native-community|expo|@expo|@shopify/flash-list))"
+  ]
+}
+```
+
+`transformIgnorePatterns` dice qué paquetes de `node_modules` hay que transformar: muchas librerías de React Native se publican sin compilar, y si una tira *"SyntaxError: Cannot use import statement outside a module"*, hay que agregarla a esa lista.
+
+```bash
+npx expo install jest-expo jest @types/jest @testing-library/react-native test-renderer -- --save-dev
+npm test
+```
+
+## Testing Library
+
+`@testing-library/react-native` tiene la misma filosofía que en la web: buscás elementos por lo que ve el usuario (texto, label, rol) y los usás con `userEvent`. Este es el test del formulario de postulación:
+
+<Source path="app-expo/src/demos/formularios/__tests__/Postulacion.test.tsx" />
+
+- La versión 14 es **asincrónica**: `await render(...)`.
+- **`userEvent.setup()`** simula a una persona: `user.press` (con pressIn y pressOut, como un dedo de verdad), `user.type` (letra por letra), `user.scrollTo`.
+- **Consultas**: `getByText`, `getByRole('button', { name: 'Entrar' })`, `getByLabelText`, `getByPlaceholderText`, `getByDisplayValue`. Con `findBy…` espera a que aparezca (para lo asincrónico); con `queryBy…` devuelve `null` si no está.
+- **`toBeOnTheScreen()`**, `toHaveTextContent`, `toBeDisabled` vienen incluidos.
+- Con **relojes falsos** (`jest.useFakeTimers()`), `jest.advanceTimersByTime` adelanta el tiempo sin esperarlo de verdad.
+
+## Mocks de módulos nativos
+
+`jest-expo` ya simula los módulos de Expo. Para otras librerías nativas, muchas traen su propio mock. Así se testea el store de guardadas, que usa AsyncStorage:
+
+<Source path="app-expo/src/stores/__tests__/guardadas.test.ts" />
+
+Un store de Zustand se testea sin renderizar nada: `getState()` y sus acciones.
+
+## Tests de navegación
+
+`expo-router/testing-library` arma un router en memoria con las pantallas que le pases, y agrega matchers como `toHavePathname`:
+
+<Source path="app-expo/src/app/__tests__/navegacion.test.tsx" />
+
+Este test usa las pantallas reales de la app (la lista y el detalle) con la API falsa: escribe, toca una oferta, y comprueba que se abrió `/oferta/5` con los datos correctos.
+
+## Tests de punta a punta con Maestro
+
+Jest corre en Node: no prueba la app de verdad en un teléfono. Para eso están los tests **E2E** (*end to end*), que abren la app en un simulador y la usan. **Maestro** es el más usado hoy con Expo: los tests son archivos YAML, sin código.
+
+```yaml
+# app-expo/.maestro/login.yaml
+appId: com.ejemplo.busquedarn
+---
+- launchApp:
+    clearState: true
+- tapOn: "Email"
+- inputText: "ana@ejemplo.com"
+- tapOn: "Contraseña"
+- inputText: "expo1234"
+- tapOn: "Entrar"
+- assertVisible: "Ofertas"
+- tapOn: "Expo Developer"
+- assertVisible: "Hasta US$ 3600 por mes"
+```
+
+```bash
+maestro test .maestro/login.yaml   # con la app instalada en el simulador
+maestro studio                     # una interfaz para armar los pasos tocando la app
+```
+
+Se pueden correr en la nube con **EAS Workflows** después de cada build. La alternativa clásica es **Detox**, más potente pero bastante más difícil de configurar.
+
+## Qué testear
+
+- **Lógica pura** (validaciones, cálculos, stores): tests unitarios, rápidos y baratos.
+- **Componentes con comportamiento** (formularios, listas con filtro): Testing Library.
+- **Flujos críticos** (login, comprar, postularse): uno o dos tests E2E con Maestro.
+- No vale la pena testear que un `View` tiene cierto color.
+
+## Depurar
+
+Con `npx expo start` corriendo, apretá **`j`** para abrir **React Native DevTools** (las DevTools de Chrome, adaptadas):
+
+| Panel | Para qué |
+| --- | --- |
+| **Console** | Los `console.log` (también salen en la terminal), y ejecutar código en la app. |
+| **Sources** | Breakpoints y `debugger;` en tu código TypeScript. |
+| **Network** | Los pedidos de red que hace la app. |
+| **Components** | El árbol de React con props y estado, como React DevTools en la web. |
+| **Profiler** | Qué se renderizó, cuántas veces y cuánto tardó. |
+| **Memory** | Para buscar fugas de memoria. |
+
+En el teléfono, el **menú de desarrollo** (sacudir el teléfono, o `m` en la terminal) tiene el **Element Inspector** (tocás algo y ves sus estilos), el **Perf Monitor** y recargar.
+
+Otras herramientas:
+
+- **LogBox**: las advertencias amarillas y los errores rojos en pantalla, con el stack trace.
+- **Radon IDE**: una extensión de VS Code y Cursor (de Software Mansion) con el simulador adentro del editor, breakpoints e inspector.
+- **Expo Atlas**: qué ocupa lugar en el bundle.
+- **Logs nativos**: si la app se cierra sin error de JavaScript, el problema es nativo. Mirá los logs del sistema: Console.app en Mac para iOS, `adb logcat` para Android.
+- **Sentry**: errores en producción, con el stack trace de tu código (subiendo los *source maps* en cada build).
