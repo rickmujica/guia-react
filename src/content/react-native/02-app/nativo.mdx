@@ -1,0 +1,152 @@
+La razón para hacer una app y no una página web suele ser esto: la cámara, las notificaciones, la ubicación, la biometría. El Expo SDK tiene una librería para cada cosa, con la misma API en iOS y Android, y casi todas andan en Expo Go.
+
+## Permisos: cómo y cuándo pedirlos
+
+Para la cámara, la ubicación, las notificaciones, los contactos o el micrófono, el sistema le pregunta al usuario. Y en iOS, si dice que no, **no podés volver a preguntar**: solo queda mandarlo a Ajustes. Por eso el *cuándo* importa tanto como el *cómo*.
+
+1. **Pedí en el momento en que se usa**, no al abrir la app. "Sacar foto" pide la cámara; la pantalla de bienvenida no pide nada.
+2. **Explicá antes** para qué lo querés, si no es obvio ("Activá las notificaciones para enterarte cuando te respondan").
+3. **Manejá el "no"**: la app tiene que seguir funcionando, y ofrecer ir a Ajustes con `Linking.openSettings()`.
+4. **Pedí solo lo que usás.** Cada permiso de más es un motivo de rechazo en la revisión y una razón para que el usuario desconfíe.
+
+Cada librería tiene un hook que devuelve el estado y la función para pedir:
+
+```tsx
+const [permiso, pedirPermiso] = useCameraPermissions()
+// permiso: null (cargando) | { granted, canAskAgain, status: 'granted' | 'denied' | 'undetermined' }
+```
+
+### Los textos de los permisos
+
+En iOS, cada permiso muestra un texto tuyo explicando para qué lo usás, y **Apple rechaza la app si el texto es vago** ("La app necesita la cámara"). Tiene que decir para qué, en concreto. Se configuran en `app.json` con el config plugin de cada librería:
+
+```json
+"plugins": [
+  ["expo-camera", {
+    "cameraPermission": "Usamos la cámara para que saques tu foto de perfil y para leer códigos QR de ofertas.",
+    "microphonePermission": false,
+    "recordAudioAndroid": false
+  }],
+  ["expo-location", {
+    "locationWhenInUsePermission": "Usamos tu ubicación para mostrarte ofertas de tu ciudad.",
+    "locationAlwaysPermission": false
+  }]
+]
+```
+
+Poner `false` **saca** ese permiso: la app de la guía no graba audio, así que bloquea el micrófono que `expo-camera` agrega por defecto. Revisá siempre qué permisos agregan tus librerías: con `npx expo config --type introspect` ves el `Info.plist` y el `AndroidManifest.xml` que se van a generar.
+
+## Fotos: galería y cámara
+
+`expo-image-picker` abre el selector del sistema. Para la **galería no hace falta permiso**: el selector moderno de iOS y Android le da a la app solo las fotos que el usuario eligió. La **cámara sí** lo necesita:
+
+<Source path="app-expo/src/app/(tabs)/perfil.tsx" highlight="17-37" />
+
+`allowsEditing` con `aspect: [1, 1]` deja recortar en cuadrado, ideal para una foto de perfil. `quality: 0.8` comprime un poco: una foto de un iPhone puede pesar 5 MB.
+
+## Cámara propia y códigos QR
+
+Para mostrar la cámara dentro de tu pantalla (un escáner, un filtro), `expo-camera` tiene `CameraView`:
+
+<Source path="app-expo/src/ejemplos/Escaner.tsx" />
+
+Para cosas más avanzadas (procesar cada cuadro, reconocer texto o caras en tiempo real) se usa **react-native-vision-camera**, que necesita un development build.
+
+## Ubicación
+
+<Source path="app-expo/src/ejemplos/Ubicacion.tsx" />
+
+- **`Accuracy.Balanced`** alcanza para saber la ciudad y gasta mucho menos batería que `High` (GPS).
+- La ubicación **en segundo plano** (cuando la app está cerrada) es otro permiso, mucho más difícil de que te aprueben: Apple y Google piden justificarlo y Google exige un video mostrando la función. Si no lo necesitás de verdad, no lo pidas.
+
+## Notificaciones
+
+Hay dos tipos:
+
+- **Locales**: las programa la app misma ("recordatorio en 3 días"). No necesitan servidor.
+- **Push (remotas)**: las manda tu servidor. El teléfono se registra, obtiene un **token**, se lo manda a tu backend, y el backend lo usa para mandar la notificación.
+
+<Source path="app-expo/src/ejemplos/notificaciones.ts" />
+
+El token que devuelve `getExpoPushTokenAsync` es del **servicio de push de Expo**: tu backend le manda la notificación a Expo, y Expo se la pasa a Apple (APNs) o Google (FCM). Es un `POST` simple:
+
+```ts
+// En tu backend de Node
+await fetch('https://exp.host/--/api/v2/push/send', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    to: 'ExponentPushToken[xxxxxxxxxxxx]',
+    title: 'Nueva oferta',
+    body: 'Expo Developer en Yerba Labs: hasta US$ 3600',
+    data: { url: '/oferta/5' },  // al tocarla, la app abre esa pantalla
+  }),
+})
+```
+
+Para que funcione, EAS necesita las credenciales de Apple (una clave APNs, que crea solo al compilar) y de Firebase (subís la clave de FCM a tu proyecto de EAS). Si preferís no depender de Expo, también podés usar el token nativo (`getDevicePushTokenAsync`) con FCM o APNs directo, o servicios como **OneSignal**.
+
+<Ojo title="Push en Expo Go">
+Las notificaciones push **no funcionan en Expo Go en Android**: necesitás un development build. Las locales sí. Y en simuladores no llegan push remotas (en el simulador de iOS se pueden simular arrastrando un archivo `.apns`).
+</Ojo>
+
+## Compartir, abrir links y otras utilidades
+
+```tsx
+import { Linking, Share } from 'react-native'
+import * as Clipboard from 'expo-clipboard'
+import * as WebBrowser from 'expo-web-browser'
+
+await Share.share({ message: 'Mirá esta oferta: https://ejemplo.com/oferta/5' })  // la hoja de compartir del sistema
+await Linking.openURL('mailto:rrhh@empresa.com')          // también tel:, sms:, https:, y otras apps
+await Linking.openSettings()                              // los ajustes de tu app
+await WebBrowser.openBrowserAsync('https://ejemplo.com')  // un navegador dentro de la app (Safari View / Custom Tabs)
+await Clipboard.setStringAsync('ABC123')
+```
+
+Para links a páginas externas (términos, ayuda), `WebBrowser.openBrowserAsync` es mejor que sacar al usuario a Safari o Chrome.
+
+## Más librerías del Expo SDK
+
+| Necesitás | Librería |
+| --- | --- |
+| Video y audio | `expo-video`, `expo-audio` |
+| Mapas | `expo-maps` (Apple Maps / Google Maps nativos) o `react-native-maps` |
+| Contactos, calendario | `expo-contacts`, `expo-calendar` |
+| Sensores (acelerómetro, giroscopio, podómetro) | `expo-sensors` |
+| Elegir un archivo (un PDF) | `expo-document-picker` |
+| Info del teléfono y la app | `expo-device`, `expo-application`, `expo-constants` |
+| Idioma y región del usuario | `expo-localization` |
+| Mantener la pantalla encendida | `expo-keep-awake` |
+| Tareas en segundo plano | `expo-background-task` (el sistema decide cuándo, cada 15 minutos como mínimo) |
+| Pedir una reseña en la tienda | `expo-store-review` |
+| Widgets, Live Activities | `expo-widgets` (y librerías de la comunidad) |
+
+## Cuando no existe una librería
+
+Dos herramientas de Expo para tocar lo nativo **sin perder el prebuild**:
+
+**Config plugins**: una función que modifica el proyecto nativo generado (el `Info.plist`, el `AndroidManifest.xml`, el `build.gradle`). Así hacen las librerías para agregar sus permisos, y podés escribir los tuyos:
+
+```js
+// plugins/con-clave-de-mapas.js
+const { withInfoPlist } = require('expo/config-plugins')
+
+module.exports = function conClaveDeMapas(config, { clave }) {
+  return withInfoPlist(config, (c) => {
+    c.modResults.MiClaveDeMapas = clave
+    return c
+  })
+}
+```
+
+```json
+// app.json
+"plugins": [["./plugins/con-clave-de-mapas.js", { "clave": "abc123" }]]
+```
+
+**Expo Modules API**: para escribir tu propio módulo nativo en **Swift** y **Kotlin** con una API simple, sin tocar el proyecto a mano. `npx create-expo-module@latest --local` crea la carpeta `modules/` con el esqueleto. Así están hechas todas las librerías `expo-*`.
+
+<Tip title="Componentes DOM: código web adentro de la app">
+Con la directiva `'use dom'` al principio de un archivo, Expo renderiza ese componente con React DOM dentro de un WebView. Sirve para reutilizar algo que solo existe para la web (un editor de texto, una librería de gráficos) sin reescribirlo. No es para pantallas enteras, pero salva en casos puntuales.
+</Tip>

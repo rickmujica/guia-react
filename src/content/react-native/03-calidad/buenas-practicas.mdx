@@ -1,0 +1,112 @@
+Lo que separa una app que "anda" de una que se siente bien en el teléfono de cualquier persona (incluido un Android de gama baja con la letra agrandada).
+
+## Estructura del proyecto
+
+```text
+src/
+├── app/            ← solo pantallas y layouts (Expo Router)
+├── components/     ← componentes reutilizables (TarjetaOferta, Boton, Estados)
+├── features/       ← en apps grandes: una carpeta por funcionalidad (ofertas/, perfil/)
+├── hooks/          ← hooks propios (use-ofertas)
+├── stores/         ← estado global (zustand)
+├── api/            ← el cliente de la API y las funciones que llaman al backend
+├── lib/            ← utilidades y adaptadores (almacenamiento, i18n)
+└── constants/      ← tema, colores, espacios
+```
+
+- **En `app/` solo rutas**: cualquier archivo ahí se convierte en pantalla. Las pantallas deberían ser finas: leen parámetros, llaman hooks y arman componentes.
+- **Un tema centralizado** (colores, espacios, tipografía) en lugar de números mágicos por todos lados. La app de la guía lo tiene en `src/demos/tema.ts`.
+- **Alias `@/`** en lugar de `../../../components`.
+- **TypeScript estricto** y `experiments.typedRoutes`: los errores de rutas y de props aparecen antes de abrir la app.
+
+## React Compiler: chau useMemo y memo
+
+La plantilla de Expo trae el [React Compiler](#/react/react-compiler) activado (`experiments.reactCompiler` en `app.json`). Memoiza componentes y valores solo, así que **no hace falta** `useMemo`, `useCallback` ni `memo` para evitar re-renders. Lo que sí hace falta: seguir las reglas de React (no mutar props ni estado, hooks siempre en el mismo orden). Si un componente rompe las reglas, el compilador lo saltea sin romper nada.
+
+## Rendimiento
+
+**Primero medí**: el monitor de rendimiento (menú de desarrollo → *Perf Monitor*) muestra los cuadros por segundo del hilo de UI y del de JavaScript, y el profiler de React Native DevTools muestra qué se re-renderizó. Siempre probá en una **build de release** (`npx expo run:android --variant release`) y en un **Android barato**: el modo desarrollo es mucho más lento, y tu iPhone es mucho más rápido que el teléfono promedio de tus usuarios.
+
+Lo que más impacta:
+
+1. **Listas**: FlashList o Legend List, filas livianas, imágenes con tamaño fijo ([listas](#/listas)).
+2. **Re-renders de árboles grandes**: con Zustand, elegí solo lo que usás (`useSesion((s) => s.nombre)`, no `useSesion()` entero). Con Context, separá los que cambian seguido.
+3. **Imágenes**: `expo-image` con caché, y pedile al servidor la imagen del tamaño que mostrás (no una foto de 4000 px para un avatar de 48).
+4. **Animaciones y gestos** en el hilo de UI con Reanimated y Gesture Handler, nunca con `setState` en cada cuadro.
+5. **Arranque**: no cargues todo antes de mostrar la primera pantalla. El splash queda hasta que tengas lo mínimo (la sesión), y el resto se carga después.
+6. **Trabajo pesado**: algo que bloquea el hilo de JS más de 16 ms se nota. Partilo, movelo al servidor, o usá `useTransition` / `useDeferredValue` para que la UI responda primero (como el buscador de la app).
+7. **Tamaño del bundle**: `EXPO_ATLAS=true npx expo export` y después `npx expo-atlas .expo/atlas.jsonl` muestra qué ocupa lugar. Una librería de fechas entera o un SDK enorme se notan en el arranque.
+
+<Nota title="InteractionManager ya no existe">
+En código viejo vas a ver `InteractionManager.runAfterInteractions(() => …)` para hacer algo después de una animación. Se eliminó en el SDK 58: usá `requestIdleCallback`, `useTransition`, o el evento `transitionEnd` de la navegación.
+</Nota>
+
+## Accesibilidad
+
+Una de cada cinco personas usa alguna función de accesibilidad: letra agrandada, VoiceOver (iOS), TalkBack (Android), contraste alto, reducir movimiento. Y las tiendas lo miran cada vez más.
+
+```tsx
+<Pressable
+  onPress={alternar}
+  accessibilityRole="button"                         // o role="button"
+  accessibilityLabel={guardada ? 'Quitar de guardadas' : 'Guardar oferta'}  // o aria-label
+  accessibilityState={{ selected: guardada }}
+  hitSlop={12}
+>
+  <Text>{guardada ? '♥' : '♡'}</Text>   {/* sin label, VoiceOver diría "corazón blanco" */}
+</Pressable>
+
+<Text accessibilityRole="header">Ofertas</Text>      {/* los lectores de pantalla saltan entre encabezados */}
+```
+
+- **Todo lo tocable que no tiene texto** (un ícono) necesita `accessibilityLabel`.
+- **Áreas tocables de 44×44 puntos** como mínimo (48 en Android): `hitSlop` o padding.
+- **La letra agrandada**: probá la app con el tamaño de letra al máximo. Los textos tienen que poder crecer (nada de alturas fijas en contenedores de texto).
+- **Contraste**: 4,5:1 para texto normal. Ese gris clarito sobre blanco no se lee al sol.
+- **Probalo**: activá VoiceOver o TalkBack y recorré tu app con los ojos cerrados. Es la mejor prueba.
+
+React Native acepta también las props de la web: `role`, `aria-label`, `aria-hidden`, `aria-checked`, etc.
+
+## Errores
+
+- **Error boundaries por ruta**: una pantalla puede exportar `ErrorBoundary` y Expo Router lo muestra si esa pantalla explota, en lugar de cerrar la app.
+
+```tsx
+// app/oferta/[id].tsx
+export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
+  return <ErrorConReintento mensaje={error.message} reintentar={retry} />
+}
+```
+
+- **Estados de carga, error y vacío** en cada pantalla que trae datos (la app tiene `Cargando` y `ErrorConReintento` en `components/Estados.tsx`).
+- **Sentry** (o similar) en producción: sin eso, te enterás de los crashes por las reseñas de una estrella.
+
+## Seguridad
+
+- **No hay secretos en la app**: todo lo que va en el bundle (incluidas las variables `EXPO_PUBLIC_`) se puede leer.
+- **Tokens en SecureStore**, nunca en AsyncStorage, y nunca en los logs.
+- **HTTPS siempre.**
+- **Validá los parámetros de los deep links**: cualquiera puede armar un link `busquedarn://…` con lo que quiera.
+- La seguridad de verdad está en el **backend**: validar el token y los permisos en cada endpoint.
+
+## Respetar las convenciones de cada plataforma
+
+- **Android tiene botón (o gesto) "atrás"**: los modales tienen que cerrarse con él (`onRequestClose`), y la navegación de Expo Router ya lo maneja.
+- **iOS tiene el gesto de deslizar desde el borde** para volver: no lo rompas con un gesto horizontal propio en toda la pantalla.
+- **Componentes del sistema** cuando existen: pestañas nativas, menús, selectores de fecha, la hoja de compartir.
+- **Modo oscuro y letra grande**: los usuarios esperan que la app los respete.
+
+## Errores comunes
+
+| Error | Solución |
+| --- | --- |
+| *Text strings must be rendered within a `<Text>`* | Texto suelto en un `View`, o un `{0 && …}`. |
+| Un texto largo se sale por la derecha | `flex: 1` o `flexShrink: 1` en su contenedor. |
+| La lista tarda en aparecer | `ScrollView` con `map`: usá FlatList/FlashList. |
+| Hay que tocar dos veces el botón con el teclado abierto | `keyboardShouldPersistTaps="handled"`. |
+| El contenido queda debajo de la isla o la barra de gestos | Safe area. |
+| Una librería nativa "no se encuentra" en Expo Go | Necesita un development build. |
+| Instalaste con `npm install` y la app crashea | `npx expo install --fix`. |
+| El efecto no corre al volver a la pantalla | Las pantallas no se desmontan: `useFocusEffect`. |
+| En el teléfono no llega a tu API local | `localhost` es el teléfono: usá la IP de tu compu. |
+| Todo anda en desarrollo, la build de release crashea | Probá release seguido: `npx expo run:ios --configuration Release`. |

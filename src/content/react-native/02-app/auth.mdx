@@ -1,0 +1,108 @@
+El login en una app tiene las mismas piezas que en la web (un formulario, un token, rutas protegidas), más tres cosas propias del celular: el token se guarda **cifrado**, los logins con Google o Apple abren **una ventana del sistema** y vuelven a la app, y Apple tiene **reglas** sobre qué logins tenés que ofrecer.
+
+## El flujo de la app de la guía
+
+1. Al abrir, el splash queda visible mientras Zustand lee la sesión de SecureStore ([almacenamiento](#/almacenamiento)).
+2. El layout raíz usa `Stack.Protected`: con token, existen las pestañas; sin token, solo existe `/login`.
+3. El login valida con Zod y llama a `iniciarSesion`, que pide el token y lo guarda en el store.
+4. Al cambiar el token, Expo Router redirige solo: no hay `router.replace` en ningún lado.
+5. Cerrar sesión borra el token y vuelve al login, también solo.
+
+```tsx
+// app/_layout.tsx
+<Stack>
+  <Stack.Protected guard={logueado}>
+    <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+    <Stack.Screen name="oferta/[id]" />
+  </Stack.Protected>
+  <Stack.Protected guard={!logueado}>
+    <Stack.Screen name="login" options={{ headerShown: false }} />
+  </Stack.Protected>
+</Stack>
+```
+
+Si un deep link apunta a `/oferta/5` sin sesión, el usuario ve el login. Y si la API responde 401 (token vencido), el [cliente de API](#/datos) cierra la sesión y el guard lo manda al login.
+
+<Ojo title="Proteger la ruta no protege los datos">
+`Stack.Protected` decide qué pantallas se ven, nada más. La seguridad real está en el backend: cada endpoint tiene que validar el token. Una app se puede descompilar y modificar.
+</Ojo>
+
+## Tokens: lo que conviene saber
+
+- Guardá el **access token** (y el refresh token, si hay) en **SecureStore**, nunca en AsyncStorage.
+- **Nunca guardes la contraseña** del usuario en el teléfono.
+- Si el access token dura poco (15 minutos, lo normal), el cliente de API pide uno nuevo con el refresh token cuando recibe un 401, y reintenta. Si el refresh también falla, cierra la sesión.
+- En el celular no hay cookies de sesión cómodas como en la web: lo normal es mandar `Authorization: Bearer <token>` en cada pedido.
+
+## Login con Google, GitHub y otros (OAuth)
+
+Un login con un proveedor abre una ventana **del sistema** (no un WebView propio: los proveedores lo bloquean) donde el usuario entra, y el proveedor redirige de vuelta a tu app con un código. `expo-auth-session` arma todo el flujo con PKCE:
+
+```tsx
+import * as AuthSession from 'expo-auth-session'
+import * as WebBrowser from 'expo-web-browser'
+
+WebBrowser.maybeCompleteAuthSession() // cierra la ventana del navegador al volver (en la web)
+
+export function BotonGithub() {
+  const [pedido, respuesta, abrir] = AuthSession.useAuthRequest(
+    {
+      clientId: process.env.EXPO_PUBLIC_GITHUB_CLIENT_ID!,
+      scopes: ['read:user', 'user:email'],
+      redirectUri: AuthSession.makeRedirectUri({ scheme: 'busquedarn' }), // busquedarn://
+    },
+    {
+      authorizationEndpoint: 'https://github.com/login/oauth/authorize',
+      tokenEndpoint: 'https://github.com/login/oauth/access_token',
+    },
+  )
+
+  useEffect(() => {
+    if (respuesta?.type === 'success') {
+      // Mandá el código y el verificador a TU backend: él lo cambia por un token (con el secreto)
+      enviarAlBackend(respuesta.params.code, pedido?.codeVerifier)
+    }
+  }, [respuesta])
+
+  return <Button title="Entrar con GitHub" disabled={!pedido} onPress={() => abrir()} />
+}
+```
+
+Para **Google** en particular, se usa la librería nativa `@react-native-google-signin/google-signin`: muestra la lista de cuentas del teléfono en lugar de pedir usuario y contraseña. Necesita un development build.
+
+## Sign in with Apple: obligatorio si ofrecés otros
+
+La regla 4.8 de Apple dice: si tu app ofrece login con un servicio de terceros (Google, Facebook, GitHub), **tiene que ofrecer también una opción equivalente que cuide la privacidad**, y Sign in with Apple la cumple. Es uno de los rechazos más comunes. No aplica si solo tenés email y contraseña propios, o si la app es de una empresa para sus empleados.
+
+<Source path="app-expo/src/ejemplos/BotonApple.tsx" />
+
+- El botón tiene que ser el de Apple (`AppleAuthenticationButton`), con su diseño.
+- Apple te da el nombre y el email **solo la primera vez**. Si no los guardás en ese momento, no los vas a volver a recibir.
+- El usuario puede elegir "ocultar mi email": recibís una dirección de reenvío `@privaterelay.appleid.com`.
+- Hace falta `"usesAppleSignIn": true` en `ios` de `app.json` (la app de la guía lo tiene) y activar la capacidad en tu cuenta de Apple (EAS lo hace al compilar).
+
+## Biometría: Face ID y huella
+
+La biometría **no reemplaza** el login: no hay "usuario de Face ID" en tu servidor. Sirve para **desbloquear** algo que ya está en el teléfono: abrir la app sin volver a escribir la contraseña, o confirmar una acción sensible.
+
+<Source path="app-expo/src/ejemplos/biometria.ts" />
+
+Un patrón común: después del primer login, preguntar "¿Querés usar Face ID para entrar?"; si dice que sí, al abrir la app pedís la biometría antes de mostrar el contenido.
+
+## Borrar la cuenta: obligatorio
+
+Si tu app permite **crear** una cuenta, Apple y Google exigen que también permita **borrarla desde la app** (no alcanza con "mandanos un email"). Google además pide un link web para pedir el borrado sin instalar la app. Lo vemos en [requisitos](#/requisitos).
+
+## Proveedores de autenticación
+
+Hacer el login a mano (registro, verificación de email, recuperar contraseña, OAuth, 2FA) es mucho trabajo. Lo más usado con Expo:
+
+| Proveedor | Qué es |
+| --- | --- |
+| **Clerk** (`@clerk/expo`) | Auth como servicio con componentes listos, OAuth, passkeys, organizaciones. El más simple de integrar. |
+| **Supabase Auth** | Viene con Supabase (Postgres + auth + archivos). Muy usado en apps nuevas. |
+| **Firebase Auth** | El clásico de Google. `@react-native-firebase/auth` necesita development build. |
+| **Better Auth** | Open source, en tu propio backend de Node, con plugin para Expo. |
+| **Auth0** | Enterprise, `react-native-auth0`. |
+
+Si ya tenés tu backend de Node con JWT (como en la [guía de Node](#/node/auth)), el flujo de este capítulo funciona tal cual contra tu API.

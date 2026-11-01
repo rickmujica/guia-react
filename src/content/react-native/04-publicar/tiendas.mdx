@@ -1,0 +1,97 @@
+Subir una app es más trámite que código: crear las cuentas, completar la ficha de la tienda, responder cuestionarios, probar con testers y pasar la revisión. Este capítulo es el recorrido completo; el que sigue es la lista de [requisitos](#/requisitos) que revisan.
+
+## Las cuentas
+
+| | Apple Developer Program | Google Play Console |
+| --- | --- | --- |
+| Costo | **USD 99 por año** | **USD 25, una vez** |
+| Cuenta personal | Con tu Apple ID y tu identidad | Con tu identidad verificada (documento) |
+| Cuenta de empresa | Necesita un número **D-U-N-S** (gratis, de Dun & Bradstreet; tarda días o semanas) | También pide D-U-N-S |
+| Lo que figura como desarrollador | Tu nombre, o el de la empresa | Tu nombre, o el de la empresa |
+| Apps pagas o con compras | Firmar el acuerdo de apps pagas y cargar datos bancarios e impositivos | Crear un perfil de pagos |
+
+<Nota title="¿Personal o empresa?">
+Con una cuenta personal, en la tienda aparece **tu nombre** como desarrollador, y en Google además tenés el requisito de los 12 testers (abajo). Si la app es de un cliente, lo correcto es que la publique con **su** cuenta, y te agregue como miembro del equipo.
+</Nota>
+
+## El recorrido en Apple
+
+1. **Crear la app en App Store Connect** (appstoreconnect.apple.com): nombre, idioma, bundle id (el de `app.json`) y un SKU (cualquier código interno).
+2. **Compilar y subir**:
+
+```bash
+eas build --platform ios --profile production
+eas submit --platform ios          # o las dos juntas: eas build --platform ios --auto-submit
+```
+
+3. **TestFlight**: en 10–15 minutos la build aparece en TestFlight. Los **testers internos** (hasta 100 personas de tu equipo en App Store Connect) la instalan enseguida con la app TestFlight. Los **externos** (hasta 10.000, con un link público) necesitan que Apple apruebe la primera build de cada versión (*Beta App Review*, suele ser rápido).
+4. **Completar la ficha**: capturas, descripción, palabras clave, URL de soporte y de política de privacidad, categoría, la **clasificación por edad** (un cuestionario), las **etiquetas de privacidad** (qué datos juntás) y la información para el revisor (un usuario de prueba).
+5. **Enviar a revisión**: elegís la build y "Add for Review". La mayoría se revisa en **24 a 48 horas**.
+6. **Publicar**: apenas se aprueba, en una fecha, o manualmente. Podés hacer un **lanzamiento gradual** de una actualización en 7 días.
+
+Si te rechazan, llega un mensaje en **Resolution Center** citando la regla (por ejemplo "Guideline 5.1.1"). Respondés ahí, corregís, y volvés a enviar. Si creés que el revisor se equivocó, podés explicarlo en la respuesta o apelar.
+
+## El recorrido en Google
+
+1. **Crear la app en Play Console** (play.google.com/console): nombre, idioma, si es app o juego, gratis o paga.
+2. **Completar "Configurar tu app"**: una lista de tareas con declaraciones obligatorias (las vemos en [requisitos](#/requisitos)): política de privacidad, acceso a la app, anuncios, clasificación de contenido, público objetivo, seguridad de los datos, y más.
+3. **Compilar y subir** un `.aab` (Android App Bundle; Google ya no acepta `.apk` para apps nuevas):
+
+```bash
+eas build --platform android --profile production
+eas submit --platform android      # necesita una clave de cuenta de servicio de Google
+```
+
+Para que `eas submit` pueda subir, creás una **cuenta de servicio** en Google Cloud con acceso a tu Play Console y le das la clave JSON a EAS (`eas credentials`). La primera vez sube a la **pista interna** como borrador.
+
+4. **Las pistas de prueba**:
+
+| Pista | Para quién | Revisión |
+| --- | --- | --- |
+| **Prueba interna** | Hasta 100 testers por email | Casi instantánea |
+| **Prueba cerrada** | Grupos por email o Google Groups | Sí |
+| **Prueba abierta** | Cualquiera que se anote desde la tienda | Sí |
+| **Producción** | Todo el mundo | Sí |
+
+5. **Producción**: promovés la build y elegís un **porcentaje** (lanzamiento escalonado: 10 %, 50 %, 100 %). La revisión puede tardar **horas o hasta 7 días**, más en cuentas nuevas.
+
+<Ojo title="Cuentas personales nuevas: 12 testers durante 14 días">
+Si tu cuenta de Google Play es **personal** y la creaste después del 13 de noviembre de 2023, antes de poder publicar en producción tenés que hacer una **prueba cerrada con al menos 12 testers** que se hayan anotado y la tengan instalada durante **14 días seguidos**. Recién ahí podés pedir el acceso a producción (respondiendo unas preguntas sobre la prueba). Las cuentas de empresa no tienen este requisito. Planificalo: son al menos dos semanas antes del lanzamiento.
+</Ojo>
+
+## La ficha de la tienda
+
+| | App Store | Google Play |
+| --- | --- | --- |
+| Nombre | 30 caracteres | 30 caracteres |
+| Subtítulo / descripción corta | Subtítulo, 30 caracteres | Descripción corta, 80 caracteres |
+| Descripción | 4.000 caracteres | 4.000 caracteres |
+| Palabras clave | Campo propio, 100 caracteres | No hay: se usan el título y las descripciones |
+| Ícono | 1024×1024, sin transparencia (lo saca de la build) | 512×512 PNG, en la ficha |
+| Capturas | iPhone de 6,9" (Apple escala al resto); iPad de 13" si soporta tablet | Al menos 2 del teléfono; tablet recomendado |
+| Imagen destacada | — | **1024×500, obligatoria** |
+| Video | App Preview, opcional | Un video de YouTube, opcional |
+| Política de privacidad | URL obligatoria | URL obligatoria |
+
+Las capturas son lo que más influye en las descargas: muestran la app con un texto corto encima que explica el beneficio ("Encontrá trabajo remoto en minutos"), no la pantalla de login.
+
+## Antes de enviar: checklist
+
+- [ ] Probaste la **build de producción** (no solo el modo desarrollo) en un iPhone y un Android de verdad.
+- [ ] `version` y número de build actualizados.
+- [ ] Ícono, splash y nombre definitivos.
+- [ ] Textos de los permisos claros y específicos; ningún permiso de más.
+- [ ] Política de privacidad publicada en una URL.
+- [ ] Usuario y contraseña de prueba para el revisor (si hay login), que funcionen, con datos cargados.
+- [ ] Si se pueden crear cuentas: se pueden **borrar** desde la app.
+- [ ] Si hay login con Google u otro: también Sign in with Apple (en iOS).
+- [ ] Las compras digitales usan el sistema de pagos de la tienda.
+- [ ] Ningún botón que no haga nada, ningún "próximamente", ningún texto de ejemplo.
+- [ ] Capturas reales de la app.
+
+## Después de publicar
+
+- **Respondé reseñas**, sobre todo las malas: las dos tiendas lo permiten, y los usuarios cambian la calificación cuando les resolvés el problema.
+- **Pedí reseñas en el momento justo** con `expo-store-review` (después de algo que salió bien, no al abrir la app). El sistema decide si muestra el diálogo.
+- **Mirá los crashes**: Sentry, Firebase Crashlytics, el *Android vitals* de Play Console y la sección de crashes de App Store Connect / TestFlight.
+- **Mantené la app al día**: si no actualizás el *target SDK* de Android cada año, Google deja de mostrar la app a usuarios nuevos; y Apple puede sacar apps abandonadas que no funcionan en versiones nuevas de iOS.

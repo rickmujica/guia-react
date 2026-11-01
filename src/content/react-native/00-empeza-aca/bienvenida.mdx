@@ -1,0 +1,55 @@
+Esta guía es para hacer **apps de iOS y Android con React**. Si sabés React para la web, ya sabés la mitad: componentes, props, estado, hooks y TypeScript funcionan igual. Lo que cambia son los componentes con los que dibujás la pantalla, cómo se estiliza, cómo se navega, las funciones del teléfono (cámara, notificaciones, ubicación) y, sobre todo, **cómo se publica**: en la web hacés deploy; en el celular pasás por la revisión de Apple y de Google.
+
+## React Native en un párrafo
+
+En lugar de `<div>` y `<span>`, escribís `<View>` y `<Text>`. React Native traduce cada uno a la vista **nativa** del sistema: un `UIView` en iOS, un `android.view.View` en Android. No es una página web metida en una app: los botones, las listas y el teclado son los del sistema, y por eso se sienten nativos. Tu JavaScript corre en un motor propio (**Hermes**) dentro de la app.
+
+**Expo** es el framework que se usa para hacer apps con React Native, y el que recomienda el equipo de React Native para empezar un proyecto. Te da el proyecto armado, la navegación (Expo Router), decenas de librerías para usar el hardware del teléfono, y servicios para compilar en la nube y subir a las tiendas (EAS). Lo vemos en [cómo funciona](#/como-funciona).
+
+## Las demos corren adentro de un celular
+
+Cada demo es un componente de React Native de verdad. En la guía se ve dentro de un celular dibujado, y debajo está su código:
+
+<DemoNativa file="componentes/PrimeraPantalla" title="Tu primera pantalla" />
+
+En el navegador, esas demos usan **react-native-web**, una librería que dibuja `View`, `Text`, `FlatList`, etc. con elementos HTML. Es la misma que usa Expo cuando corrés tu app en la web. Se parece mucho a lo que ves en el teléfono, pero no es idéntico: las fuentes, las sombras, el teclado y los gestos se sienten distintos. Para eso está la app.
+
+## La app de ejemplo: en tu teléfono
+
+Todo el código de esta guía vive en la carpeta `app-expo/` del proyecto: una app completa de búsqueda de empleo hecha con Expo, con login, lista de ofertas con búsqueda y scroll infinito, detalle, ofertas guardadas, foto de perfil y una pestaña **Demos** con las mismas demos de la guía, corriendo nativas.
+
+Para abrirla en tu celular:
+
+1. Instalá **Expo Go** desde la App Store o Google Play.
+2. En la computadora:
+
+```bash
+cd app-expo
+npm install
+npx expo start
+```
+
+3. Escaneá el código QR que aparece en la terminal: con la cámara en iPhone, o desde Expo Go en Android. La computadora y el teléfono tienen que estar en la misma red Wi-Fi (si no, `npx expo start --tunnel`).
+4. Entrá con cualquier email y la contraseña `expo1234`.
+
+Cada vez que guardás un archivo, la app se actualiza sola en el teléfono (**Fast Refresh**), sin perder el estado.
+
+<Tip title="Sin teléfono a mano">
+Con `npx expo start` también podés apretar `w` para abrirla en el navegador, `i` para el simulador de iOS (necesita una Mac con Xcode) o `a` para el emulador de Android (necesita Android Studio).
+</Tip>
+
+Los snippets que no son demos (gestos con Reanimated, SQLite, notificaciones, cámara…) también son archivos del proyecto, en `app-expo/src/ejemplos/`, y pasan el chequeo de tipos de TypeScript. El código que leés compila.
+
+<Nota title="Versiones">
+Escrita en noviembre de 2026 con **Expo SDK 58**, que trae **React Native 0.88** y **React 19.3**. Expo saca tres SDK por año y cada uno trae una versión nueva de React Native. Expo Go solo abre proyectos del último SDK: si un día no abre la app, actualizá el proyecto con `npx expo install expo@latest --fix`.
+</Nota>
+
+## Cómo está armada
+
+1. **Fundamentos**: crear el proyecto, los componentes básicos, estilos, listas, formularios y animaciones.
+2. **Una app de verdad**: navegación con Expo Router, datos del servidor con TanStack Query, estado y almacenamiento, login, funciones del teléfono y una tabla de las librerías más usadas.
+3. **Calidad**: buenas prácticas, rendimiento, accesibilidad, tests y depuración.
+4. **Publicar**: builds con EAS, cómo subir a App Store y Google Play, **todo lo que piden las tiendas**, y actualizaciones sin pasar por la tienda.
+5. **Repaso**: chuleta y preguntas de entrevista.
+
+Si venís de la [guía de React](#/react/bienvenida), todo lo de hooks y React 19 vale acá: `useState`, `useEffect`, `use`, `useOptimistic`, el React Compiler (que en Expo viene activado).

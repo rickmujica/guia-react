@@ -11,6 +11,7 @@ La home muestra todas las guías con su progreso. Cada guía recuerda **el últi
 | Redux, Redux Toolkit, Redux Saga y Zustand (con RTK Query y una comparación de las cuatro) | Lista | [`docs/guia-estado-global.pdf`](docs/guia-estado-global.pdf) |
 | MySQL, de cero a intermedio (con resultados de un MySQL real y un playground en el navegador) | Lista | [`docs/guia-mysql.pdf`](docs/guia-mysql.pdf) |
 | Node.js y Express (el runtime, Express 5, Zod, JWT y tests, con salidas de ejecuciones reales) | Lista | [`docs/guia-node-express.pdf`](docs/guia-node-express.pdf) |
+| React Native con Expo (componentes, navegación, librerías, y cómo publicar en App Store y Google Play, con una app de ejemplo para el celular) | Lista | [`docs/guia-react-native.pdf`](docs/guia-react-native.pdf) |
 
 ## Guía de React moderno
 
@@ -113,6 +114,23 @@ npm run salidas
 
 Necesita Node 24 o superior. Los ejemplos se chequean con su propio `tsconfig.node-ejemplos.json` en cada `npm run build`.
 
+## Guía de React Native con Expo
+
+| Parte | Capítulos |
+| --- | --- |
+| Empezá acá | Cómo usar la guía · Cómo funciona React Native |
+| 1 · Fundamentos | Crear un proyecto con Expo · Los componentes básicos · Estilos y layout · Listas · Formularios y teclado · Toques, gestos y animaciones |
+| 2 · Una app de verdad | Navegación con Expo Router · Datos del servidor · Estado y almacenamiento · Login y sesión · Cámara, notificaciones y más · Las librerías más usadas |
+| 3 · Calidad | Buenas prácticas y rendimiento · Tests y depuración |
+| 4 · Publicar | Builds con EAS · Subir a App Store y Google Play · Lo que piden las tiendas · Actualizaciones OTA y CI/CD |
+| 5 · Repaso | Chuleta y preguntas de entrevista |
+
+Todo el código de esta guía es una app de Expo de verdad, en `app-expo/` (ver [su README](app-expo/README.md)): una app de búsqueda de empleo con login, ofertas, guardadas, perfil y una pestaña con las demos. Se abre en el celular con Expo Go.
+
+- Las **demos** están en `app-expo/src/demos/` e importan solo de `react` y `react-native`. En la guía se ven dentro de un celular dibujado con `<DemoNativa file="listas/ListaOfertas" />`: Vite reemplaza `react-native` por **react-native-web** (`resolve.alias` en `vite.config.ts`, y `src/lib/react-native-web.ts`, que cambia `Modal` por uno que se abre adentro del celular). Se cargan con `lazy()`, así react-native-web no pesa en las otras guías.
+- Los **snippets** que no son demos (gestos, SQLite, notificaciones, cámara…) están en `app-expo/src/ejemplos/` y se muestran con `<Source path="app-expo/src/ejemplos/notificaciones.ts" />`. Pasan el chequeo de tipos de la app (`cd app-expo && npm run typecheck`).
+- La guía no necesita instalar `app-expo`: `npm install` en la raíz alcanza. Para correr la app o sus tests, `cd app-expo && npm install`.
+
 ## Cómo correrla
 
 Necesitás Node.js 20.19 o superior (o 22.12+).
@@ -173,7 +191,8 @@ scripts/
   node-salidas.mjs    Ejecuta los ejemplos de la guía de Node y guarda sus salidas
   node-api.mjs        Levanta una app de Express de ejemplo y le hace los pedidos de un <Api>
 docs/            Un PDF por guía
-vite.config.ts   Vite con MDX y el React Compiler en modo "annotation"
+app-expo/        La app de Expo de la guía de React Native: sus demos y ejemplos se muestran en la guía
+vite.config.ts   Vite con MDX, el React Compiler en modo "annotation" y el alias react-native → react-native-web
 ```
 
 ## Agregar una demo o un capítulo
@@ -193,4 +212,4 @@ Para una guía nueva, creá `src/guides/<guía>.ts` con su `GuideDef` y sumala a
 
 ## Versiones
 
-Escrita en octubre de 2026 con React 19.3, Vite 8, TypeScript 7 y React Compiler 1.0. Los resultados de la guía de MySQL son de MySQL 8.0, y las salidas de la guía de Node, de Node 24 con Express 5.3.
+Escrita en octubre y noviembre de 2026 con React 19.3, Vite 8, TypeScript 7 y React Compiler 1.0. Los resultados de la guía de MySQL son de MySQL 8.0, las salidas de la guía de Node, de Node 24 con Express 5.3, y la guía de React Native usa Expo SDK 58 (React Native 0.88).

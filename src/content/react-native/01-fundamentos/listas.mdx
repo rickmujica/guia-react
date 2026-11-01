@@ -1,0 +1,85 @@
+Una lista de ofertas, de mensajes, de contactos: casi toda app tiene una. Y es donde más se nota si una app de React Native está bien hecha.
+
+## Por qué no un map adentro de un ScrollView
+
+```tsx
+// Funciona con 20 items. Con 2.000, la pantalla tarda segundos en aparecer.
+<ScrollView>
+  {ofertas.map((o) => <TarjetaOferta key={o.id} oferta={o} />)}
+</ScrollView>
+```
+
+`ScrollView` crea **todas** las vistas nativas de entrada, aunque no se vean. Las listas **virtualizan**: crean solo las filas que están en pantalla (y un poco más arriba y abajo), y las van creando y destruyendo mientras scrolleás.
+
+## FlatList
+
+Es la lista que viene con React Native. Recibe los datos y una función que dibuja cada fila:
+
+<DemoNativa file="listas/ListaOfertas" title="FlatList con búsqueda y paginación" />
+
+Las props que vas a usar siempre:
+
+| Prop | Para qué |
+| --- | --- |
+| `data` | El array. |
+| `renderItem` | `({ item, index }) => …`: dibuja una fila. |
+| `keyExtractor` | Una key estable por fila (el id, como string). No uses el índice. |
+| `ItemSeparatorComponent` | Lo que va entre filas (una línea). |
+| `ListEmptyComponent` | Lo que se ve si `data` está vacío: "No hay resultados". |
+| `ListHeaderComponent` / `ListFooterComponent` | Arriba y abajo de todo. El footer es el lugar del spinner de "cargando más". |
+| `onEndReached` + `onEndReachedThreshold` | Llegaste cerca del final: cargá la siguiente página. `0.5` = a media pantalla del final. |
+| `refreshing` + `onRefresh` | El "tirar para recargar". |
+| `numColumns` | Una grilla. |
+| `horizontal` | Una fila que se desliza de costado (un carrusel). |
+| `inverted` | Empieza desde abajo: para un chat. |
+| `keyboardDismissMode="on-drag"` | Cierra el teclado al scrollear. |
+
+<Ojo title="onEndReached se llama más de una vez">
+Mientras llega la siguiente página, `onEndReached` puede dispararse de nuevo. Siempre chequeá que no estés cargando ya (`if (!cargando && hayMas) cargarMas()`). Con TanStack Query es `hasNextPage && !isFetchingNextPage`, como en la pantalla de ofertas de la app.
+</Ojo>
+
+## SectionList
+
+Para una lista agrupada (por modalidad, por letra, por fecha), con encabezados que quedan pegados arriba mientras scrolleás:
+
+<DemoNativa file="listas/ListaPorModalidad" title="SectionList" />
+
+Los datos van como `sections: [{ title, data: [...] }]`, y además de `renderItem` hay un `renderSectionHeader`. Los encabezados pegajosos (`stickySectionHeadersEnabled`) vienen activados en iOS y desactivados en Android.
+
+## FlashList: la que se usa en producción
+
+`FlatList` crea y destruye filas mientras scrolleás, y en listas largas con filas complejas se nota: aparecen espacios en blanco si scrolleás rápido. **FlashList**, de Shopify, **recicla** las filas: la vista que sale por arriba se reutiliza para la que entra por abajo, cambiándole los datos. La API es casi idéntica:
+
+```tsx
+import { FlashList } from '@shopify/flash-list'
+
+<FlashList
+  data={lista}
+  keyExtractor={(oferta) => String(oferta.id)}
+  renderItem={({ item }) => <TarjetaOferta oferta={item} />}
+  onEndReached={cargarMas}
+/>
+```
+
+Es lo que usa la pantalla principal de la app de la guía, con scroll infinito y "tirar para recargar":
+
+<Source path="app-expo/src/app/(tabs)/index.tsx" highlight="40-55" />
+
+La versión 2 (la actual) solo funciona con la Nueva Arquitectura y ya no necesita que le digas cuánto mide cada fila (`estimatedItemSize`): lo mide sola. Si una lista tiene filas de tipos distintos (un anuncio cada 10 ofertas), pasale `getItemType` para que recicle cada tipo con los de su tipo.
+
+<Nota title="Legend List">
+Otra opción que crece mucho es **Legend List** (`@legendapp/list`): hecha en JavaScript puro (anda en Expo Go), muy rápida, y con soporte para chats (empezar desde abajo y mantener la posición cuando llegan mensajes nuevos). FlashList y Legend List son las dos que se recomiendan hoy.
+</Nota>
+
+## Que la lista vaya fluida
+
+1. **Filas livianas.** Cada fila se renderiza muchas veces mientras scrolleás. Nada de cálculos pesados ni `fetch` adentro de una fila.
+2. **Componentes de fila memoizados.** Con el React Compiler activado (como en esta app) es automático. Sin el compilador, `memo(TarjetaOferta)` y un `renderItem` estable con `useCallback`.
+3. **Imágenes con tamaño fijo y con caché**: `expo-image`, nunca una imagen que cambia de alto al cargar.
+4. **Nunca una lista adentro de un `ScrollView`** en la misma dirección: la lista pierde la virtualización y renderiza todo (React Native te avisa con *"VirtualizedLists should never be nested inside plain ScrollViews"*). Lo que iba arriba de la lista va en `ListHeaderComponent`.
+5. **Keys estables**: el id, no el índice. Con el índice, al filtrar se mezclan los estados de las filas.
+6. Si todas las filas miden lo mismo, en `FlatList` pasá `getItemLayout`: se saltea medir y puede ir directo a cualquier posición.
+
+<Entrevista>
+"¿Cómo optimizás una lista lenta?" Primero medir (React Native DevTools, el monitor de rendimiento). Después: FlashList o Legend List en lugar de FlatList, filas memoizadas y livianas, imágenes cacheadas con tamaño fijo, keys estables, sacar trabajo pesado de `renderItem`, y paginar desde el servidor en lugar de traer todo.
+</Entrevista>

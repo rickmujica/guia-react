@@ -1,0 +1,134 @@
+**Expo Router** es la navegación de Expo: cada archivo de `src/app/` es una pantalla, como en Next.js. Por debajo usa las pilas y pestañas **nativas** del sistema (con sus animaciones y gestos), y además cada pantalla tiene una URL, así que los deep links y la web funcionan solos.
+
+## Rutas como archivos
+
+| Archivo | URL | Qué es |
+| --- | --- | --- |
+| `app/_layout.tsx` | — | El layout raíz: envuelve todo (providers, Stack) |
+| `app/index.tsx` | `/` | La pantalla inicial |
+| `app/login.tsx` | `/login` | |
+| `app/oferta/[id].tsx` | `/oferta/5` | Ruta dinámica: `id = '5'` |
+| `app/(tabs)/_layout.tsx` | — | Las pestañas del grupo |
+| `app/(tabs)/guardadas.tsx` | `/guardadas` | Los paréntesis no suman a la URL |
+| `app/[...resto].tsx` | `/lo/que/sea` | Atrapa todo (`resto = ['lo','que','sea']`) |
+| `app/+not-found.tsx` | — | Cuando ninguna ruta coincide |
+
+Un **`_layout.tsx`** define cómo se muestran las pantallas de su carpeta: como una pila (`Stack`), como pestañas (`NativeTabs`) o como lo que quieras (`Slot` muestra la pantalla sin nada alrededor). Los layouts se anidan: la app de la guía tiene un `Stack` en la raíz, y adentro un grupo `(tabs)` con pestañas.
+
+## Stack: la pila de pantallas
+
+En el celular, navegar es **apilar**: abrís una oferta y la pantalla nueva entra desde la derecha (en iOS) con su botón "atrás" y el gesto de deslizar desde el borde para volver. Eso es un `Stack`, y viene configurado en el layout raíz:
+
+<Source path="app-expo/src/app/_layout.tsx" highlight="30-41" />
+
+Las opciones del header se configuran en el layout (`<Stack.Screen name="…" options={…} />`) o **desde la pantalla misma**, que es útil cuando el título depende de datos:
+
+```tsx
+// app/oferta/[id].tsx
+<Stack.Screen options={{ title: oferta.empresa }} />
+```
+
+Opciones útiles: `title`, `headerShown`, `headerLargeTitle` (el título grande de iOS), `headerRight` (botones), `headerBackButtonDisplayMode: 'minimal'` (solo la flecha), `presentation` (cómo se presenta: lo vemos abajo).
+
+## Navegar
+
+```tsx
+import { Link, router } from 'expo-router'
+
+// Declarativo: como un <a>
+<Link href="/guardadas">Ver guardadas</Link>
+<Link href={{ pathname: '/oferta/[id]', params: { id: 5 } }}>Ver oferta</Link>
+
+// Con asChild, el Link le pasa el toque a su hijo (un Pressable con tu estilo)
+<Link href="/perfil" asChild>
+  <Pressable style={styles.boton}><Text>Perfil</Text></Pressable>
+</Link>
+
+// Imperativo: desde una función
+router.push('/oferta/5')       // apila
+router.replace('/login')       // reemplaza la actual (no se puede volver)
+router.back()                  // vuelve
+router.dismissAll()            // cierra todas las pantallas apiladas
+router.canGoBack()
+```
+
+Con **`experiments.typedRoutes`** en `app.json`, las rutas están tipadas: `router.push('/ofertaa/5')` no compila, y los `params` de una ruta dinámica son obligatorios. La tarjeta de oferta navega así:
+
+<Source path="app-expo/src/components/TarjetaOferta.tsx" highlight="16-20" />
+
+## Parámetros
+
+```tsx
+// app/oferta/[id].tsx
+const { id } = useLocalSearchParams<{ id: string }>()
+const oferta = useOferta(Number(id))
+```
+
+Los parámetros **siempre llegan como string** (vienen de una URL), aunque hayas pasado un número. También llegan los de la query: `/ofertas?modalidad=remoto` da `{ modalidad: 'remoto' }`. Para cambiarlos sin navegar: `router.setParams({ modalidad: 'hibrido' })`.
+
+<Tip title="Pasá ids, no objetos">
+No pases la oferta entera como parámetro: pasá el `id` y que la pantalla de detalle la busque. Con TanStack Query, si la lista ya la trajo, puede estar en caché y aparece al instante. Así la pantalla también funciona si se abre desde un deep link o una notificación.
+</Tip>
+
+## Pestañas nativas
+
+`NativeTabs` usa la barra de pestañas **del sistema**: en iOS 26, la de Liquid Glass, y en Android, la de Material. Cada `Trigger` apunta a un archivo de la carpeta; el ícono es un SF Symbol en iOS (`sf`) y un Material Symbol en Android (`md`):
+
+<Source path="app-expo/src/app/(tabs)/_layout.tsx" />
+
+En la web no hay barra nativa: la app usa `(tabs)/_layout.web.tsx` con `Tabs` de `expo-router/js-tabs` (las pestañas hechas en JavaScript, que también sirven si necesitás una barra de pestañas totalmente personalizada).
+
+Cada pestaña puede tener su propio `Stack` adentro (una carpeta con su `_layout.tsx`), así navegar dentro de "Ofertas" no te saca de la pestaña.
+
+## Modales y hojas
+
+Una pantalla que se abre desde abajo es una ruta más, con `presentation`:
+
+```tsx
+// app/_layout.tsx
+<Stack.Screen name="filtros" options={{ presentation: 'modal' }} />
+
+// Una hoja que ocupa media pantalla y se puede agrandar arrastrando (como en Apple Maps)
+<Stack.Screen
+  name="compartir"
+  options={{ presentation: 'formSheet', sheetAllowedDetents: [0.5, 1], sheetGrabberVisible: true }}
+/>
+```
+
+Se abre con `router.push('/filtros')` y se cierra con `router.back()` o deslizando hacia abajo. A diferencia del componente `Modal`, tiene URL, animación nativa y el gesto de cerrar.
+
+## Rutas protegidas: el login
+
+La app de la guía muestra el login o las pestañas según haya sesión, con **`Stack.Protected`** (en el layout raíz de arriba). Las pantallas dentro de `guard={logueado}` solo existen si hay sesión; si `logueado` cambia, Expo Router redirige solo. Por eso el login no hace `router.replace('/')`: guarda el token, y el layout hace el resto. Lo vemos completo en [login y sesión](#/auth).
+
+## Deep links
+
+Como cada pantalla tiene URL, los links funcionan sin configurar nada:
+
+- **Esquema propio**: con `"scheme": "busquedarn"` en `app.json`, el link `busquedarn://oferta/5` abre la app en esa oferta. Probalo con `npx uri-scheme open busquedarn://oferta/5 --ios`.
+- **Universal Links (iOS) y App Links (Android)**: `https://tusitio.com/oferta/5` abre la app si está instalada, y el sitio si no. Necesitan `ios.associatedDomains` y `android.intentFilters` en `app.json`, y un archivo de verificación en tu dominio (`apple-app-site-association` y `assetlinks.json`).
+
+## Hooks de navegación
+
+| Hook | Para qué |
+| --- | --- |
+| `useLocalSearchParams()` | Los parámetros de esta pantalla. |
+| `useRouter()` / `router` | Navegar (`router` sirve también fuera de componentes). |
+| `usePathname()` | La URL actual: `/oferta/5`. |
+| `useSegments()` | La ruta en partes: `['(tabs)', 'guardadas']`. |
+| `useFocusEffect(cb)` | Como `useEffect`, pero corre cada vez que la pantalla **vuelve a verse**. |
+| `useNavigation()` | El objeto de React Navigation, para cosas avanzadas. |
+
+<Ojo title="Las pantallas no se desmontan">
+En una pila, la pantalla de atrás **sigue montada** cuando apilás otra encima. Un `useEffect` con `[]` no vuelve a correr cuando el usuario vuelve atrás. Si querés recargar algo al volver a una pantalla, usá `useFocusEffect` (o deja que TanStack Query lo haga).
+</Ojo>
+
+## Cosas que trae Expo Router y conviene saber que existen
+
+- **`Link.Preview`**: en iOS, mantener presionado un link muestra una vista previa de la pantalla, como en Safari.
+- **API routes** (`app/api/ofertas+api.ts`): endpoints de servidor en el mismo proyecto, cuando la web se publica con `output: "server"`.
+- **Loaders** (estables desde el SDK 58): una función `loader` que trae datos en el servidor antes de mostrar la pantalla en la web, y `useLoaderData` para leerlos.
+
+<Nota title="¿Y React Navigation?">
+Expo Router nació sobre **React Navigation**, la librería de navegación clásica de React Native, y vas a ver mucho código con `createNativeStackNavigator` y `navigation.navigate('Oferta', { id })`. Desde el SDK 56, Expo Router ya no depende de ella, pero los conceptos (stack, tabs, opciones de pantalla, `useFocusEffect`) son los mismos. Si en una entrevista te preguntan por React Navigation, todo lo de este capítulo aplica.
+</Nota>

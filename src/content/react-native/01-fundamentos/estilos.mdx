@@ -1,0 +1,135 @@
+En React Native no hay CSS: los estilos son **objetos de JavaScript** con nombres en camelCase. Se parecen mucho a CSS, pero no hay cascada, ni selectores, ni media queries, ni unidades.
+
+## StyleSheet y la prop style
+
+```tsx
+import { StyleSheet, Text, View } from 'react-native'
+
+function Chip({ texto, activo }: { texto: string; activo: boolean }) {
+  return (
+    // Un array combina estilos: el último gana. false, null y undefined se ignoran.
+    <View style={[styles.chip, activo && styles.activo]}>
+      <Text style={[styles.texto, activo && { color: '#fff' }]}>{texto}</Text>
+    </View>
+  )
+}
+
+const styles = StyleSheet.create({
+  chip: { paddingVertical: 4, paddingHorizontal: 12, borderRadius: 999, backgroundColor: '#eef2ff' },
+  activo: { backgroundColor: '#2563eb' },
+  texto: { fontSize: 13, color: '#2563eb', fontWeight: '600' },
+})
+```
+
+- **Sin unidades**: `padding: 16` son 16 *puntos* (píxeles independientes de la densidad). En un iPhone con pantalla 3x son 48 píxeles físicos. También se aceptan porcentajes como string: `width: '50%'`.
+- **`StyleSheet.create`** no es obligatorio (un objeto suelto funciona igual), pero valida los nombres en desarrollo, da autocompletado con TypeScript y deja los estilos fuera del render.
+- **No hay herencia**: solo un `Text` adentro de otro `Text` hereda la fuente y el color.
+- **No hay shorthand de varios valores**: `padding: '8px 16px'` no existe. Se usa `paddingVertical: 8, paddingHorizontal: 16`. Lo mismo con `margin` y `border`.
+- `StyleSheet.hairlineWidth` es la línea más fina que la pantalla puede dibujar: ideal para separadores.
+
+## Flexbox, con otros valores por defecto
+
+Todo `View` es un contenedor flex. Funciona como en CSS, con tres diferencias que te van a confundir la primera semana:
+
+| | En CSS | En React Native |
+| --- | --- | --- |
+| `flexDirection` | `row` | **`column`** |
+| `alignContent` | `stretch` | `flex-start` |
+| `flexShrink` | `1` | **`0`** (los hijos no se achican solos) |
+| `flex: 1` | `1 1 0%` | "ocupá todo el espacio que sobra" |
+
+Tocá los botones para ver cómo cambia la distribución:
+
+<DemoNativa file="estilos/Flexbox" title="Flexbox" />
+
+El patrón más común: una pantalla con `flex: 1` (ocupa todo el alto), una fila con `flexDirection: 'row'`, y un hijo con `flex: 1` que empuja al resto contra el borde. `gap`, `rowGap` y `columnGap` funcionan y te ahorran márgenes.
+
+<Ojo title="El texto que se sale de la pantalla">
+Como `flexShrink` es `0`, un `Text` largo dentro de una fila se sale por la derecha en lugar de cortarse. La solución: `flex: 1` (o `flexShrink: 1`) en el contenedor del texto, y `numberOfLines` si querés cortarlo. Es el bug de layout más común en React Native.
+</Ojo>
+
+### Posición
+
+`position: 'absolute'` posiciona respecto del **padre** (todos los elementos son `relative` por defecto). No existe `position: fixed`: para algo que queda fijo, ponelo afuera del `ScrollView`. `StyleSheet.absoluteFill` es un atajo para `position: 'absolute'` con `top`, `left`, `right` y `bottom` en `0`.
+
+## Tamaños de pantalla
+
+```tsx
+import { useWindowDimensions } from 'react-native'
+
+function Grilla() {
+  const { width } = useWindowDimensions() // se actualiza al rotar o en una tablet con ventanas
+  const columnas = width > 700 ? 3 : 1
+  // ...
+}
+```
+
+Usá el hook `useWindowDimensions`, no `Dimensions.get('window')`: el hook se vuelve a renderizar cuando cambia el tamaño. Para algo proporcional, `aspectRatio: 16 / 9` con un ancho fijo calcula el alto.
+
+## Sombras y efectos
+
+Desde la Nueva Arquitectura, `boxShadow` funciona igual que en CSS, en iOS y Android:
+
+```tsx
+const tarjeta = {
+  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.12)',   // igual que en CSS
+  // en código viejo: shadowColor/shadowOffset/shadowOpacity/shadowRadius (iOS) + elevation (Android)
+}
+```
+
+También funcionan `filter` (`'blur(4px)'`, `'grayscale(1)'`), `transform`, `opacity`, `mixBlendMode` y `outline`. Para degradados se usa `expo-linear-gradient`, y para el efecto vidrio de iOS 26, `expo-glass-effect`.
+
+## Fuentes
+
+Por defecto se usa la fuente del sistema (San Francisco en iOS, Roboto en Android), que es lo que recomiendan Apple y Google. Para una fuente propia, `expo-font` la mete en la app al compilar:
+
+```json
+// app.json
+"plugins": [
+  ["expo-font", { "fonts": ["./assets/fonts/Inter-Regular.ttf", "./assets/fonts/Inter-Bold.ttf"] }]
+]
+```
+
+```tsx
+<Text style={{ fontFamily: 'Inter-Bold' }}>Hola</Text>
+```
+
+En Android, `fontWeight: 'bold'` no elige el archivo "Bold" de una fuente propia: cada grosor es una `fontFamily` distinta. Para las fuentes de Google existe `@expo-google-fonts/inter` (y una por cada fuente).
+
+## Modo oscuro
+
+`useColorScheme()` devuelve la preferencia del sistema: `'light'`, `'dark'` o `null`. Con eso elegís un tema:
+
+<DemoNativa file="estilos/Tema" title="Tema y Platform" />
+
+Para que el hook responda, `app.json` tiene que decir `"userInterfaceStyle": "automatic"` (la app de la guía usa `"light"` para mantenerla simple). Con Expo Router, envolvé la app en `ThemeProvider` con `DarkTheme` o `DefaultTheme` (los exporta `expo-router`), así los headers y las pestañas también cambian.
+
+La forma prolija de organizarlo: un objeto de colores por tema y un hook propio que devuelve el actual.
+
+```tsx
+const colores = {
+  light: { fondo: '#fff', texto: '#111', primario: '#2563eb' },
+  dark: { fondo: '#000', texto: '#f5f5f5', primario: '#6b9bff' },
+}
+
+export function useColores() {
+  return colores[useColorScheme() ?? 'light']
+}
+```
+
+## Librerías de estilos
+
+`StyleSheet` alcanza para cualquier app, pero en los equipos vas a ver alguna de estas:
+
+| Librería | Qué es | Cuándo |
+| --- | --- | --- |
+| **NativeWind** | Tailwind en React Native: `className="flex-1 p-4 bg-white"`. | Si el equipo viene de Tailwind en la web. La más popular. |
+| **Uniwind** | Tailwind 4, de los creadores de Unistyles. Más rápida que NativeWind. | Proyectos nuevos con Tailwind. |
+| **Unistyles 3** | `StyleSheet.create` con temas, breakpoints y variantes, sin re-renders. | Si querés seguir escribiendo StyleSheet pero con temas. |
+| **Tamagui** | Kit de componentes + compilador que optimiza estilos. Comparte código con la web. | Apps universales (web + nativo) con diseño propio. |
+| **React Native Paper** | Componentes de Material Design listos. | Apps internas o con look de Android. |
+| **HeroUI Native**, **gluestack-ui** | Kits de componentes accesibles, basados en Tailwind. | Arrancar rápido con componentes armados. |
+
+<Entrevista>
+"¿Cómo manejás estilos en React Native?" Una buena respuesta: StyleSheet con un tema centralizado (colores, espacios, tipografía) y un hook para el modo oscuro; y si el equipo usa Tailwind, NativeWind o Uniwind. Mencioná que no hay cascada, que flexbox va en columna por defecto, y que los tamaños son puntos, no píxeles.
+</Entrevista>

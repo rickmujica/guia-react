@@ -1,0 +1,153 @@
+Todo en una página, para repasar antes de una entrevista o tener a mano en un proyecto.
+
+## Componentes y estilos
+
+```tsx
+import { FlatList, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
+import { Image } from 'expo-image'
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
+
+<View style={[styles.caja, activo && styles.activo]}>          {/* array: el último gana */}
+  <Text numberOfLines={1}>Texto, siempre dentro de Text</Text>
+</View>
+<Pressable onPress={f} onLongPress={g} hitSlop={8} style={({ pressed }) => [styles.boton, pressed && { opacity: 0.7 }]} />
+<TextInput value={v} onChangeText={setV} keyboardType="email-address" autoCapitalize="none" returnKeyType="next" />
+<Image source={{ uri }} style={{ width: 48, height: 48 }} contentFit="cover" placeholder={{ blurhash }} />
+<ScrollView contentContainerStyle={{ padding: 16, gap: 12 }} keyboardShouldPersistTaps="handled" />
+<Modal visible={abierto} transparent animationType="fade" onRequestClose={cerrar} />
+<SafeAreaView edges={['top']} style={{ flex: 1 }} />
+
+const styles = StyleSheet.create({
+  caja: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, padding: 16 },  // sin unidades
+  sombra: { boxShadow: '0 2px 8px rgba(0,0,0,0.12)' },
+})
+// flexDirection: 'column' y flexShrink: 0 por defecto · sin cascada · sin hover
+Platform.OS; Platform.select({ ios: a, android: b, default: c }); Archivo.ios.tsx / .android.tsx / .web.tsx
+const { width } = useWindowDimensions(); const esquema = useColorScheme()
+```
+
+## Listas
+
+```tsx
+<FlashList                                     // o FlatList / @legendapp/list
+  data={items}
+  keyExtractor={(i) => String(i.id)}           // nunca el índice
+  renderItem={({ item }) => <Fila item={item} />}
+  onEndReached={() => hasNextPage && !isFetchingNextPage && fetchNextPage()}
+  onEndReachedThreshold={0.5}
+  refreshing={recargando} onRefresh={refetch}
+  ListEmptyComponent={<Vacio />} ListFooterComponent={cargandoMas ? <ActivityIndicator /> : null}
+/>
+// SectionList: sections=[{ title, data }] + renderSectionHeader
+```
+
+## Navegación (Expo Router)
+
+```tsx
+// app/_layout.tsx · app/(tabs)/_layout.tsx · app/oferta/[id].tsx · app/+not-found.tsx
+<Stack>
+  <Stack.Protected guard={logueado}><Stack.Screen name="(tabs)" options={{ headerShown: false }} /></Stack.Protected>
+  <Stack.Protected guard={!logueado}><Stack.Screen name="login" /></Stack.Protected>
+  <Stack.Screen name="filtros" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.5, 1] }} />
+</Stack>
+
+<Link href={{ pathname: '/oferta/[id]', params: { id } }}>Ver</Link>
+router.push('/oferta/5'); router.replace('/login'); router.back(); router.setParams({ q: 'expo' })
+const { id } = useLocalSearchParams<{ id: string }>()      // siempre strings
+useFocusEffect(useCallback(() => { /* al volver a la pantalla */ }, []))
+<Stack.Screen options={{ title: oferta.empresa }} />       // opciones desde la pantalla
+```
+
+## Datos, estado y almacenamiento
+
+```tsx
+const { data, isPending, isError, refetch } = useQuery({ queryKey: ['oferta', id], queryFn: () => api(`/ofertas/${id}`) })
+useInfiniteQuery({ queryKey, queryFn: ({ pageParam }) => …, initialPageParam: 1, getNextPageParam: (u) => u.siguiente })
+// En el celular: onlineManager + expo-network, focusManager + AppState
+
+create<Estado>()(persist((set) => ({ … }), { name: 'clave', storage: createJSONStorage(() => AsyncStorage) }))
+await SecureStore.setItemAsync('token', token)            // tokens: SecureStore, nunca AsyncStorage
+const db = useSQLiteContext(); await db.sql`SELECT * FROM notas WHERE id = ${id}`
+process.env.EXPO_PUBLIC_API_URL                            // público: nada secreto en la app
+```
+
+## Animaciones y gestos
+
+```tsx
+const x = useSharedValue(0)
+const estilo = useAnimatedStyle(() => ({ transform: [{ translateX: x.get() }] }))   // o x.value
+x.set(withSpring(0)); x.set(withTiming(100, { duration: 200 }))
+const pan = usePanGesture({ onUpdate: (e) => x.set(e.translationX), onDeactivate: () => x.set(withSpring(0)) })
+<GestureDetector gesture={pan}><Animated.View style={estilo} entering={FadeInDown} /></GestureDetector>
+scheduleOnRN(funcionDeReact, arg)   // desde un worklet al hilo de JS
+// Reanimated 4: transitionProperty / transitionDuration / animationName como en CSS
+```
+
+## Comandos
+
+```bash
+npx create-expo-app@latest mi-app        # proyecto nuevo
+npx expo start                            # servidor + QR (i, a, w, j, r, m)
+npx expo install <paquete>                # versión compatible con el SDK
+npx expo install --fix · npx expo-doctor  # arreglar versiones · revisar el proyecto
+npx expo prebuild · npx expo run:ios      # generar nativo · compilar local
+npx expo config --type introspect         # ver el Info.plist y el AndroidManifest que se generan
+
+eas init · eas build:configure
+eas build --profile development|preview|production --platform ios|android|all
+eas submit --platform ios|android         # o eas build --auto-submit
+eas update --channel production --environment production --message "…"
+eas update:rollback · eas credentials · eas env:create · eas device:create
+eas workflow:run archivo.yml
+```
+
+## Publicar: la lista corta
+
+| | Apple | Google |
+| --- | --- | --- |
+| Cuenta | USD 99/año | USD 25 una vez |
+| Formato | `.ipa` | `.aab` |
+| Pruebas | TestFlight (interno sin revisión, externo con revisión) | Pistas interna, cerrada, abierta |
+| Antes de producción | — | Cuentas personales nuevas: 12 testers × 14 días |
+| Revisión | 24–48 h normalmente | Horas a 7 días |
+| Requisito técnico 2026 | Xcode 26 / SDK iOS 26 | Target API 36 |
+| Siempre | Política de privacidad, declarar datos, borrar cuenta en la app, usuario de prueba, permisos justificados, IAP para contenido digital | Lo mismo + declaraciones de contenido, selector de fotos |
+| Solo Apple | Sign in with Apple si hay login social, privacy manifest, ATT para tracking, estado de trader en la UE | |
+
+## Preguntas de entrevista
+
+<Entrevista title="¿React Native es una WebView?">
+No. Los componentes se traducen a vistas nativas (UIView, android.view.View). El JavaScript corre en Hermes y se comunica con lo nativo vía JSI. Una WebView (como Cordova o Ionic con Capacitor) dibuja HTML.
+</Entrevista>
+
+<Entrevista title="¿Qué es la Nueva Arquitectura?">
+JSI reemplaza al bridge asincrónico: JavaScript llama a C++ directo. Fabric es el renderer nuevo (soporta las features concurrentes de React y layout sincrónico), TurboModules carga los módulos nativos a demanda, y Codegen genera los tipos entre JS y nativo. Es la única arquitectura desde el SDK 55.
+</Entrevista>
+
+<Entrevista title="¿Expo Go o development build? ¿Qué es prebuild?">
+Expo Go trae compiladas solo las librerías del Expo SDK: sirve para aprender y prototipar. Un development build es tu propia versión con tus librerías nativas, y es lo que se usa en proyectos reales. Prebuild (CNG) genera las carpetas `ios/` y `android/` desde `app.json` y los config plugins; no se editan a mano ni se suben a git.
+</Entrevista>
+
+<Entrevista title="¿Cómo optimizás el rendimiento?">
+Medir primero en una build de release y en un Android barato. Listas con FlashList o Legend List, filas livianas y memoizadas (el React Compiler lo hace solo), imágenes con expo-image y tamaño fijo, animaciones en el hilo de UI con Reanimated, selectores en Zustand para no re-renderizar de más, no bloquear el hilo de JS, y cargar lo mínimo al arrancar.
+</Entrevista>
+
+<Entrevista title="¿Por qué se traba una animación?">
+Porque depende del hilo de JavaScript y ese hilo está ocupado. La solución: Reanimated (worklets en el hilo de UI) o `useNativeDriver: true` con Animated, y Gesture Handler para gestos.
+</Entrevista>
+
+<Entrevista title="¿Dónde guardás el token? ¿Y los secretos?">
+El token en SecureStore (Keychain / Keystore). Los secretos de la app no van en la app: todo lo que está en el bundle se puede leer, incluidas las variables `EXPO_PUBLIC_`. Van en el backend.
+</Entrevista>
+
+<Entrevista title="¿Qué se puede actualizar por OTA?">
+Todo lo que es JavaScript, estilos e imágenes, con EAS Update, a las builds con la misma runtime version. Lo nativo (librerías nativas, permisos, ícono, SDK) necesita una build nueva y pasar por la tienda. Y siempre respetando que no cambie el propósito de la app.
+</Entrevista>
+
+<Entrevista title="¿Cómo manejás la navegación y la autenticación?">
+Expo Router: rutas como archivos, Stack y pestañas nativas, parámetros tipados con typed routes. Para el login, `Stack.Protected` con un guard según haya token; el token en SecureStore, hidratado con el splash visible para que no parpadee el login; y el backend valida el token en cada pedido.
+</Entrevista>
+
+<Entrevista title="¿Qué diferencias hay entre iOS y Android que tengas que manejar?">
+El botón "atrás" de Android (onRequestClose en modales), el gesto de volver de iOS, los permisos (en iOS solo se pregunta una vez), los textos de permisos en iOS, las sombras (hoy `boxShadow` unifica), las fuentes, el teclado (`KeyboardAvoidingView` con `behavior` distinto), las notificaciones (canales en Android), y los requisitos de cada tienda.
+</Entrevista>

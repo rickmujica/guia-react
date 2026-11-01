@@ -1,0 +1,106 @@
+Lo que hace que una app se sienta "nativa" no son los colores: es que **responde al toque al instante**, que las cosas se mueven siguiendo al dedo, y que vibra apenas cuando tiene que hacerlo.
+
+## Feedback al tocar
+
+Todo lo tocable tiene que reaccionar: con `Pressable` cambiás el estilo mientras está presionado (lo vimos en [componentes](#/componentes)). En Android también podés usar el efecto de onda del sistema:
+
+```tsx
+<Pressable android_ripple={{ color: 'rgba(0,0,0,0.1)' }} style={styles.fila}>…</Pressable>
+```
+
+## Háptica: la vibración suave
+
+`expo-haptics` da acceso al motor de vibración del teléfono. Bien usado, hace que la app se sienta cara; mal usado (vibrar en cada toque), cansa.
+
+```tsx
+import * as Haptics from 'expo-haptics'
+
+Haptics.selectionAsync()                                      // un "tic": elegir algo, un switch
+Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)        // un golpe suave: soltar una tarjeta
+Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)  // terminó bien (o Error, Warning)
+```
+
+En la app de la guía, el corazón de "guardar oferta" hace `selectionAsync` y "Postularme" hace `notificationAsync(Success)`.
+
+## Animated: las animaciones que vienen con React Native
+
+La API `Animated` viene incluida. Creás un `Animated.Value`, lo animás con `timing` o `spring`, y lo conectás a un `Animated.View`:
+
+<DemoNativa file="interaccion/Rebote" title="Animated: secuencias, resortes e interpolación" />
+
+- El valor se crea una vez por componente: `useAnimatedValue(0)` (o, en código viejo, `useRef(new Animated.Value(0)).current`, como en la demo, que también tiene que correr en la web).
+- **`useNativeDriver: true`** manda la animación al lado nativo antes de empezar: después corre sin pasar por JavaScript. Funciona solo con `transform` y `opacity` (no con `width` ni colores).
+- **`interpolate`** convierte un rango en otro: el mismo valor de 0 a 1 mueve, achica y desvanece.
+- `Animated.sequence`, `parallel`, `stagger` y `loop` combinan animaciones.
+
+### Seguir al dedo con PanResponder
+
+Lo mismo para gestos: `PanResponder` viene con React Native y avisa dónde está el dedo. Arrastrá la tarjeta hacia los costados:
+
+<DemoNativa file="interaccion/Deslizar" title="Arrastrar una tarjeta con PanResponder" />
+
+Funciona, pero el gesto pasa por el hilo de JavaScript: si JS está ocupado, la tarjeta se traba. Por eso, para gestos y animaciones serias, se usan las dos librerías de abajo.
+
+## Reanimated 4
+
+**Reanimated** es la librería de animaciones de React Native (viene en la plantilla de Expo). La idea clave: las animaciones corren en el **hilo de UI**, con funciones especiales llamadas *worklets*. Aunque JavaScript esté ocupado, la animación sigue a 60 o 120 cuadros por segundo.
+
+```tsx
+import Animated, { useAnimatedStyle, useSharedValue, withSequence, withSpring } from 'react-native-reanimated'
+
+function Corazon() {
+  const escala = useSharedValue(1)                      // un valor que vive en el hilo de UI
+  const estilo = useAnimatedStyle(() => ({              // esta función es un worklet
+    transform: [{ scale: escala.get() }],
+  }))
+
+  return (
+    <Pressable onPress={() => escala.set(withSequence(withSpring(1.3), withSpring(1)))}>
+      <Animated.View style={estilo}>…</Animated.View>
+    </Pressable>
+  )
+}
+```
+
+- **`useSharedValue`**: como un `useRef`, pero visible desde el hilo de UI. Cambiarlo **no** re-renderiza. Se lee y se cambia con `.value`, o con `.get()` y `.set()`: con el React Compiler activado conviene `get`/`set`, porque el compilador no permite asignar propiedades de lo que devuelve un hook.
+- **`useAnimatedStyle`**: un estilo que se recalcula en el hilo de UI cada vez que cambia un shared value.
+- **`withTiming`**, **`withSpring`**, **`withDecay`**, **`withSequence`**, **`withRepeat`**: animan el valor.
+- **Animaciones de layout**: `entering={FadeInDown}` y `exiting={FadeOut}` animan un elemento al aparecer y desaparecer, y `layout={LinearTransition}` cuando cambia de lugar. Ideal para listas que se filtran.
+
+### Transiciones al estilo CSS
+
+La novedad de Reanimated 4: entiende **transiciones y animaciones con la sintaxis de CSS**. Para animar un cambio de estado no hace falta ni un shared value:
+
+<Source path="app-expo/src/ejemplos/TransicionCss.tsx" />
+
+También hay `animationName` con keyframes (`{ from: {...}, to: {...} }`), `animationDuration` y `animationIterationCount: 'infinite'`, como `@keyframes` en CSS.
+
+## Gesture Handler: gestos de verdad
+
+**react-native-gesture-handler** reconoce gestos en el hilo de UI: arrastrar, pellizcar, rotar, deslizar, mantener presionado. Combinado con Reanimated, el gesto y la animación nunca pasan por JavaScript. Esta es la tarjeta de la demo anterior, hecha como se hace en una app real:
+
+<Source path="app-expo/src/ejemplos/TarjetaDeslizable.tsx" highlight="21-44" />
+
+- La versión 3 usa **hooks** por gesto: `usePanGesture`, `useTapGesture`, `usePinchGesture`, `useLongPressGesture`… y `GestureDetector` envuelve la vista.
+- Los callbacks (`onUpdate`, `onDeactivate`) son worklets: corren en el hilo de UI.
+- Para llamar a una función de React desde un worklet (avisar que se decidió), se usa **`scheduleOnRN`** de `react-native-worklets` (antes se llamaba `runOnJS`).
+- La app tiene que estar envuelta en **`GestureHandlerRootView`**; en la de la guía está en `src/app/_layout.tsx`.
+
+<Ojo title="Respetá 'reducir movimiento'">
+Hay usuarios que activan "Reducir movimiento" en el sistema porque las animaciones les causan mareo. Reanimated respeta esa opción por defecto en las animaciones de layout, y el hook `useReducedMotion()` te dice si está activa para tus animaciones propias.
+</Ojo>
+
+## Más librerías de interacción
+
+| Necesitás | Librería |
+| --- | --- |
+| Deslizar una fila para borrar | `ReanimatedSwipeable`, incluida en Gesture Handler |
+| Un panel que sube desde abajo (bottom sheet) | **@gorhom/bottom-sheet**, o una ruta con `presentation: 'formSheet'` |
+| Animaciones de After Effects | **lottie-react-native** |
+| Dibujar con alto rendimiento (gráficos, efectos) | **@shopify/react-native-skia** |
+| Animaciones declarativas simples | **Moti** (sobre Reanimated) |
+| Gráficos | **victory-native** (sobre Skia) |
+
+<Entrevista>
+"¿Cuál es la diferencia entre Animated y Reanimated?" Animated viene con React Native y, con `useNativeDriver`, corre en el lado nativo solo transform y opacity, y los gestos pasan por JS. Reanimated corre worklets en el hilo de UI: cualquier propiedad, gestos sincronizados con Gesture Handler, animaciones de layout, y desde la v4 transiciones estilo CSS. Para algo más que un fade, Reanimated.
+</Entrevista>

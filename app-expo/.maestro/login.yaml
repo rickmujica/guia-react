@@ -1,0 +1,16 @@
+# Test de punta a punta con Maestro: maestro test .maestro/login.yaml
+# Necesita la app instalada en un simulador o emulador (un development build o una build de preview).
+appId: com.ejemplo.busquedarn
+---
+- launchApp:
+    clearState: true
+- tapOn: "Email"
+- inputText: "ana@ejemplo.com"
+- tapOn: "Contraseña"
+- inputText: "expo1234"
+- tapOn: "Entrar"
+- assertVisible: "Ofertas"
+- tapOn: "Buscar puesto, empresa o tecnología"
+- inputText: "expo"
+- tapOn: "Expo Developer"
+- assertVisible: "Hasta US$ 3600 por mes"
