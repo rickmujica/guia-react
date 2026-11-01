@@ -144,6 +144,20 @@ y abrí desde el teléfono la dirección `Network` que aparece en la terminal. E
 | `npm run sql` | Corre las consultas de la guía de MySQL contra tu MySQL local y guarda los resultados. |
 | `npm run salidas` | Ejecuta los ejemplos de la guía de Node y guarda lo que imprimen y lo que responden sus APIs. |
 
+## Publicarla en Vercel
+
+La guía es un sitio estático (Vite genera `dist/`, y las rutas van en el hash de la URL: `#/react/use-state`), así que se publica en Vercel sin servidor ni configuración extra. `vercel.json` ya tiene el comando de build, la carpeta de salida y la caché de los archivos con hash.
+
+La primera vez:
+
+1. Entrá a [vercel.com](https://vercel.com) con tu cuenta de GitHub.
+2. **Add New → Project** e importá el repo `guia-react` (si no aparece, dale acceso a Vercel desde **Adjust GitHub App Permissions**).
+3. Dejá todo como viene (Framework: Vite, Root Directory: `./`) y apretá **Deploy**.
+
+Desde ahí, cada push a `main` publica la versión nueva, y cada pull request tiene su propia URL de prueba. El progreso de lectura se guarda en el navegador, así que en el sitio publicado empieza de cero (y es distinto en cada dispositivo).
+
+Desde la terminal también se puede: `npx vercel` (una vista previa) y `npx vercel --prod` (producción).
+
 ## Los PDF
 
 Cada guía tiene su PDF en `docs/`, con páginas de 104 × 185 mm (proporción de celular), índice con links a cada capítulo y marcadores para navegar desde el lector de PDF. Las demos no se pueden tocar en el PDF, pero todo el código está.
