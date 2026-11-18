@@ -11,6 +11,7 @@ La home muestra todas las guías con su progreso. Cada guía recuerda **el últi
 | Redux, Redux Toolkit, Redux Saga y Zustand (con RTK Query y una comparación de las cuatro) | Lista | [`docs/guia-estado-global.pdf`](docs/guia-estado-global.pdf) |
 | MySQL, de cero a intermedio (con resultados de un MySQL real y un playground en el navegador) | Lista | [`docs/guia-mysql.pdf`](docs/guia-mysql.pdf) |
 | Node.js y Express (el runtime, Express 5, Zod, JWT y tests, con salidas de ejecuciones reales) | Lista | [`docs/guia-node-express.pdf`](docs/guia-node-express.pdf) |
+| NestJS (módulos, inyección de dependencias, guards, pipes, validación con Zod, JWT y tests, con salidas de ejecuciones reales) | Lista | [`docs/guia-nestjs.pdf`](docs/guia-nestjs.pdf) |
 | React Native con Expo (componentes, navegación, librerías, y cómo publicar en App Store y Google Play, con una app de ejemplo para el celular) | Lista | [`docs/guia-react-native.pdf`](docs/guia-react-native.pdf) |
 
 ## Guía de React moderno
@@ -114,6 +115,26 @@ npm run salidas
 
 Necesita Node 24 o superior. Los ejemplos se chequean con su propio `tsconfig.node-ejemplos.json` en cada `npm run build`.
 
+## Guía de NestJS
+
+| Parte | Capítulos |
+| --- | --- |
+| Empezá acá | Node, Express y Nest |
+| 1 · Fundamentos | Crear un proyecto · Controladores y rutas · Providers e inyección de dependencias · Módulos |
+| 2 · El ciclo del pedido | El ciclo de un pedido · Pipes y validación · Excepciones y filtros · Guards y autenticación · Interceptores |
+| 3 · Una app de verdad | Configuración · Capas y base de datos · Tests · A producción · El resto del ecosistema |
+| 4 · Repaso | Chuleta y preguntas de entrevista |
+
+Los ejemplos están en `src/demos/nest/` y se usan en el MDX con los mismos `<Salida>` y `<Api>` de la guía de Node (las apps exportan `crearApp()`, que devuelve la app de `NestFactory.create`). La diferencia: Nest necesita decoradores con metadatos de tipos (`experimentalDecorators` y `emitDecoratorMetadata`), que Node no ejecuta borrando los tipos, así que los ejemplos **se compilan** con `tsc` (`tsconfig.nest.json`) antes de ejecutarlos, como en un proyecto de `nest new`. Usan módulos ES con imports `.js`, como los proyectos nuevos de Nest 12.
+
+Las salidas están en `src/content/nest/salidas.json` y las genera:
+
+```bash
+npm run salidas:nest
+```
+
+El script compila `src/demos/nest` a `node_modules/.tmp/nest`, ejecuta el JavaScript compilado y guarda lo que imprime y responde. Necesita Node 24 o superior. `npm run build` chequea los tipos de estos ejemplos con `tsconfig.nest.json`.
+
 ## Guía de React Native con Expo
 
 | Parte | Capítulos |
@@ -161,6 +182,7 @@ y abrí desde el teléfono la dirección `Network` que aparece en la terminal. E
 | `npm run pdf` | Build + genera el PDF de cada guía en `docs/` (`npm run pdf -- react` para una sola). |
 | `npm run sql` | Corre las consultas de la guía de MySQL contra tu MySQL local y guarda los resultados. |
 | `npm run salidas` | Ejecuta los ejemplos de la guía de Node y guarda lo que imprimen y lo que responden sus APIs. |
+| `npm run salidas:nest` | Compila y ejecuta los ejemplos de la guía de NestJS y guarda sus salidas. |
 
 ## Publicarla en Vercel
 
@@ -203,7 +225,8 @@ scripts/
   export-pdf.mjs      Genera los PDF
   sql-resultados.mjs  Corre las consultas de la guía de MySQL y guarda sus resultados
   node-salidas.mjs    Ejecuta los ejemplos de la guía de Node y guarda sus salidas
-  node-api.mjs        Levanta una app de Express de ejemplo y le hace los pedidos de un <Api>
+  nest-salidas.mjs    Compila y ejecuta los ejemplos de la guía de NestJS y guarda sus salidas
+  node-api.mjs        Levanta una app de Express o de Nest de ejemplo y le hace los pedidos de un <Api>
 docs/            Un PDF por guía
 app-expo/        La app de Expo de la guía de React Native: sus demos y ejemplos se muestran en la guía
 vite.config.ts   Vite con MDX, el React Compiler en modo "annotation" y el alias react-native → react-native-web
@@ -226,4 +249,4 @@ Para una guía nueva, creá `src/guides/<guía>.ts` con su `GuideDef` y sumala a
 
 ## Versiones
 
-Escrita en octubre y noviembre de 2026 con React 19.3, Vite 8, TypeScript 7 y React Compiler 1.0. Los resultados de la guía de MySQL son de MySQL 8.0, las salidas de la guía de Node, de Node 24 con Express 5.3, y la guía de React Native usa Expo SDK 58 (React Native 0.88).
+Escrita en octubre y noviembre de 2026 con React 19.3, Vite 8, TypeScript 7 y React Compiler 1.0. Los resultados de la guía de MySQL son de MySQL 8.0, las salidas de la guía de Node, de Node 24 con Express 5.3, las de la guía de NestJS, de Node 24 con NestJS 12.5, y la guía de React Native usa Expo SDK 58 (React Native 0.88).

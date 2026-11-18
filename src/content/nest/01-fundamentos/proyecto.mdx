@@ -1,0 +1,107 @@
+## nest new
+
+Los proyectos se crean con el CLI de Nest:
+
+```bash
+npx @nestjs/cli new empleos-api
+cd empleos-api
+npm run start:dev        # compila, levanta en http://localhost:3000 y reinicia al guardar
+```
+
+El CLI pregunta el gestor de paquetes y el **sistema de módulos**. Desde Nest 12 la opción por defecto es **ESM (módulos ES) con Vitest** para los tests; la otra es CommonJS con Jest, que es lo que tienen los proyectos creados antes de 2026. Esta guía usa ESM.
+
+```text
+empleos-api/
+  src/
+    main.ts                    El punto de entrada: crea la app y la levanta
+    app.module.ts              El módulo raíz
+    app.controller.ts          Un controlador de ejemplo (GET /)
+    app.service.ts             Un servicio de ejemplo
+    app.controller.spec.ts     Su test
+  test/                        Tests end-to-end
+  nest-cli.json                Configuración del CLI
+  tsconfig.json                Con experimentalDecorators y emitDecoratorMetadata
+  package.json                 "type": "module" y los scripts start, start:dev, build, test…
+```
+
+Los cuatro archivos de `src/` son la app mínima. Así quedan (con el estilo de este repo):
+
+<Source path="src/demos/nest/01-fundamentos/proyecto/main.ts" />
+
+<Source path="src/demos/nest/01-fundamentos/proyecto/app.module.ts" />
+
+<Source path="src/demos/nest/01-fundamentos/proyecto/app.controller.ts" />
+
+<Source path="src/demos/nest/01-fundamentos/proyecto/app.service.ts" />
+
+Ya están las tres piezas que forman cualquier app de Nest:
+
+| Pieza | Decorador | Qué hace | Capítulo |
+| --- | --- | --- | --- |
+| Controlador | `@Controller()` | Recibe los pedidos HTTP y devuelve la respuesta | [Controladores](#/controladores) |
+| Provider (servicio) | `@Injectable()` | La lógica; Nest lo crea y lo inyecta donde se pida | [Providers](#/providers) |
+| Módulo | `@Module()` | Agrupa controladores y providers de una feature | [Módulos](#/modulos) |
+
+Fijate en los imports: `'./app.module.js'`, con **`.js`** aunque el archivo sea `.ts`. Con módulos ES, Node exige la extensión, y TypeScript no la cambia al compilar, así que se escribe la del archivo que va a existir en `dist/`.
+
+## Los decoradores
+
+Un decorador es una función que se aplica a una clase, un método, una propiedad o un parámetro, con `@` adelante. Nest los usa para **anotar** el código: `@Controller('ofertas')` no hace nada en el momento; guarda un dato ("esta clase es un controlador con prefijo `/ofertas`") que Nest lee después, al armar la app.
+
+```ts
+@Controller('ofertas')                       // decorador de clase
+export class OfertasController {
+  constructor(private readonly servicio: OfertasService) {}   // ← Nest lee este tipo
+
+  @Get(':id')                                // decorador de método
+  obtener(@Param('id') id: string) {}        // decorador de parámetro
+}
+```
+
+La magia de Nest está en el constructor. ¿Cómo sabe que tiene que pasarle un `OfertasService`, si en JavaScript los tipos no existen? Porque con `emitDecoratorMetadata`, TypeScript **escribe los tipos del constructor** en el JavaScript compilado. Esto es lo que genera `tsc` para el `AppController` de arriba (resumido):
+
+```js
+AppController = __decorate([
+  Controller(),
+  __metadata("design:paramtypes", [AppService])   // ← el tipo del constructor, ahora en JavaScript
+], AppController);
+```
+
+Por eso:
+
+- Un proyecto de Nest **siempre se compila** (`nest build` o `nest start`, con `tsc` o con SWC, que es más rápido). No se puede correr con `node archivo.ts` borrando los tipos: se perderían esos metadatos.
+- El `tsconfig.json` necesita `"experimentalDecorators": true` y `"emitDecoratorMetadata": true`. Son los decoradores "viejos" de TypeScript, no los decoradores estándar de JavaScript (TC39) que TypeScript soporta desde la 5.0: Nest todavía no los usa, porque los estándar no admiten decoradores de parámetros.
+- Lo que inyectes tiene que ser algo que **exista en JavaScript**: una clase sí, una `interface` o un `type` no (desaparecen al compilar). Para eso están los tokens, en [providers](#/providers).
+
+<Ojo title="import type en los constructores">
+Si importás un servicio con `import type { OfertasService }`, el import desaparece al compilar, TypeScript escribe `Function` como tipo del parámetro y Nest no sabe qué inyectar: el error dice "the argument Function at index [0]". Las clases que se inyectan se importan con `import` normal.
+</Ojo>
+
+## El CLI genera el resto
+
+```bash
+nest generate resource ofertas     # módulo, controlador, servicio, DTOs y tests de un CRUD
+nest g module ofertas              # solo el módulo (g = generate)
+nest g controller ofertas          # y lo agrega al módulo
+nest g service ofertas
+nest g guard auth                  # también: pipe, interceptor, filter, middleware, decorator
+nest g service ofertas --dry-run   # muestra qué crearía, sin crear nada
+```
+
+`generate resource` es lo más útil: pregunta si es REST, GraphQL o WebSockets y arma la carpeta entera de la feature, ya registrada en `app.module.ts`.
+
+## Los scripts del package.json
+
+| Script | Qué hace |
+| --- | --- |
+| `npm run start:dev` | Compila y levanta la app, y la reinicia al guardar (`nest start --watch`) |
+| `npm run start:debug` | Lo mismo con el inspector, para poner breakpoints |
+| `npm run build` | Compila a `dist/` (`nest build`) |
+| `npm run start:prod` | Corre lo compilado: `node dist/main` |
+| `npm test` | Tests unitarios (Vitest) |
+| `npm run test:e2e` | Tests end-to-end de la API |
+| `npm run lint` | oxlint (los proyectos más viejos traen ESLint) |
+
+<Entrevista>
+"¿Por qué Nest necesita `emitDecoratorMetadata`?" → "Porque la inyección de dependencias se basa en los tipos de los parámetros del constructor. En JavaScript los tipos no existen, así que TypeScript los emite como metadatos (`design:paramtypes`) y Nest los lee con `reflect-metadata` para saber qué instancia pasar. Por eso lo que se inyecta tiene que ser una clase o un token, nunca una interface, y por eso el proyecto se compila con tsc o SWC."
+</Entrevista>

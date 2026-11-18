@@ -1,0 +1,149 @@
+Todo en una página, para repasar antes de una entrevista o tener a mano en un proyecto.
+
+## Nest en una página
+
+```ts
+// main.ts
+const app = await NestFactory.create(AppModule)
+app.setGlobalPrefix('api')
+app.enableVersioning({ type: VersioningType.URI })
+app.enableCors({ origin: ['http://localhost:5173'] })
+app.useGlobalPipes(new StandardSchemaValidationPipe())   // o new ValidationPipe({ whitelist: true, transform: true })
+app.enableShutdownHooks()
+await app.listen(process.env.PORT ?? 3000)
+
+// Módulo
+@Module({
+  imports: [OtroModule, ConfigModule.forRoot({ isGlobal: true, validate })],
+  controllers: [OfertasController],
+  providers: [OfertasService, { provide: Repo, useClass: RepoMysql }],
+  exports: [OfertasService],
+})
+export class OfertasModule {}
+
+// Controlador
+@Controller('ofertas')
+export class OfertasController {
+  constructor(private readonly ofertas: OfertasService) {}
+
+  @Get()            listar(@Query({ schema: Filtros }) filtros: Filtros) {}
+  @Get(':id')       obtener(@Param('id', ParseIntPipe) id: number) {}
+  @Post()           crear(@Body({ schema: NuevaOferta }) datos: NuevaOferta) {}   // 201
+  @Delete(':id') @HttpCode(204) borrar(@Param('id', ParseIntPipe) id: number) {}
+  @Roles(['admin']) @Get('admin') soloAdmin(@Usuario() usuario: UsuarioToken) {}
+}
+
+// Servicio
+@Injectable()
+export class OfertasService {
+  constructor(private readonly repo: Repo, @Inject(MONEDA) private readonly moneda: string) {}
+  async obtener(id: number) {
+    const oferta = await this.repo.buscar(id)
+    if (!oferta) throw new NotFoundException(`No existe la oferta ${id}`)   // throw = respuesta de error
+    return oferta
+  }
+}
+
+// Providers
+{ provide: Token, useClass: Clase }
+{ provide: 'TOKEN', useValue: valor }
+{ provide: TOKEN, useFactory: (config: ConfigService) => crear(config), inject: [ConfigService] }
+{ provide: APP_GUARD, useClass: AuthGuard }      // también APP_PIPE, APP_INTERCEPTOR, APP_FILTER
+
+// Las piezas del ciclo
+class MiGuard implements CanActivate { canActivate(ctx: ExecutionContext): boolean | Promise<boolean> {} }
+class MiPipe implements PipeTransform { transform(valor: unknown, meta: ArgumentMetadata) {} }
+class MiInterceptor implements NestInterceptor { intercept(ctx: ExecutionContext, next: CallHandler) { return next.handle().pipe(map(…)) } }
+@Catch(MiError) class MiFiltro implements ExceptionFilter { catch(error: MiError, host: ArgumentsHost) {} }
+class MiMiddleware implements NestMiddleware { use(req, res, next) {} }
+
+// Decoradores propios
+export const Publica = () => SetMetadata('esPublica', true)
+export const Roles = Reflector.createDecorator<Rol[]>()
+export const Usuario = createParamDecorator((_, ctx: ExecutionContext) => ctx.switchToHttp().getRequest().usuario)
+
+// Tests
+const modulo = await Test.createTestingModule({ providers: [OfertasService, { provide: Repo, useValue: mock }] }).compile()
+const servicio = modulo.get(OfertasService)
+```
+
+```bash
+npx @nestjs/cli new api           # proyecto nuevo (ESM + Vitest)
+nest g resource ofertas           # módulo + controlador + servicio + DTOs + tests
+nest g module|controller|service|guard|pipe|interceptor|filter|middleware nombre
+npm run start:dev                 # con recarga
+npm run build && node dist/main   # producción
+```
+
+El orden del ciclo: **middlewares → guards → interceptores (antes) → pipes → handler → interceptores (después)**, y los **filtros** si algo lanza una excepción.
+
+## Express vs Nest
+
+| | Express | Nest |
+| --- | --- | --- |
+| Rutas | `app.get('/ofertas/:id', fn)` | `@Get(':id')` en un método de un `@Controller` |
+| Datos del pedido | `req.params`, `req.query`, `req.body` | `@Param()`, `@Query()`, `@Body()` |
+| Respuesta | `res.status(201).json(x)` | `return x` (+ `@HttpCode`) |
+| Errores | `next(error)` + middleware de errores | `throw new NotFoundException()` + filtros |
+| Validación | `Esquema.parse(req.body)` a mano | Pipes: `{ schema }` o DTOs con `ValidationPipe` |
+| Auth | Middleware que deja `res.locals.usuario` | Guard global + `@Publica()`, `@Roles()`, `@Usuario()` |
+| Dependencias | Funciones que reciben sus dependencias | Contenedor de DI: se piden en el constructor |
+| Organización | Libre | Módulos por feature, siempre igual |
+| Ejecutar | `node app.ts` (borrando los tipos) | Compilar (`nest build`) y `node dist/main` |
+
+## Qué cambió en Nest 11 y 12
+
+Si entrás a un proyecto existente, probablemente esté en Nest 10 u 11. Lo que vas a notar:
+
+| | Antes | Nest 11 y 12 |
+| --- | --- | --- |
+| Express por debajo | Express 4 | Express 5 (desde Nest 11): comodines con nombre (`'*ruta'`), errores async manejados |
+| Módulos | CommonJS (`require`, imports sin extensión) | ESM por defecto en `nest new` (Nest 12): `"type": "module"` e imports con `.js` |
+| Tests | Jest | Vitest en los proyectos ESM nuevos (Jest sigue con CommonJS) |
+| Validación | `ValidationPipe` + class-validator | También `StandardSchemaValidationPipe` + Zod, Valibot o ArkType, con `@Body({ schema })` (Nest 12) |
+| Lint | ESLint + Prettier | oxlint + Prettier en el proyecto nuevo |
+| Logs en JSON | Librerías aparte | `new ConsoleLogger({ json: true })` (desde Nest 11) |
+| Node mínimo | 16 / 18 | 20 |
+
+Para actualizar un proyecto: `nest upgrade` (el CLI de Nest 12 lo trae) o `npm install` de las versiones nuevas de todos los `@nestjs/*` juntas, y leer la guía de migración oficial.
+
+## Preguntas de entrevista
+
+<Entrevista title="Conceptos de Nest">
+
+- **¿Qué es NestJS?** Un framework de Node para el backend, con TypeScript, que corre sobre Express (o Fastify) y agrega arquitectura: módulos, inyección de dependencias y decoradores. Inspirado en Angular.
+- **¿Qué relación tiene con Express?** Lo usa por debajo como servidor HTTP, a través de un adaptador. Nest agrega la estructura; Express sigue atendiendo los pedidos.
+- **¿Controlador, provider y módulo?** El controlador traduce HTTP, el provider tiene la lógica y se inyecta, el módulo agrupa los dos por feature y decide qué exporta.
+- **¿Qué es la inyección de dependencias?** Que las clases reciban sus dependencias en el constructor en lugar de crearlas; el contenedor de Nest las crea (singletons por defecto) y las conecta. Facilita testear y cambiar implementaciones.
+- **¿Por qué no se puede inyectar una interface?** Porque desaparece al compilar. Se usa una clase abstracta o un token (`string` o `Symbol`) con `@Inject`.
+- **¿Qué es `emitDecoratorMetadata`?** La opción de TypeScript que escribe los tipos del constructor en el JavaScript, para que Nest sepa qué inyectar. Por eso Nest siempre se compila.
+- **¿Scopes?** `DEFAULT` (singleton), `REQUEST` (uno por pedido) y `TRANSIENT` (uno por consumidor). No guardar estado de un pedido en un singleton.
+- **¿Módulos dinámicos?** Módulos configurables con `forRoot`, `register` o `forFeature` (y sus variantes `Async`), como `ConfigModule` o `JwtModule`.
+- **¿Qué significa "Nest can't resolve dependencies"?** Que un provider pide algo que no está disponible en su módulo: falta un `exports`, un `imports`, registrar el provider, o se importó con `import type`.
+
+</Entrevista>
+
+<Entrevista title="El ciclo del pedido">
+
+- **¿En qué orden corren?** Middlewares, guards, interceptores, pipes, handler, interceptores; los filtros si hay una excepción.
+- **¿Middleware o guard para autenticar?** Guard: conoce el handler y sus metadatos (`@Publica()`, `@Roles()`), y es lo que propone Nest.
+- **¿Para qué un pipe?** Transformar y validar cada argumento del handler: `ParseIntPipe`, `ValidationPipe`, `StandardSchemaValidationPipe`.
+- **¿`whitelist` y `forbidNonWhitelisted`?** Borran o rechazan las propiedades del body que no están en el DTO: protección contra mass assignment.
+- **¿Para qué un interceptor?** Envolver al handler: formato de respuesta, logs, tiempos, caché, timeouts. Trabaja con Observables de RxJS.
+- **¿Para qué un filtro?** Convertir excepciones en respuestas: formato de error único, errores del dominio o de la base a HTTP.
+- **¿Qué pasa con un error que no es HttpException?** Nest responde 500 genérico y lo registra en el log.
+- **¿Cómo registrás un guard global que inyecta servicios?** Como provider: `{ provide: APP_GUARD, useClass: AuthGuard }`.
+
+</Entrevista>
+
+<Entrevista title="Proyecto real">
+
+- **¿Cómo estructurás una API en Nest?** Un módulo por feature con controlador, servicio y repositorio; config, auth y base de datos en sus módulos; dependencias por constructor.
+- **¿Cómo validás la configuración?** `ConfigModule.forRoot` con `validate` (Zod o Joi): si falta algo, no arranca.
+- **¿Qué ORM usaste?** TypeORM (`forFeature`, `@InjectRepository`) o Prisma (un `PrismaService`). Contá migraciones y transacciones.
+- **¿Cómo testeás?** `Test.createTestingModule` con mocks (`useValue`, `overrideProvider`) para unit tests; e2e con `createNestApplication` y supertest.
+- **¿Cómo documentás la API?** Swagger con `@nestjs/swagger`, en `/docs`; el front genera sus tipos de la especificación.
+- **¿Qué hacés para producción?** Logs en JSON, health check, `enableShutdownHooks`, CORS y helmet, Docker en dos etapas, y SWC o Fastify si hace falta velocidad.
+- **¿Cuándo no usarías Nest?** Para algo chico (un webhook, una función serverless, una API de tres rutas): Express, Fastify o Hono alcanzan con menos ceremonia.
+
+</Entrevista>

@@ -1,0 +1,1145 @@
+{
+ "node": "v24.22.3",
+ "express": "5.3.0",
+ "nest": "12.5.1",
+ "scripts": {
+  "nest/03-app/config/config.ts": {
+   "stdout": "Conectando a mysql://localhost:3306/empleos (puerto de la API: 8080)\nNODE_ENV = development\n",
+   "stderr": "",
+   "codigo": 0
+  },
+  "nest/03-app/config/config.ts .env.incompleto": {
+   "stdout": "",
+   "stderr": "file://~/proyecto/dist/03-app/config/config.js:40\n        throw new Error(`Configuración inválida:\\n${z.prettifyError(resultado.error)}`);\n              ^\n\nError: Configuración inválida:\n✖ Invalid input: expected number, received NaN\n  → at PUERTO\n✖ Invalid input: expected string, received undefined\n  → at DB_URL\n✖ JWT_SECRET tiene que tener al menos 16 caracteres\n  → at JWT_SECRET\n    at Object.validar [as validate] (file://~/proyecto/dist/03-app/config/config.js:40:15)\n    at ConfigModule.loadEnv (file://~/guia-react/node_modules/@nestjs/config/dist/config.module.js:135:48)\n    at ConfigModule.forRoot (file://~/guia-react/node_modules/@nestjs/config/dist/config.module.js:47:33)\n    at file://~/proyecto/dist/03-app/config/config.js:49:26\n\nNode.js v24.22.3\n",
+   "codigo": 1
+  },
+  "nest/03-app/produccion/apagado.ts": {
+   "stdout": "[Nest] 4242  - 18/11/2026, 10:00:00     LOG [NestFactory] Starting Nest application...\n[Nest] 4242  - 18/11/2026, 10:00:00     LOG [InstanceLoader] AppModule dependencies initialized +0ms\n[Nest] 4242  - 18/11/2026, 10:00:00     LOG [RoutesResolver] OfertasController {/api/ofertas} (version: 1): +0ms\n[Nest] 4242  - 18/11/2026, 10:00:00     LOG [RouterExplorer] Mapped {/api/ofertas, GET} (version: 1) route +0ms\n[Nest] 4242  - 18/11/2026, 10:00:00     LOG [RouterExplorer] Mapped {/api/ofertas, GET} (version: 2) route +0ms\n[Nest] 4242  - 18/11/2026, 10:00:00     LOG [RoutesResolver] SaludController {/api/salud} (version: Neutral): +0ms\n[Nest] 4242  - 18/11/2026, 10:00:00     LOG [RouterExplorer] Mapped {/salud, GET} (version: Neutral) route +0ms\n[Nest] 4242  - 18/11/2026, 10:00:00     LOG [Cola] Conectada\n[Nest] 4242  - 18/11/2026, 10:00:00     LOG [NestApplication] Nest application successfully started +0ms\nEscuchando. Mandando SIGTERM…\n[Nest] 4242  - 18/11/2026, 10:00:00     LOG [Cola] Cerrando (señal: SIGTERM)\n",
+   "stderr": "",
+   "codigo": 143
+  },
+  "--test nest/03-app/testing/ofertas.service.test.ts": {
+   "stdout": "▶ OfertasService\n  ✔ publica una oferta nueva (…ms)\n  ✔ no deja publicar dos veces el mismo título (sin importar mayúsculas) (…ms)\n  ✔ responde 404 si la oferta no existe (…ms)\n✔ OfertasService (…ms)\nℹ tests 3\nℹ suites 1\nℹ pass 3\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms …\n",
+   "stderr": "",
+   "codigo": 0
+  },
+  "--test nest/03-app/testing/ofertas.e2e.test.ts": {
+   "stdout": "▶ API de ofertas\n  ✔ GET /ofertas filtra por modalidad (…ms)\n  ✔ POST /ofertas valida el body (…ms)\n  ✔ POST /ofertas crea la oferta (…ms)\n✔ API de ofertas (…ms)\nℹ tests 3\nℹ suites 1\nℹ pass 3\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms …\n",
+   "stderr": "",
+   "codigo": 0
+  },
+  "nest/01-fundamentos/modulos/sin-exportar.ts": {
+   "stdout": "OfertasService creado\n",
+   "stderr": "[Nest] 4242  - 18/11/2026, 10:00:00   ERROR [ExceptionHandler] UnknownDependenciesException [Error]: Nest can't resolve dependencies of the PostulacionesService (?). Please make sure that the argument OfertasService at index [0] is available in the PostulacionesModule module.\n\nPotential solutions:\n- Is PostulacionesModule a valid NestJS module?\n- If OfertasService is a provider, is it part of the current PostulacionesModule?\n- If OfertasService is exported from a separate @Module, is that module imported within PostulacionesModule?\n  @Module({\n    imports: [ /* the Module containing OfertasService */ ]\n  })\n\nFor more common dependency resolution issues, see: https://docs.nestjs.com/faq/common-errors\n    at Injector.lookupComponentInParentModules (file://~/guia-react/node_modules/@nestjs/core/injector/injector.js:471:19) {\n  type: 'PostulacionesService',\n  context: {\n    index: 0,\n    dependencies: [\n      [class OfertasService]\n    ],\n    name: [class OfertasService]\n  },\n  metadata: {\n    id: 'efe0191959493e7e44fe2'\n  },\n  moduleRef: {\n    id: '3d7a397ab8fecbefe0191'\n  }\n}\n",
+   "codigo": 1
+  },
+  "nest/01-fundamentos/providers/personalizados.ts": {
+   "stdout": "consola: [10:00 (USD)] Frontend React Senior: 4000 USD\nMoneda: USD\n¿Misma instancia? true\n",
+   "stderr": "",
+   "codigo": 0
+  }
+ },
+ "apis": {
+  "nest/03-app/datos/app.ts\nGET /ofertas?modalidad=hibrido\nPOST /ofertas {\"titulo\": \"Backend Node\", \"empresa\": \"Nubelia\"}\nPOST /ofertas {\"titulo\": \"frontend react senior\", \"empresa\": \"Nubelia\"}\nGET /ofertas/7": [
+   {
+    "pedido": {
+     "metodo": "GET",
+     "ruta": "/ofertas?modalidad=hibrido",
+     "headers": {}
+    },
+    "respuesta": {
+     "status": 200,
+     "statusText": "OK",
+     "headers": {
+      "content-length": "106",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"6a-V8FSTjQCpiLkru6vg6DcN5p95zg\"",
+      "x-powered-by": "Express"
+     },
+     "body": "[{\"id\":3,\"titulo\":\"React Native Developer\",\"empresa\":\"Pagos Sur\",\"modalidad\":\"hibrido\",\"salarioMax\":3200}]",
+     "consola": ""
+    }
+   },
+   {
+    "pedido": {
+     "metodo": "POST",
+     "ruta": "/ofertas",
+     "headers": {
+      "content-type": "application/json"
+     },
+     "body": "{\"titulo\": \"Backend Node\", \"empresa\": \"Nubelia\"}"
+    },
+    "respuesta": {
+     "status": 201,
+     "statusText": "Created",
+     "headers": {
+      "content-length": "91",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"5b-7N1wXZihC+f71vmIAeGsDyeCjtw\"",
+      "x-powered-by": "Express"
+     },
+     "body": "{\"titulo\":\"Backend Node\",\"empresa\":\"Nubelia\",\"modalidad\":\"remoto\",\"salarioMax\":null,\"id\":6}",
+     "consola": ""
+    }
+   },
+   {
+    "pedido": {
+     "metodo": "POST",
+     "ruta": "/ofertas",
+     "headers": {
+      "content-type": "application/json"
+     },
+     "body": "{\"titulo\": \"frontend react senior\", \"empresa\": \"Nubelia\"}"
+    },
+    "respuesta": {
+     "status": 409,
+     "statusText": "Conflict",
+     "headers": {
+      "content-length": "95",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"5f-T1QmsMwYBKF4xmPeLAHp38OxYc4\"",
+      "x-powered-by": "Express"
+     },
+     "body": "{\"message\":\"Nubelia ya publicó \\\"frontend react senior\\\"\",\"error\":\"Conflict\",\"statusCode\":409}",
+     "consola": ""
+    }
+   },
+   {
+    "pedido": {
+     "metodo": "GET",
+     "ruta": "/ofertas/7",
+     "headers": {}
+    },
+    "respuesta": {
+     "status": 404,
+     "statusText": "Not Found",
+     "headers": {
+      "content-length": "72",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"48-Sfknd2sNJIlxlnfzGfev5ctok+s\"",
+      "x-powered-by": "Express"
+     },
+     "body": "{\"message\":\"No existe la oferta 7\",\"error\":\"Not Found\",\"statusCode\":404}",
+     "consola": ""
+    }
+   }
+  ],
+  "nest/03-app/produccion/app.ts\nGET /api/v1/ofertas [Origin: http://localhost:5173]\nGET /api/v2/ofertas\nGET /api/ofertas\nGET /salud": [
+   {
+    "pedido": {
+     "metodo": "GET",
+     "ruta": "/api/v1/ofertas",
+     "headers": {
+      "origin": "http://localhost:5173"
+     }
+    },
+    "respuesta": {
+     "status": 200,
+     "statusText": "OK",
+     "headers": {
+      "access-control-allow-origin": "http://localhost:5173",
+      "content-length": "43",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"2b-DOY6UYEsTb8D/08OuBIml6fHyfE\"",
+      "vary": "Origin",
+      "x-powered-by": "Express"
+     },
+     "body": "[{\"id\":1,\"titulo\":\"Frontend React Senior\"}]",
+     "consola": ""
+    },
+    "arranque": "[Nest] 4242  - 18/11/2026, 10:00:00     LOG [NestFactory] Starting Nest application...\n[Nest] 4242  - 18/11/2026, 10:00:00     LOG [InstanceLoader] AppModule dependencies initialized +0ms\n[Nest] 4242  - 18/11/2026, 10:00:00     LOG [RoutesResolver] OfertasController {/api/ofertas} (version: 1): +0ms\n[Nest] 4242  - 18/11/2026, 10:00:00     LOG [RouterExplorer] Mapped {/api/ofertas, GET} (version: 1) route +0ms\n[Nest] 4242  - 18/11/2026, 10:00:00     LOG [RouterExplorer] Mapped {/api/ofertas, GET} (version: 2) route +0ms\n[Nest] 4242  - 18/11/2026, 10:00:00     LOG [RoutesResolver] SaludController {/api/salud} (version: Neutral): +0ms\n[Nest] 4242  - 18/11/2026, 10:00:00     LOG [RouterExplorer] Mapped {/salud, GET} (version: Neutral) route +0ms\n[Nest] 4242  - 18/11/2026, 10:00:00     LOG [Cola] Conectada\n[Nest] 4242  - 18/11/2026, 10:00:00     LOG [NestApplication] Nest application successfully started +0ms\n"
+   },
+   {
+    "pedido": {
+     "metodo": "GET",
+     "ruta": "/api/v2/ofertas",
+     "headers": {}
+    },
+    "respuesta": {
+     "status": 200,
+     "statusText": "OK",
+     "headers": {
+      "content-length": "63",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"3f-dEq9ga+AsVFrOOfGjBRDC2IHa60\"",
+      "vary": "Origin",
+      "x-powered-by": "Express"
+     },
+     "body": "{\"datos\":[{\"id\":1,\"titulo\":\"Frontend React Senior\"}],\"total\":1}",
+     "consola": ""
+    }
+   },
+   {
+    "pedido": {
+     "metodo": "GET",
+     "ruta": "/api/ofertas",
+     "headers": {}
+    },
+    "respuesta": {
+     "status": 404,
+     "statusText": "Not Found",
+     "headers": {
+      "content-length": "74",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"4a-zmCOZSak8RFI8pnq+vEIoKSSVb4\"",
+      "vary": "Origin",
+      "x-powered-by": "Express"
+     },
+     "body": "{\"message\":\"Cannot GET /api/ofertas\",\"error\":\"Not Found\",\"statusCode\":404}",
+     "consola": ""
+    }
+   },
+   {
+    "pedido": {
+     "metodo": "GET",
+     "ruta": "/salud",
+     "headers": {}
+    },
+    "respuesta": {
+     "status": 200,
+     "statusText": "OK",
+     "headers": {
+      "content-length": "11",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"b-Ai2R8hgEarLmHKwesT1qcY913ys\"",
+      "vary": "Origin",
+      "x-powered-by": "Express"
+     },
+     "body": "{\"ok\":true}",
+     "consola": ""
+    }
+   }
+  ],
+  "nest/02-pedido/auth/app.ts\nGET /yo\nPOST /login {\"email\": \"ana@ejemplo.com\", \"password\": \"otra\"}\nPOST /login {\"email\": \"ana@ejemplo.com\", \"password\": \"secreto-123\"}\nGET /yo [Authorization: Bearer {token}]\nGET /admin/usuarios [Authorization: Bearer {token}]\nPOST /login {\"email\": \"admin@ejemplo.com\", \"password\": \"admin-456\"}\nGET /admin/usuarios [Authorization: Bearer {token}]\nGET /yo [Authorization: Bearer abc.def.ghi]": [
+   {
+    "pedido": {
+     "metodo": "GET",
+     "ruta": "/yo",
+     "headers": {}
+    },
+    "respuesta": {
+     "status": 401,
+     "statusText": "Unauthorized",
+     "headers": {
+      "content-length": "68",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"44-5NKtP0dDleF8o5iL+biv+fPcliw\"",
+      "x-powered-by": "Express"
+     },
+     "body": "{\"message\":\"Falta el token\",\"error\":\"Unauthorized\",\"statusCode\":401}",
+     "consola": ""
+    }
+   },
+   {
+    "pedido": {
+     "metodo": "POST",
+     "ruta": "/login",
+     "headers": {
+      "content-type": "application/json"
+     },
+     "body": "{\"email\": \"ana@ejemplo.com\", \"password\": \"otra\"}"
+    },
+    "respuesta": {
+     "status": 401,
+     "statusText": "Unauthorized",
+     "headers": {
+      "content-length": "85",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"55-jgHgE06ox48dg0u5JgfGq7gDZos\"",
+      "x-powered-by": "Express"
+     },
+     "body": "{\"message\":\"Email o contraseña incorrectos\",\"error\":\"Unauthorized\",\"statusCode\":401}",
+     "consola": ""
+    }
+   },
+   {
+    "pedido": {
+     "metodo": "POST",
+     "ruta": "/login",
+     "headers": {
+      "content-type": "application/json"
+     },
+     "body": "{\"email\": \"ana@ejemplo.com\", \"password\": \"secreto-123\"}"
+    },
+    "respuesta": {
+     "status": 200,
+     "statusText": "OK",
+     "headers": {
+      "content-length": "211",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"d3-e9h8lkqQHveQ6MSdraV19L0zYCM\"",
+      "x-powered-by": "Express"
+     },
+     "body": "{\"token\":\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1MSIsImVtYWlsIjoiYW5hQGVqZW1wbG8uY29tIiwicm9sIjoidXN1YXJpbyIsImlhdCI6MTc5NTAzMDM5NCwiZXhwIjoxNzk1MDMxMjk0fQ.rQV1h_kIZU9zSgmtcZQN8zz8rvLDEPqZJz_nRu02XBw\"}",
+     "consola": ""
+    }
+   },
+   {
+    "pedido": {
+     "metodo": "GET",
+     "ruta": "/yo",
+     "headers": {
+      "authorization": "Bearer {token}"
+     }
+    },
+    "respuesta": {
+     "status": 200,
+     "statusText": "OK",
+     "headers": {
+      "content-length": "53",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"35-l6UQ14jp4lYeLiWSSiAMn8z5zWo\"",
+      "x-powered-by": "Express"
+     },
+     "body": "{\"id\":\"u1\",\"email\":\"ana@ejemplo.com\",\"rol\":\"usuario\"}",
+     "consola": ""
+    }
+   },
+   {
+    "pedido": {
+     "metodo": "GET",
+     "ruta": "/admin/usuarios",
+     "headers": {
+      "authorization": "Bearer {token}"
+     }
+    },
+    "respuesta": {
+     "status": 403,
+     "statusText": "Forbidden",
+     "headers": {
+      "content-length": "76",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"4c-EH3pN+hB+Jx9SynYAFHf7pwKe8Y\"",
+      "x-powered-by": "Express"
+     },
+     "body": "{\"message\":\"Solo para administradores\",\"error\":\"Forbidden\",\"statusCode\":403}",
+     "consola": ""
+    }
+   },
+   {
+    "pedido": {
+     "metodo": "POST",
+     "ruta": "/login",
+     "headers": {
+      "content-type": "application/json"
+     },
+     "body": "{\"email\": \"admin@ejemplo.com\", \"password\": \"admin-456\"}"
+    },
+    "respuesta": {
+     "status": 200,
+     "statusText": "OK",
+     "headers": {
+      "content-length": "211",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"d3-SvngfkGaMosXi93EakLcCHEmgI8\"",
+      "x-powered-by": "Express"
+     },
+     "body": "{\"token\":\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1MiIsImVtYWlsIjoiYWRtaW5AZWplbXBsby5jb20iLCJyb2wiOiJhZG1pbiIsImlhdCI6MTc5NTAzMDM5NCwiZXhwIjoxNzk1MDMxMjk0fQ.rS7fS6ltPHUoyLY9tJvA2PQccSWgaU99ppyGigtlc0o\"}",
+     "consola": ""
+    }
+   },
+   {
+    "pedido": {
+     "metodo": "GET",
+     "ruta": "/admin/usuarios",
+     "headers": {
+      "authorization": "Bearer {token}"
+     }
+    },
+    "respuesta": {
+     "status": 200,
+     "statusText": "OK",
+     "headers": {
+      "content-length": "109",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"6d-/lCu8O8twamkcArXOVFNN7Y8yZg\"",
+      "x-powered-by": "Express"
+     },
+     "body": "[{\"id\":\"u1\",\"email\":\"ana@ejemplo.com\",\"rol\":\"usuario\"},{\"id\":\"u2\",\"email\":\"admin@ejemplo.com\",\"rol\":\"admin\"}]",
+     "consola": ""
+    }
+   },
+   {
+    "pedido": {
+     "metodo": "GET",
+     "ruta": "/yo",
+     "headers": {
+      "authorization": "Bearer abc.def.ghi"
+     }
+    },
+    "respuesta": {
+     "status": 401,
+     "statusText": "Unauthorized",
+     "headers": {
+      "content-length": "79",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"4f-anUwtjxHK/a91ekfGBr8knMKMPE\"",
+      "x-powered-by": "Express"
+     },
+     "body": "{\"message\":\"Token inválido o vencido\",\"error\":\"Unauthorized\",\"statusCode\":401}",
+     "consola": ""
+    }
+   }
+  ],
+  "nest/02-pedido/ciclo.ts\nGET /ofertas/1\nGET /ofertas/abc\nGET /ofertas/1 [X-Bloquear: si]": [
+   {
+    "pedido": {
+     "metodo": "GET",
+     "ruta": "/ofertas/1",
+     "headers": {}
+    },
+    "respuesta": {
+     "status": 200,
+     "statusText": "OK",
+     "headers": {
+      "content-length": "41",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"29-I9hOj+TXtiImmQP4zEExK6MzUjA\"",
+      "x-powered-by": "Express"
+     },
+     "body": "{\"id\":1,\"titulo\":\"Frontend React Senior\"}",
+     "consola": "1. middleware GET /ofertas/1\n2. guard → OfertasController obtener\n3. interceptor (antes)\n4. pipe (param \"id\")\n5. handler, id = 1\n6. interceptor (después): { id: 1, titulo: 'Frontend React Senior' }\n"
+    }
+   },
+   {
+    "pedido": {
+     "metodo": "GET",
+     "ruta": "/ofertas/abc",
+     "headers": {}
+    },
+    "respuesta": {
+     "status": 400,
+     "statusText": "Bad Request",
+     "headers": {
+      "content-length": "49",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"31-gQG2CD1QCCwtpBnPXUB/BJddMGs\"",
+      "x-powered-by": "Express"
+     },
+     "body": "{\"status\":400,\"error\":\"\\\"abc\\\" no es un número\"}",
+     "consola": "1. middleware GET /ofertas/abc\n2. guard → OfertasController obtener\n3. interceptor (antes)\n4. pipe (param \"id\")\n✗ filtro: \"abc\" no es un número\n"
+    }
+   },
+   {
+    "pedido": {
+     "metodo": "GET",
+     "ruta": "/ofertas/1",
+     "headers": {
+      "x-bloquear": "si"
+     }
+    },
+    "respuesta": {
+     "status": 403,
+     "statusText": "Forbidden",
+     "headers": {
+      "content-length": "43",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"2b-VzlzYcJKaqS8VSVrA1N5v7O+xUg\"",
+      "x-powered-by": "Express"
+     },
+     "body": "{\"status\":403,\"error\":\"Forbidden resource\"}",
+     "consola": "1. middleware GET /ofertas/1\n2. guard → OfertasController obtener\n✗ filtro: Forbidden resource\n"
+    }
+   }
+  ],
+  "nest/02-pedido/excepciones.ts\nGET /errores/conflicto\nGET /errores/detalle\nGET /errores/propia\nGET /errores/cerrada/3\nGET /errores/bug\nGET /no-existe": [
+   {
+    "pedido": {
+     "metodo": "GET",
+     "ruta": "/errores/conflicto",
+     "headers": {}
+    },
+    "respuesta": {
+     "status": 409,
+     "statusText": "Conflict",
+     "headers": {
+      "content-length": "80",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"50-fI1rCCeEQyOfbZb3C2EFWcWriK4\"",
+      "x-powered-by": "Express"
+     },
+     "body": "{\"message\":\"Ya te postulaste a esta oferta\",\"error\":\"Conflict\",\"statusCode\":409}",
+     "consola": ""
+    }
+   },
+   {
+    "pedido": {
+     "metodo": "GET",
+     "ruta": "/errores/detalle",
+     "headers": {}
+    },
+    "respuesta": {
+     "status": 400,
+     "statusText": "Bad Request",
+     "headers": {
+      "content-length": "49",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"31-WUa1Ibvl++0YiUFBNRvUfV+jkPc\"",
+      "x-powered-by": "Express"
+     },
+     "body": "{\"message\":\"Datos inválidos\",\"campos\":[\"email\"]}",
+     "consola": ""
+    }
+   },
+   {
+    "pedido": {
+     "metodo": "GET",
+     "ruta": "/errores/propia",
+     "headers": {}
+    },
+    "respuesta": {
+     "status": 429,
+     "statusText": "Too Many Requests",
+     "headers": {
+      "content-length": "59",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"3b-bQ0m1nWTsnBLMe952Pa2QEIvycU\"",
+      "x-powered-by": "Express"
+     },
+     "body": "{\"statusCode\":429,\"message\":\"Probá de nuevo en un minuto\"}",
+     "consola": ""
+    }
+   },
+   {
+    "pedido": {
+     "metodo": "GET",
+     "ruta": "/errores/cerrada/3",
+     "headers": {}
+    },
+    "respuesta": {
+     "status": 410,
+     "statusText": "Gone",
+     "headers": {
+      "content-length": "112",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"70-VKeI9vv7Zqcn5fRLvFzNO0dJIb0\"",
+      "x-powered-by": "Express"
+     },
+     "body": "{\"statusCode\":410,\"error\":\"Gone\",\"message\":\"La oferta 3 ya no recibe postulaciones\",\"ruta\":\"/errores/cerrada/3\"}",
+     "consola": ""
+    }
+   },
+   {
+    "pedido": {
+     "metodo": "GET",
+     "ruta": "/errores/bug",
+     "headers": {}
+    },
+    "respuesta": {
+     "status": 500,
+     "statusText": "Internal Server Error",
+     "headers": {
+      "content-length": "52",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"34-rlKccw1E+/fV8niQk4oFitDfPro\"",
+      "x-powered-by": "Express"
+     },
+     "body": "{\"statusCode\":500,\"message\":\"Internal server error\"}",
+     "consola": "[Nest] 4242  - 18/11/2026, 10:00:00   ERROR [ExceptionsHandler] TypeError: Cannot read properties of undefined (reading 'titulo')\n    at ErroresController.bug (file://~/proyecto/dist/02-pedido/excepciones.js:55:23)\n    at file://~/guia-react/node_modules/@nestjs/core/router/router-execution-context.js:61:37\n    at InterceptorsConsumer.intercept (file://~/guia-react/node_modules/@nestjs/core/interceptors/interceptors-consumer.js:10:20)\n    at file://~/guia-react/node_modules/@nestjs/core/router/router-execution-context.js:97:64\n    at ErroresController.bug (file://~/guia-react/node_modules/@nestjs/core/router/router-proxy.js:6:23)\n    at Layer.handleRequest (~/guia-react/node_modules/router/lib/layer.js:152:17)\n    at next (~/guia-react/node_modules/router/lib/route.js:157:13)\n    at Route.dispatch (~/guia-react/node_modules/router/lib/route.js:117:3)\n    at handle (~/guia-react/node_modules/router/index.js:435:11)\n    at Layer.handleRequest (~/guia-react/node_modules/router/lib/layer.js:152:17)\n"
+    }
+   },
+   {
+    "pedido": {
+     "metodo": "GET",
+     "ruta": "/no-existe",
+     "headers": {}
+    },
+    "respuesta": {
+     "status": 404,
+     "statusText": "Not Found",
+     "headers": {
+      "content-length": "72",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"48-BOBgRrayV+nsl6IFTH0jQf5edzo\"",
+      "x-powered-by": "Express"
+     },
+     "body": "{\"message\":\"Cannot GET /no-existe\",\"error\":\"Not Found\",\"statusCode\":404}",
+     "consola": ""
+    }
+   }
+  ],
+  "nest/02-pedido/interceptores.ts\nGET /ofertas\nGET /ofertas/lenta": [
+   {
+    "pedido": {
+     "metodo": "GET",
+     "ruta": "/ofertas",
+     "headers": {}
+    },
+    "respuesta": {
+     "status": 200,
+     "statusText": "OK",
+     "headers": {
+      "content-length": "71",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"47-50eqF+oJMpNyR6MfYigEsWYalXI\"",
+      "x-powered-by": "Express"
+     },
+     "body": "{\"datos\":[{\"id\":1,\"titulo\":\"Frontend React Senior\"}],\"ruta\":\"/ofertas\"}",
+     "consola": ""
+    }
+   },
+   {
+    "pedido": {
+     "metodo": "GET",
+     "ruta": "/ofertas/lenta",
+     "headers": {}
+    },
+    "respuesta": {
+     "status": 408,
+     "statusText": "Request Timeout",
+     "headers": {
+      "content-length": "73",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"49-9X7QeFd4StRnyETXZx+BbCoGiEY\"",
+      "x-powered-by": "Express"
+     },
+     "body": "{\"message\":\"Tardó demasiado\",\"error\":\"Request Timeout\",\"statusCode\":408}",
+     "consola": ""
+    }
+   }
+  ],
+  "nest/02-pedido/validacion.ts\nGET /ofertas?modalidad=remoto&pagina=2\nGET /ofertas?pagina=cero\nPOST /ofertas {\"titulo\": \"Backend Node\", \"empresa\": \"Nubelia\"}\nPOST /ofertas {\"titulo\": \"QA\", \"modalidad\": \"oficina\", \"rol\": \"admin\"}\nPATCH /ofertas/abc {\"salarioMax\": 3800}\nPATCH /ofertas/5 {\"salarioMax\": 3800}": [
+   {
+    "pedido": {
+     "metodo": "GET",
+     "ruta": "/ofertas?modalidad=remoto&pagina=2",
+     "headers": {}
+    },
+    "respuesta": {
+     "status": 200,
+     "statusText": "OK",
+     "headers": {
+      "content-length": "45",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"2d-zh6/F0OyE0a75mwtpa2GOdwGD5s\"",
+      "x-powered-by": "Express"
+     },
+     "body": "{\"filtros\":{\"modalidad\":\"remoto\",\"pagina\":2}}",
+     "consola": ""
+    }
+   },
+   {
+    "pedido": {
+     "metodo": "GET",
+     "ruta": "/ofertas?pagina=cero",
+     "headers": {}
+    },
+    "respuesta": {
+     "status": 400,
+     "statusText": "Bad Request",
+     "headers": {
+      "content-length": "107",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"6b-Kg1BDKJskEXKjM0xht+BYGS187o\"",
+      "x-powered-by": "Express"
+     },
+     "body": "{\"message\":[\"pagina: Invalid input: expected number, received NaN\"],\"error\":\"Bad Request\",\"statusCode\":400}",
+     "consola": ""
+    }
+   },
+   {
+    "pedido": {
+     "metodo": "POST",
+     "ruta": "/ofertas",
+     "headers": {
+      "content-type": "application/json"
+     },
+     "body": "{\"titulo\": \"Backend Node\", \"empresa\": \"Nubelia\"}"
+    },
+    "respuesta": {
+     "status": 201,
+     "statusText": "Created",
+     "headers": {
+      "content-length": "91",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"5b-Tw8q9rm78uHy7afEEFpyCpvs8cY\"",
+      "x-powered-by": "Express"
+     },
+     "body": "{\"id\":6,\"titulo\":\"Backend Node\",\"empresa\":\"Nubelia\",\"modalidad\":\"remoto\",\"salarioMax\":null}",
+     "consola": ""
+    }
+   },
+   {
+    "pedido": {
+     "metodo": "POST",
+     "ruta": "/ofertas",
+     "headers": {
+      "content-type": "application/json"
+     },
+     "body": "{\"titulo\": \"QA\", \"modalidad\": \"oficina\", \"rol\": \"admin\"}"
+    },
+    "respuesta": {
+     "status": 400,
+     "statusText": "Bad Request",
+     "headers": {
+      "content-length": "280",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"118-qNFsuEzQfXv/6UE7SAsIrUav0SM\"",
+      "x-powered-by": "Express"
+     },
+     "body": "{\"message\":[\"titulo: El título tiene que tener al menos 3 letras\",\"empresa: Invalid input: expected string, received undefined\",\"modalidad: Invalid option: expected one of \\\"remoto\\\"|\\\"hibrido\\\"|\\\"presencial\\\"\",\"Unrecognized key: \\\"rol\\\"\"],\"error\":\"Bad Request\",\"statusCode\":400}",
+     "consola": ""
+    }
+   },
+   {
+    "pedido": {
+     "metodo": "PATCH",
+     "ruta": "/ofertas/abc",
+     "headers": {
+      "content-type": "application/json"
+     },
+     "body": "{\"salarioMax\": 3800}"
+    },
+    "respuesta": {
+     "status": 400,
+     "statusText": "Bad Request",
+     "headers": {
+      "content-length": "99",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"63-wfMLOZ62vdMvO/22o5TwTsbjMYc\"",
+      "x-powered-by": "Express"
+     },
+     "body": "{\"message\":[\"Invalid input: expected number, received NaN\"],\"error\":\"Bad Request\",\"statusCode\":400}",
+     "consola": ""
+    }
+   },
+   {
+    "pedido": {
+     "metodo": "PATCH",
+     "ruta": "/ofertas/5",
+     "headers": {
+      "content-type": "application/json"
+     },
+     "body": "{\"salarioMax\": 3800}"
+    },
+    "respuesta": {
+     "status": 200,
+     "statusText": "OK",
+     "headers": {
+      "content-length": "59",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"3b-Pih9x8yWcw6WeD4lI+amC0Di9D0\"",
+      "x-powered-by": "Express"
+     },
+     "body": "{\"id\":5,\"cambios\":{\"modalidad\":\"remoto\",\"salarioMax\":3800}}",
+     "consola": ""
+    }
+   }
+  ],
+  "nest/02-pedido/validacion-dto.ts\nPOST /ofertas {\"titulo\": \"Backend Node\", \"empresa\": \"Nubelia\", \"salarioMax\": \"3500\"}\nPOST /ofertas {\"titulo\": \"QA\", \"modalidad\": \"oficina\", \"rol\": \"admin\"}": [
+   {
+    "pedido": {
+     "metodo": "POST",
+     "ruta": "/ofertas",
+     "headers": {
+      "content-type": "application/json"
+     },
+     "body": "{\"titulo\": \"Backend Node\", \"empresa\": \"Nubelia\", \"salarioMax\": \"3500\"}"
+    },
+    "respuesta": {
+     "status": 201,
+     "statusText": "Created",
+     "headers": {
+      "content-length": "110",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"6e-+zqkt+VOrBmxt73/AMJpplq9Eb0\"",
+      "x-powered-by": "Express"
+     },
+     "body": "{\"id\":6,\"titulo\":\"Backend Node\",\"empresa\":\"Nubelia\",\"modalidad\":\"remoto\",\"salarioMax\":3500,\"esInstancia\":true}",
+     "consola": ""
+    }
+   },
+   {
+    "pedido": {
+     "metodo": "POST",
+     "ruta": "/ofertas",
+     "headers": {
+      "content-type": "application/json"
+     },
+     "body": "{\"titulo\": \"QA\", \"modalidad\": \"oficina\", \"rol\": \"admin\"}"
+    },
+    "respuesta": {
+     "status": 400,
+     "statusText": "Bad Request",
+     "headers": {
+      "content-length": "235",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"eb-tX8Kz6mIyB2jenZU3ZfLwb2+nBY\"",
+      "x-powered-by": "Express"
+     },
+     "body": "{\"message\":[\"property rol should not exist\",\"El título tiene que tener al menos 3 letras\",\"empresa must be a string\",\"modalidad must be one of the following values: remoto, hibrido, presencial\"],\"error\":\"Bad Request\",\"statusCode\":400}",
+     "consola": ""
+    }
+   }
+  ],
+  "nest/01-fundamentos/controladores.ts\nGET /ofertas?modalidad=hibrido\nGET /ofertas/3\nGET /ofertas/abc\nGET /ofertas/42\nPOST /ofertas {\"titulo\": \"Backend Node\", \"empresa\": \"Nubelia\", \"modalidad\": \"remoto\", \"salarioMax\": 3500}\nPATCH /ofertas/6 {\"salarioMax\": 3800}\nDELETE /ofertas/6\nGET /ofertas/exportar/csv\nGET /ofertas/remotas/contar": [
+   {
+    "pedido": {
+     "metodo": "GET",
+     "ruta": "/ofertas?modalidad=hibrido",
+     "headers": {}
+    },
+    "respuesta": {
+     "status": 200,
+     "statusText": "OK",
+     "headers": {
+      "content-length": "106",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"6a-V8FSTjQCpiLkru6vg6DcN5p95zg\"",
+      "x-powered-by": "Express"
+     },
+     "body": "[{\"id\":3,\"titulo\":\"React Native Developer\",\"empresa\":\"Pagos Sur\",\"modalidad\":\"hibrido\",\"salarioMax\":3200}]",
+     "consola": ""
+    }
+   },
+   {
+    "pedido": {
+     "metodo": "GET",
+     "ruta": "/ofertas/3",
+     "headers": {}
+    },
+    "respuesta": {
+     "status": 200,
+     "statusText": "OK",
+     "headers": {
+      "content-length": "104",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"68-51ccvSYI5XbCoK9vBzODKtziFAQ\"",
+      "x-powered-by": "Express"
+     },
+     "body": "{\"id\":3,\"titulo\":\"React Native Developer\",\"empresa\":\"Pagos Sur\",\"modalidad\":\"hibrido\",\"salarioMax\":3200}",
+     "consola": ""
+    }
+   },
+   {
+    "pedido": {
+     "metodo": "GET",
+     "ruta": "/ofertas/abc",
+     "headers": {}
+    },
+    "respuesta": {
+     "status": 400,
+     "statusText": "Bad Request",
+     "headers": {
+      "content-length": "99",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"63-fbYqGzam3W3FhpKYGVugOXQk+/M\"",
+      "x-powered-by": "Express"
+     },
+     "body": "{\"message\":\"Validation failed (numeric string is expected)\",\"error\":\"Bad Request\",\"statusCode\":400}",
+     "consola": ""
+    }
+   },
+   {
+    "pedido": {
+     "metodo": "GET",
+     "ruta": "/ofertas/42",
+     "headers": {}
+    },
+    "respuesta": {
+     "status": 404,
+     "statusText": "Not Found",
+     "headers": {
+      "content-length": "73",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"49-ZjhWHs3AJlGBkW5SdkawPipXcVE\"",
+      "x-powered-by": "Express"
+     },
+     "body": "{\"message\":\"No existe la oferta 42\",\"error\":\"Not Found\",\"statusCode\":404}",
+     "consola": ""
+    }
+   },
+   {
+    "pedido": {
+     "metodo": "POST",
+     "ruta": "/ofertas",
+     "headers": {
+      "content-type": "application/json"
+     },
+     "body": "{\"titulo\": \"Backend Node\", \"empresa\": \"Nubelia\", \"modalidad\": \"remoto\", \"salarioMax\": 3500}"
+    },
+    "respuesta": {
+     "status": 201,
+     "statusText": "Created",
+     "headers": {
+      "content-length": "91",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"5b-0mGuR0+DMY2Zi6oiluFTz5nQNQU\"",
+      "x-powered-by": "Express"
+     },
+     "body": "{\"titulo\":\"Backend Node\",\"empresa\":\"Nubelia\",\"modalidad\":\"remoto\",\"salarioMax\":3500,\"id\":6}",
+     "consola": ""
+    }
+   },
+   {
+    "pedido": {
+     "metodo": "PATCH",
+     "ruta": "/ofertas/6",
+     "headers": {
+      "content-type": "application/json"
+     },
+     "body": "{\"salarioMax\": 3800}"
+    },
+    "respuesta": {
+     "status": 200,
+     "statusText": "OK",
+     "headers": {
+      "content-length": "91",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"5b-xZuXs04/X27kxrVhdlLonADaxfg\"",
+      "x-powered-by": "Express"
+     },
+     "body": "{\"titulo\":\"Backend Node\",\"empresa\":\"Nubelia\",\"modalidad\":\"remoto\",\"salarioMax\":3800,\"id\":6}",
+     "consola": ""
+    }
+   },
+   {
+    "pedido": {
+     "metodo": "DELETE",
+     "ruta": "/ofertas/6",
+     "headers": {}
+    },
+    "respuesta": {
+     "status": 204,
+     "statusText": "No Content",
+     "headers": {
+      "x-powered-by": "Express"
+     },
+     "body": "",
+     "consola": ""
+    }
+   },
+   {
+    "pedido": {
+     "metodo": "GET",
+     "ruta": "/ofertas/exportar/csv",
+     "headers": {}
+    },
+    "respuesta": {
+     "status": 200,
+     "statusText": "OK",
+     "headers": {
+      "content-length": "157",
+      "content-type": "text/csv; charset=utf-8",
+      "etag": "W/\"9d-binGUjY770QXr9G5tK4L4XySTUc\"",
+      "x-powered-by": "Express"
+     },
+     "body": "1,Frontend React Senior,Nubelia\n2,Fullstack Node,Nubelia\n3,React Native Developer,Pagos Sur\n4,Frontend Junior,Mate Cloud\n5,Senior Frontend Engineer,Delta Pay",
+     "consola": ""
+    }
+   },
+   {
+    "pedido": {
+     "metodo": "GET",
+     "ruta": "/ofertas/remotas/contar",
+     "headers": {}
+    },
+    "respuesta": {
+     "status": 200,
+     "statusText": "OK",
+     "headers": {
+      "content-length": "69",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"45-MrSdnYMlPK5ieYx+naj+1U7OrmQ\"",
+      "x-powered-by": "Express",
+      "x-total": "3"
+     },
+     "body": "[\"Frontend React Senior\",\"Fullstack Node\",\"Senior Frontend Engineer\"]",
+     "consola": ""
+    }
+   }
+  ],
+  "nest/01-fundamentos/modulos/app.module.ts\nPOST /ofertas/1/postulaciones {\"email\": \"ana@ejemplo.com\"}\nPOST /ofertas/1/postulaciones {\"email\": \"ana@ejemplo.com\"}\nPOST /ofertas/9/postulaciones {\"email\": \"ana@ejemplo.com\"}": [
+   {
+    "pedido": {
+     "metodo": "POST",
+     "ruta": "/ofertas/1/postulaciones",
+     "headers": {
+      "content-type": "application/json"
+     },
+     "body": "{\"email\": \"ana@ejemplo.com\"}"
+    },
+    "respuesta": {
+     "status": 201,
+     "statusText": "Created",
+     "headers": {
+      "content-length": "80",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"50-LA98FexWdKuWcuoBLYhrTc8YpUY\"",
+      "x-powered-by": "Express"
+     },
+     "body": "{\"id\":1,\"ofertaId\":1,\"email\":\"ana@ejemplo.com\",\"oferta\":\"Frontend React Senior\"}",
+     "consola": ""
+    },
+    "arranque": "[Nest] 4242  - 18/11/2026, 10:00:00     LOG [NestFactory] Starting Nest application...\nOfertasService creado\n[Nest] 4242  - 18/11/2026, 10:00:00     LOG [InstanceLoader] AppModule dependencies initialized +0ms\n[Nest] 4242  - 18/11/2026, 10:00:00     LOG [InstanceLoader] OfertasModule dependencies initialized +0ms\n[Nest] 4242  - 18/11/2026, 10:00:00     LOG [InstanceLoader] PostulacionesModule dependencies initialized +0ms\n[Nest] 4242  - 18/11/2026, 10:00:00     LOG [RoutesResolver] OfertasController {/ofertas}: +0ms\n[Nest] 4242  - 18/11/2026, 10:00:00     LOG [RouterExplorer] Mapped {/ofertas, GET} route +0ms\n[Nest] 4242  - 18/11/2026, 10:00:00     LOG [RouterExplorer] Mapped {/ofertas/:id, GET} route +0ms\n[Nest] 4242  - 18/11/2026, 10:00:00     LOG [RouterExplorer] Mapped {/ofertas, POST} route +0ms\n[Nest] 4242  - 18/11/2026, 10:00:00     LOG [RoutesResolver] PostulacionesController {/ofertas/:ofertaId/postulaciones}: +0ms\n[Nest] 4242  - 18/11/2026, 10:00:00     LOG [RouterExplorer] Mapped {/ofertas/:ofertaId/postulaciones, POST} route +0ms\n[Nest] 4242  - 18/11/2026, 10:00:00     LOG [NestApplication] Nest application successfully started +0ms\n"
+   },
+   {
+    "pedido": {
+     "metodo": "POST",
+     "ruta": "/ofertas/1/postulaciones",
+     "headers": {
+      "content-type": "application/json"
+     },
+     "body": "{\"email\": \"ana@ejemplo.com\"}"
+    },
+    "respuesta": {
+     "status": 409,
+     "statusText": "Conflict",
+     "headers": {
+      "content-length": "80",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"50-fI1rCCeEQyOfbZb3C2EFWcWriK4\"",
+      "x-powered-by": "Express"
+     },
+     "body": "{\"message\":\"Ya te postulaste a esta oferta\",\"error\":\"Conflict\",\"statusCode\":409}",
+     "consola": ""
+    }
+   },
+   {
+    "pedido": {
+     "metodo": "POST",
+     "ruta": "/ofertas/9/postulaciones",
+     "headers": {
+      "content-type": "application/json"
+     },
+     "body": "{\"email\": \"ana@ejemplo.com\"}"
+    },
+    "respuesta": {
+     "status": 404,
+     "statusText": "Not Found",
+     "headers": {
+      "content-length": "72",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"48-cyUW06RrHne5kTbEqoAq0IPLzeY\"",
+      "x-powered-by": "Express"
+     },
+     "body": "{\"message\":\"No existe la oferta 9\",\"error\":\"Not Found\",\"statusCode\":404}",
+     "consola": ""
+    }
+   }
+  ],
+  "nest/01-fundamentos/providers/app.ts\nGET /ofertas?modalidad=remoto\nPOST /ofertas {\"titulo\": \"Backend Node\", \"empresa\": \"Nubelia\", \"modalidad\": \"remoto\", \"salarioMax\": 3500}\nGET /ofertas/6": [
+   {
+    "pedido": {
+     "metodo": "GET",
+     "ruta": "/ofertas?modalidad=remoto",
+     "headers": {}
+    },
+    "respuesta": {
+     "status": 200,
+     "statusText": "OK",
+     "headers": {
+      "content-length": "302",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"12e-Csb+m9l1zjyzgt0+/7yORw07JCo\"",
+      "x-powered-by": "Express"
+     },
+     "body": "[{\"id\":1,\"titulo\":\"Frontend React Senior\",\"empresa\":\"Nubelia\",\"modalidad\":\"remoto\",\"salarioMax\":4000},{\"id\":2,\"titulo\":\"Fullstack Node\",\"empresa\":\"Nubelia\",\"modalidad\":\"remoto\",\"salarioMax\":3000},{\"id\":5,\"titulo\":\"Senior Frontend Engineer\",\"empresa\":\"Delta Pay\",\"modalidad\":\"remoto\",\"salarioMax\":6000}]",
+     "consola": ""
+    },
+    "arranque": "OfertasService creado\n"
+   },
+   {
+    "pedido": {
+     "metodo": "POST",
+     "ruta": "/ofertas",
+     "headers": {
+      "content-type": "application/json"
+     },
+     "body": "{\"titulo\": \"Backend Node\", \"empresa\": \"Nubelia\", \"modalidad\": \"remoto\", \"salarioMax\": 3500}"
+    },
+    "respuesta": {
+     "status": 201,
+     "statusText": "Created",
+     "headers": {
+      "content-length": "91",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"5b-0mGuR0+DMY2Zi6oiluFTz5nQNQU\"",
+      "x-powered-by": "Express"
+     },
+     "body": "{\"titulo\":\"Backend Node\",\"empresa\":\"Nubelia\",\"modalidad\":\"remoto\",\"salarioMax\":3500,\"id\":6}",
+     "consola": ""
+    }
+   },
+   {
+    "pedido": {
+     "metodo": "GET",
+     "ruta": "/ofertas/6",
+     "headers": {}
+    },
+    "respuesta": {
+     "status": 200,
+     "statusText": "OK",
+     "headers": {
+      "content-length": "91",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"5b-0mGuR0+DMY2Zi6oiluFTz5nQNQU\"",
+      "x-powered-by": "Express"
+     },
+     "body": "{\"titulo\":\"Backend Node\",\"empresa\":\"Nubelia\",\"modalidad\":\"remoto\",\"salarioMax\":3500,\"id\":6}",
+     "consola": ""
+    }
+   }
+  ],
+  "nest/01-fundamentos/hola.ts\nGET /\nGET /salud\nGET /no-existe": [
+   {
+    "pedido": {
+     "metodo": "GET",
+     "ruta": "/",
+     "headers": {}
+    },
+    "respuesta": {
+     "status": 200,
+     "statusText": "OK",
+     "headers": {
+      "content-length": "29",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"1d-MZrocI5ZA6qnkqkKBaQsgsUPZHo\"",
+      "x-powered-by": "Express"
+     },
+     "body": "{\"mensaje\":\"Hola desde Nest\"}",
+     "consola": ""
+    },
+    "arranque": "[Nest] 4242  - 18/11/2026, 10:00:00     LOG [NestFactory] Starting Nest application...\n[Nest] 4242  - 18/11/2026, 10:00:00     LOG [InstanceLoader] AppModule dependencies initialized +0ms\n[Nest] 4242  - 18/11/2026, 10:00:00     LOG [RoutesResolver] AppController {/}: +0ms\n[Nest] 4242  - 18/11/2026, 10:00:00     LOG [RouterExplorer] Mapped {/, GET} route +0ms\n[Nest] 4242  - 18/11/2026, 10:00:00     LOG [RouterExplorer] Mapped {/salud, GET} route +0ms\n[Nest] 4242  - 18/11/2026, 10:00:00     LOG [NestApplication] Nest application successfully started +0ms\n"
+   },
+   {
+    "pedido": {
+     "metodo": "GET",
+     "ruta": "/salud",
+     "headers": {}
+    },
+    "respuesta": {
+     "status": 200,
+     "statusText": "OK",
+     "headers": {
+      "content-length": "11",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"b-Ai2R8hgEarLmHKwesT1qcY913ys\"",
+      "x-powered-by": "Express"
+     },
+     "body": "{\"ok\":true}",
+     "consola": ""
+    }
+   },
+   {
+    "pedido": {
+     "metodo": "GET",
+     "ruta": "/no-existe",
+     "headers": {}
+    },
+    "respuesta": {
+     "status": 404,
+     "statusText": "Not Found",
+     "headers": {
+      "content-length": "72",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"48-BOBgRrayV+nsl6IFTH0jQf5edzo\"",
+      "x-powered-by": "Express"
+     },
+     "body": "{\"message\":\"Cannot GET /no-existe\",\"error\":\"Not Found\",\"statusCode\":404}",
+     "consola": ""
+    }
+   }
+  ]
+ }
+}

@@ -1,0 +1,65 @@
+En Nest, un error se **lanza**. Nest tiene una capa de excepciones que atrapa todo lo que se lanza durante un pedido y lo convierte en una respuesta: no hace falta el middleware de errores de Express ni `try/catch` en cada ruta.
+
+## Las excepciones HTTP
+
+Nest trae una clase por cada status de error, todas hijas de `HttpException`:
+
+<Api archivo="nest/02-pedido/excepciones.ts">
+
+```http
+GET /errores/conflicto
+GET /errores/detalle
+GET /errores/propia
+GET /errores/cerrada/3
+GET /errores/bug
+GET /no-existe
+```
+
+</Api>
+
+| Excepción | Status |
+| --- | --- |
+| `BadRequestException` | 400 |
+| `UnauthorizedException` | 401 |
+| `ForbiddenException` | 403 |
+| `NotFoundException` | 404 |
+| `ConflictException` | 409 |
+| `GoneException` | 410 |
+| `PayloadTooLargeException` | 413 |
+| `UnprocessableEntityException` | 422 |
+| `InternalServerErrorException` | 500 |
+| `ServiceUnavailableException` | 503 |
+
+Las reglas de la respuesta:
+
+- Con un **string**, Nest arma `{ message, error, statusCode }`.
+- Con un **objeto** (`/errores/detalle`), ese objeto es el cuerpo, tal cual.
+- Para un status sin clase propia: `new HttpException('mensaje', HttpStatus.TOO_MANY_REQUESTS)`.
+- Cualquier error que **no** sea una `HttpException` (un `TypeError`, un error de la base) es un **500** con "Internal server error". El detalle y el stack van al log (mirá la consola de `/errores/bug`), nunca al cliente.
+
+## Errores del negocio y filtros
+
+¿Puede un servicio lanzar `NotFoundException`? Es lo más común y es práctico, pero ata el servicio a HTTP: si el mismo servicio se usa desde una cola o un script, un "404" no tiene sentido. La alternativa más limpia: el servicio lanza **errores propios** (`OfertaCerrada`) y un **filtro** los traduce a HTTP.
+
+Un filtro es una clase con `@Catch(TipoDeError)` y un método `catch(error, host)` que arma la respuesta con el `res` de Express. En el ejemplo, `OfertaCerradaFilter` convierte `OfertaCerrada` en un 410 y agrega la ruta.
+
+```ts
+@Catch()                         // sin argumentos: atrapa TODO
+export class TodoFilter implements ExceptionFilter {
+  catch(error: unknown, host: ArgumentsHost) {
+    const res = host.switchToHttp().getResponse<Response>()
+    const status = error instanceof HttpException ? error.getStatus() : 500
+    res.status(status).json({ status, error: status === 500 ? 'Error interno' : (error as Error).message })
+  }
+}
+```
+
+Usos típicos de un filtro: un **formato de error único** para toda la API (por ejemplo, el estándar *Problem Details*, RFC 9457), traducir errores de la base (un `ER_DUP_ENTRY` de MySQL o un `P2002` de Prisma → 409), o reportar los 500 a Sentry.
+
+<Tip title="Filtros globales con dependencias">
+`app.useGlobalFilters(new MiFiltro())` crea el filtro con `new`, fuera del contenedor: no puede inyectar nada. Si el filtro necesita un servicio (un logger, el cliente de Sentry), registralo como provider en un módulo: `{ provide: APP_FILTER, useClass: MiFiltro }`. Lo mismo vale para `APP_GUARD`, `APP_PIPE` y `APP_INTERCEPTOR`.
+</Tip>
+
+<Entrevista>
+"¿Cómo se manejan los errores en Nest?" → "Se lanzan. Las `HttpException` (como `NotFoundException`) ya traen su status y Nest arma la respuesta; cualquier otro error es un 500 genérico y el detalle va al log. Para errores propios del dominio, o para cambiar el formato de todos los errores, uso filtros de excepciones con `@Catch()`, registrados globalmente como `APP_FILTER` para que puedan inyectar dependencias."
+</Entrevista>

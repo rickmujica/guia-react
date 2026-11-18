@@ -1,0 +1,59 @@
+Un **interceptor** envuelve al handler: corre código antes, llama al handler y puede tocar lo que devolvió. Es la pieza para lo que se repite en muchas rutas alrededor de la lógica: dar formato a todas las respuestas, medir tiempos, cachear, cortar lo que tarda demasiado.
+
+## Dos interceptores
+
+`EnvolverInterceptor` envuelve cada respuesta en `{ datos, ruta }`, y `TimeoutInterceptor` corta los handlers que tardan más de 100 ms:
+
+<Api archivo="nest/02-pedido/interceptores.ts">
+
+```http
+GET /ofertas
+GET /ofertas/lenta
+```
+
+</Api>
+
+## next.handle() es un Observable
+
+El método `intercept(context, next)` recibe `next`, y `next.handle()` ejecuta el handler. Lo que devuelve no es una promesa sino un **Observable** de RxJS, la librería de flujos de datos que Nest usa por dentro. No hace falta saber RxJS a fondo; alcanza con unos operadores, que se encadenan con `.pipe()`:
+
+| Operador | Qué hace | Para |
+| --- | --- | --- |
+| `map(fn)` | Cambia el valor | Dar formato a la respuesta, sacar campos |
+| `tap(fn)` | Mira el valor sin cambiarlo | Logs, métricas |
+| `timeout(ms)` | Error si tarda más | Cortar handlers lentos |
+| `catchError(fn)` | Atrapa el error y devuelve otro | Traducir errores |
+| `of(valor)` | Un Observable con ese valor | Responder sin llamar al handler (caché) |
+
+```ts
+// Medir cuánto tarda cada handler
+intercept(context: ExecutionContext, next: CallHandler) {
+  const inicio = performance.now()
+  return next.handle().pipe(
+    tap(() => console.log(`${context.getHandler().name}: ${Math.round(performance.now() - inicio)} ms`)),
+  )
+}
+
+// Caché: si está guardado, no llama al handler
+intercept(context: ExecutionContext, next: CallHandler) {
+  const guardado = cache.get(clave)
+  if (guardado) return of(guardado)
+  return next.handle().pipe(tap((valor) => cache.set(clave, valor)))
+}
+```
+
+Para caché de verdad, Nest trae `CacheInterceptor` en `@nestjs/cache-manager` (en memoria o con Redis).
+
+<Tip title="Sacar campos sensibles">
+Un uso clásico: que nunca salga el `hash` de la contraseña. Con DTOs de clase, `ClassSerializerInterceptor` respeta `@Exclude()` de class-transformer. Con Zod, un interceptor con `map((valor) => EsquemaPublico.parse(valor))`, o directamente que el servicio devuelva solo lo que se puede mostrar.
+</Tip>
+
+## ¿Interceptor, middleware o filtro?
+
+- **Middleware**: no ve la respuesta del handler ni sabe qué handler corre. Para cosas de bajo nivel del pedido (headers, cookies, logs de acceso).
+- **Interceptor**: ve el handler y su resultado. Para transformar respuestas y medir.
+- **Filtro**: solo actúa cuando hay un error.
+
+<Entrevista>
+"¿Qué es un interceptor y para qué lo usarías?" → "Una clase que envuelve la ejecución del handler: corre antes, llama a `next.handle()` y recibe un Observable con la respuesta, que puede transformar con operadores de RxJS. Lo uso para dar un formato común a las respuestas, logs y métricas de tiempo, caché, timeouts o sacar campos sensibles. A diferencia de un middleware, conoce el handler y ve su resultado."
+</Entrevista>

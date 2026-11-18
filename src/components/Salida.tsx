@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from 'react'
+import salidasNestJson from '../content/nest/salidas.json'
 import salidasJson from '../content/node/salidas.json'
 import { textoDe } from '../lib/children'
 import { IS_PRINT } from '../lib/print'
@@ -6,8 +7,16 @@ import { claveApi, claveScript, type Pedido, type Respuesta, type Salidas } from
 import { getSource } from '../lib/sources'
 import { CodeBlock, CopyButton } from './CodeBlock'
 
-const salidas = salidasJson as unknown as Salidas // el JSON es demasiado concreto para TypeScript
-const version = `Node ${salidas.node.replace(/^v/, '')}`
+// El JSON es demasiado concreto para TypeScript
+const salidasNode = salidasJson as unknown as Salidas
+const salidasNest = salidasNestJson as unknown as Salidas
+
+// Los ejemplos de la guía de NestJS (nest/…) se compilan antes de ejecutarlos y tienen sus
+// propias salidas (las genera `npm run salidas:nest`).
+const esNest = (archivo: string) => archivo.startsWith('nest/')
+const salidasDe = (archivo: string) => (esNest(archivo) ? salidasNest : salidasNode)
+const versionNode = (salidas: Salidas) => `Node ${salidas.node.replace(/^v/, '')}`
+const comandoSalidas = (archivo: string) => (esNest(archivo) ? 'npm run salidas:nest' : 'npm run salidas')
 
 /** Los archivos del ejemplo en pestañas (en el PDF, uno abajo del otro). */
 function Archivos({ archivos }: { archivos: string[] }) {
@@ -63,15 +72,23 @@ type SalidaProps = {
  * Un script de Node con lo que imprimió al ejecutarlo de verdad (lo genera `npm run salidas`).
  */
 export function Salida({ archivo, args = '', flags = '', extra = [] }: SalidaProps) {
+  const salidas = salidasDe(archivo)
   const salida = salidas.scripts[claveScript(archivo, args, flags)]
-  const comando = ['node', flags, archivo.split('/').pop(), args].filter(Boolean).join(' ')
+  // Lo de Nest se ejecuta compilado: el .js que generó tsc
+  const nombre = archivo.split('/').pop()!
+  const ejecutado = esNest(archivo) ? `dist/${nombre.replace(/\.ts$/, '.js')}` : nombre
+  const comando = ['node', flags, ejecutado, args].filter(Boolean).join(' ')
 
   return (
     <figure className="consulta salida">
       <Archivos archivos={[archivo, ...extra]} />
       <div className="consulta-salidas">
         <p className="consulta-label">
-          <code className="salida-comando">$ {comando}</code> <span className="salida-version">· {version}</span>
+          <code className="salida-comando">$ {comando}</code>{' '}
+          <span className="salida-version">
+            · {versionNode(salidas)}
+            {salidas.nest && ` · NestJS ${salidas.nest}`}
+          </span>
         </p>
         {salida ? (
           <>
@@ -81,7 +98,7 @@ export function Salida({ archivo, args = '', flags = '', extra = [] }: SalidaPro
             {!salida.stdout && !salida.stderr && <p className="salida-vacia">(no imprimió nada)</p>}
           </>
         ) : (
-          <p className="consulta-falta">Falta la salida de este ejemplo: corré npm run salidas.</p>
+          <p className="consulta-falta">Falta la salida de este ejemplo: corré {comandoSalidas(archivo)}.</p>
         )}
       </div>
     </figure>
@@ -98,10 +115,11 @@ type ApiProps = {
 }
 
 /**
- * Una app de Express y los pedidos HTTP que se le hicieron, con lo que respondió de verdad
- * (lo genera `npm run salidas`).
+ * Una app de Express (o de Nest) y los pedidos HTTP que se le hicieron, con lo que respondió
+ * de verdad (lo genera `npm run salidas`, o `npm run salidas:nest`).
  */
 export function Api({ archivo, extra = [], children, headers = '' }: ApiProps) {
+  const salidas = salidasDe(archivo)
   const texto = textoDe(children)
   const intercambios = salidas.apis[claveApi(archivo, texto)]
   const mostrar = headers.split(',').map((h) => h.trim().toLowerCase()).filter(Boolean)
@@ -111,14 +129,22 @@ export function Api({ archivo, extra = [], children, headers = '' }: ApiProps) {
       <Archivos archivos={[archivo, ...extra]} />
       <div className="consulta-salidas">
         <p className="consulta-label">
-          Pedidos a la app <span className="salida-version">· {version} · Express {salidas.express}</span>
+          Pedidos a la app{' '}
+          <span className="salida-version">
+            · {versionNode(salidas)} · {salidas.nest ? `NestJS ${salidas.nest}` : `Express ${salidas.express}`}
+          </span>
         </p>
+        {intercambios?.[0]?.arranque && (
+          <pre className="api-consola" title="Lo que la app imprimió al arrancar">
+            {intercambios[0].arranque.trimEnd()}
+          </pre>
+        )}
         {intercambios ? (
           intercambios.map(({ pedido, respuesta }, i) => (
             <Intercambio key={i} pedido={pedido} respuesta={respuesta} mostrar={mostrar} />
           ))
         ) : (
-          <p className="consulta-falta">Faltan las respuestas de este ejemplo: corré npm run salidas.</p>
+          <p className="consulta-falta">Faltan las respuestas de este ejemplo: corré {comandoSalidas(archivo)}.</p>
         )}
       </div>
     </figure>

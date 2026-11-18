@@ -1,0 +1,148 @@
+Gran parte del valor de Nest está en sus paquetes oficiales: todos siguen el mismo patrón (un módulo que se importa con `forRoot`, decoradores, providers inyectables), así que una vez que entendés los fundamentos, cada uno se aprende en un rato. Este capítulo es un paseo por los más pedidos, para reconocerlos en un proyecto o en una oferta laboral. Los fragmentos son ilustrativos: no se ejecutan en la guía.
+
+## Swagger / OpenAPI: la documentación de la API
+
+`@nestjs/swagger` genera la especificación OpenAPI leyendo los controladores y DTOs, y sirve una página para probar la API (como Postman, en el navegador). Es de lo primero que se configura en una API que consume otro equipo, por ejemplo el de front.
+
+```ts
+// main.ts
+const config = new DocumentBuilder().setTitle('Empleos API').setVersion('1.0').addBearerAuth().build()
+SwaggerModule.setup('docs', app, SwaggerModule.createDocument(app, config))   // → /docs
+
+// Los DTOs y controladores se anotan (o lo hace el plugin del CLI, solo)
+export class CrearOfertaDto {
+  @ApiProperty({ example: 'Frontend React Senior' }) titulo: string
+}
+
+@ApiTags('ofertas')
+@ApiBearerAuth()
+@Controller('ofertas')
+export class OfertasController {}
+```
+
+Con la especificación, el front puede **generar los tipos y el cliente** de la API (con herramientas como `openapi-typescript` u Orval) en lugar de escribirlos a mano.
+
+## GraphQL
+
+`@nestjs/graphql` con Apollo o Mercurius. En el modo *code first*, el esquema de GraphQL sale de clases de TypeScript; un **resolver** es el equivalente a un controlador:
+
+```ts
+@ObjectType()
+export class Oferta {
+  @Field(() => Int) id: number
+  @Field() titulo: string
+}
+
+@Resolver(() => Oferta)
+export class OfertasResolver {
+  constructor(private readonly ofertas: OfertasService) {}   // el mismo servicio de REST
+
+  @Query(() => [Oferta])
+  ofertas() {
+    return this.ofertas.listar({})
+  }
+
+  @Mutation(() => Oferta)
+  publicarOferta(@Args('titulo') titulo: string, @Args('empresa') empresa: string) {
+    return this.ofertas.publicar({ titulo, empresa, modalidad: 'remoto', salarioMax: null })
+  }
+}
+```
+
+Guards, pipes, interceptores y filtros funcionan igual; por eso el `ExecutionContext` es genérico y no solo HTTP.
+
+## WebSockets
+
+Para tiempo real (notificaciones, chat), un **gateway** con Socket.IO (o `ws`):
+
+```ts
+@WebSocketGateway({ cors: { origin: ['http://localhost:5173'] } })
+export class NotificacionesGateway {
+  @WebSocketServer() server: Server
+
+  @SubscribeMessage('seguir-empresa')
+  seguir(@MessageBody() empresa: string, @ConnectedSocket() cliente: Socket) {
+    cliente.join(empresa)
+  }
+
+  // Lo llama OfertasService al publicar
+  avisar(oferta: Oferta) {
+    this.server.to(oferta.empresa).emit('nueva-oferta', oferta)
+  }
+}
+```
+
+## Tareas en segundo plano
+
+**Colas** (`@nestjs/bullmq`, con Redis): para lo que no tiene que hacer esperar al pedido, como mandar emails o procesar un CV. El pedido agrega un trabajo y responde; un *worker* lo procesa, con reintentos si falla.
+
+```ts
+// Agregar un trabajo
+constructor(@InjectQueue('emails') private readonly emails: Queue) {}
+await this.emails.add('bienvenida', { email })
+
+// Procesarlo (puede correr en otro proceso)
+@Processor('emails')
+export class EmailsProcessor extends WorkerHost {
+  async process(trabajo: Job<{ email: string }>) {
+    await enviarEmail(trabajo.data.email)
+  }
+}
+```
+
+**Tareas programadas** (`@nestjs/schedule`): un cron dentro de la app.
+
+```ts
+@Cron('0 8 * * *')   // todos los días a las 8
+async cerrarOfertasVencidas() {}
+```
+
+**Eventos** (`@nestjs/event-emitter`): desacoplar features dentro de la misma app. `OfertasService` emite y no sabe quién escucha:
+
+```ts
+this.eventos.emit('oferta.publicada', oferta)
+
+@OnEvent('oferta.publicada')
+avisarSeguidores(oferta: Oferta) {}
+```
+
+## Microservicios
+
+`@nestjs/microservices` conecta apps de Nest por otros transportes además de HTTP: TCP, Redis, NATS, Kafka, RabbitMQ, gRPC. Los handlers responden a mensajes en lugar de rutas:
+
+```ts
+const app = await NestFactory.createMicroservice(AppModule, { transport: Transport.NATS, options: { servers: ['nats://localhost:4222'] } })
+
+@MessagePattern('ofertas.obtener')        // pedido y respuesta
+obtener(@Payload() id: number) {}
+
+@EventPattern('oferta.publicada')         // evento, sin respuesta
+alPublicar(@Payload() oferta: Oferta) {}
+```
+
+Una misma app puede ser HTTP y microservicio a la vez (`app.connectMicroservice()`). Antes de partir una app en microservicios, pensalo dos veces: un **monolito modular** (módulos de Nest bien separados) suele alcanzar, y se parte después si hace falta.
+
+## Fastify en lugar de Express
+
+Nest no depende de Express: usa un **adaptador**. Con `@nestjs/platform-fastify`, la misma app corre sobre Fastify, que atiende más pedidos por segundo:
+
+```ts
+const app = await NestFactory.create<NestFastifyApplication>(AppModule, new FastifyAdapter())
+await app.listen(3000, '0.0.0.0')
+```
+
+Los controladores no cambian. Lo que cambia es lo que toca Express directamente: `@Req()` y `@Res()` pasan a ser los objetos de Fastify, y los middlewares de Express (como `helmet` o `multer`) tienen su versión para Fastify.
+
+## Otros que vas a ver
+
+| Paquete | Para |
+| --- | --- |
+| `@nestjs/axios` | `HttpService`, para llamar a otras APIs (o usá `fetch` directo) |
+| `@nestjs/cache-manager` | Caché en memoria o Redis, con `CacheInterceptor` |
+| `@nestjs/terminus` | Health checks de verdad: la base, Redis, el disco, la memoria |
+| `@nestjs/cqrs` | Comandos, consultas y eventos separados, para dominios complejos |
+| `nest g app` / `nest g library` | Monorepos: varias apps y librerías compartidas en un repo |
+
+<Entrevista>
+"¿Qué usaste del ecosistema de Nest?" → Contá lo que hayas usado de verdad. Lo esperable en un perfil fullstack: Swagger para documentar la API y generar el cliente del front, `@nestjs/config`, un ORM (TypeORM o Prisma), JWT con guards, alguna cola (BullMQ) o tareas programadas, y saber que existen GraphQL, WebSockets, microservicios y el adaptador de Fastify, que reutilizan los mismos servicios porque Nest separa la lógica del transporte.
+</Entrevista>

@@ -1,0 +1,113 @@
+Esta guía cubre **NestJS** (o Nest, a secas), el framework de Node más usado para APIs grandes. Sigue a la [guía de Node.js y Express](#/node/bienvenida): todo lo de esa guía sirve acá, porque Nest está construido **encima** de Node y, por defecto, encima de Express.
+
+## Cómo se relacionan Node, Express y Nest
+
+No son tres alternativas: son tres capas, una arriba de la otra.
+
+```text
+┌────────────────────────────────────────────────────────────────┐
+│ NestJS      Arquitectura: módulos, inyección de dependencias,  │
+│             decoradores, guards, pipes, validación, tests…     │
+├────────────────────────────────────────────────────────────────┤
+│ Express     Servidor HTTP: rutas, middlewares, req y res       │
+│ (o Fastify) Nest lo usa por debajo; vos casi no lo tocás       │
+├────────────────────────────────────────────────────────────────┤
+│ Node.js     El runtime: V8 + libuv, el event loop, archivos,   │
+│             red, procesos                                      │
+└────────────────────────────────────────────────────────────────┘
+```
+
+- **Node** ejecuta JavaScript fuera del navegador. Trae `node:http` para hacer un servidor, pero a mano: parsear la URL, leer el body, armar las respuestas.
+- **Express** es una librería chica sobre `node:http`: rutas, middlewares y `res.json()`. No opina sobre cómo organizar el proyecto: dónde va la lógica, cómo se validan los datos o cómo se testea lo decidís vos (en la guía de Node lo armamos [en capas](#/node/capas), a mano).
+- **Nest** es un **framework con opinión** sobre Express: te dice cómo organizar todo (módulos, controladores, servicios), crea y conecta las piezas solo (inyección de dependencias) y trae resuelto lo que en Express se arma a mano: validación, manejo de errores, autenticación, configuración, tests.
+
+Si conocés Angular, Nest te va a resultar familiar: copió a propósito su estructura (módulos, decoradores, servicios inyectables). Si venís de Java o C#, es la idea de Spring o ASP.NET en TypeScript.
+
+## Lo mismo, en Express y en Nest
+
+<AntesAhora antes="Express" ahora="Nest">
+
+```ts
+const app = express()
+app.use(express.json())
+
+app.get('/ofertas/:id', async (req, res) => {
+  const id = Number(req.params.id)
+  if (Number.isNaN(id)) {
+    return res.status(400).json({ error: 'id inválido' })
+  }
+  const oferta = await servicio.obtener(id)
+  if (!oferta) {
+    return res.status(404).json({ error: 'No existe' })
+  }
+  res.json(oferta)
+})
+
+app.listen(3000)
+```
+
+```ts
+@Controller('ofertas')
+export class OfertasController {
+  constructor(private readonly servicio: OfertasService) {}
+
+  @Get(':id')
+  obtener(@Param('id', ParseIntPipe) id: number) {
+    // ParseIntPipe ya respondió 400 si no era un número;
+    // el servicio lanza NotFoundException (404)
+    return this.servicio.obtener(id)
+  }
+}
+```
+
+</AntesAhora>
+
+En Nest no hay `req` ni `res`: el método **recibe** lo que necesita (con decoradores como `@Param`) y **devuelve** la respuesta. El servicio no se importa: llega por el constructor. Y la ruta no se registra con `app.get`: la arma Nest leyendo los decoradores.
+
+## Los ejemplos se ejecutan de verdad
+
+Como en la guía de Node, cada ejemplo es un archivo de `src/demos/nest/`, y debajo está lo que respondió **de verdad**. Esta es una app de Nest entera, en un archivo:
+
+<Api archivo="nest/01-fundamentos/hola.ts">
+
+```http
+GET /
+GET /salud
+GET /no-existe
+```
+
+</Api>
+
+Arriba de los pedidos está lo que Nest imprime al arrancar: crea los módulos, encuentra los controladores y registra cada ruta (`Mapped {/, GET} route`). La 404 la arma Nest solo, en JSON.
+
+Las salidas las genera `npm run salidas:nest`: compila los ejemplos, levanta cada app en un puerto libre, le hace los pedidos con `fetch` y guarda las respuestas.
+
+<Nota title="Por qué los ejemplos de Nest se compilan">
+En la guía de Node los `.ts` se ejecutan directo con `node archivo.ts`: Node borra los tipos y corre lo que queda. Con Nest eso no alcanza: Nest usa **decoradores** (`@Controller`, `@Get`…) y, sobre todo, necesita los **tipos de los parámetros del constructor** en tiempo de ejecución para saber qué inyectar. Eso lo genera el compilador de TypeScript (`emitDecoratorMetadata`), así que un proyecto de Nest siempre se compila: `nest start` compila con `tsc` (o SWC) y ejecuta el JavaScript de `dist/`. Lo vemos en [el capítulo del proyecto](#/proyecto).
+</Nota>
+
+## ¿Cuándo Nest y cuándo Express?
+
+| | Express | Nest |
+| --- | --- | --- |
+| Qué es | Una librería mínima | Un framework completo |
+| Estructura | La que vos armes | Módulos, controladores y servicios, siempre igual |
+| Curva | Se aprende en una tarde | Más conceptos: DI, decoradores, guards, pipes… |
+| Validación, auth, config, tests | Elegís y conectás librerías | Paquetes oficiales que encajan |
+| Ideal para | APIs chicas, prototipos, funciones serverless, aprender | Apps grandes, equipos, código que vive años |
+| En ofertas laborales | "Node + Express" | "Node + NestJS", muy pedido en LatAm y en empresas con TypeScript |
+
+Una regla práctica: si el proyecto va a tener muchas features, varios devs o va a durar, Nest te ahorra decisiones y discusiones. Para un script, un webhook o una API de tres rutas, Express (o Hono, o Fastify) alcanza y sobra.
+
+<Nota title="Versiones">
+Escrita en noviembre de 2026 con **NestJS 12.5** (la última estable; la 11 sigue con soporte como `legacy`). Las salidas se generaron con **Node 24** y Express 5, que es lo que usa Nest por debajo desde la versión 11. Nest 12 crea los proyectos nuevos con **módulos ES** y **Vitest**, y trae validación con **Standard Schema** (Zod, Valibot, ArkType): la guía usa todo eso. En el [repaso](#/chuleta) están las diferencias con proyectos más viejos.
+</Nota>
+
+## Cómo está armada
+
+1. **Fundamentos**: crear un proyecto, controladores, providers con inyección de dependencias, y módulos.
+2. **El ciclo del pedido**: el orden en que corren middlewares, guards, interceptores, pipes y filtros; validación con Zod y con DTOs; errores; autenticación con JWT y roles.
+3. **Una app de verdad**: configuración, capas con MySQL, tests, producción y un paseo por el resto del ecosistema (Swagger, GraphQL, WebSockets, colas…).
+4. **Repaso**: chuleta y preguntas de entrevista.
+
+Todos los ejemplos usan la misma API de ofertas laborales de la guía de Express, así podés comparar cada cosa con su versión "a mano".

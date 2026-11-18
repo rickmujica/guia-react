@@ -1,0 +1,24 @@
+{
+  // Los ejemplos de la guía de NestJS. Nest usa los decoradores "experimentales" de TypeScript
+  // con metadatos de tipos (así sabe qué inyectar en cada constructor), que Node no ejecuta
+  // borrando los tipos: se compilan con tsc, como en un proyecto de `nest new`.
+  // `npm run build` solo chequea los tipos; `npm run salidas:nest` compila y ejecuta.
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.nest.tsbuildinfo",
+    "target": "es2023",
+    "lib": ["ES2024"],
+    "types": ["node"],
+    "skipLibCheck": true,
+    "module": "nodenext",
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "strict": true,
+    "strictPropertyInitialization": false,
+    "noEmit": true,
+    "rootDir": "./src/demos/nest",
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true
+  },
+  "include": ["src/demos/nest"]
+}

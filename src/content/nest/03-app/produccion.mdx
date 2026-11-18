@@ -1,0 +1,89 @@
+Lo que cambia en `main.ts` cuando la app deja de ser un ejemplo: prefijo y versiones de la API, CORS, logs, el ciclo de vida y un apagado prolijo. Todo lo de [producción en Express](#/node/produccion) (configuración validada, health check, `NODE_ENV`, Docker) sigue valiendo.
+
+## main.ts de producción
+
+<Api archivo="nest/03-app/produccion/app.ts" headers="access-control-allow-origin">
+
+```http
+GET /api/v1/ofertas [Origin: http://localhost:5173]
+GET /api/v2/ofertas
+GET /api/ofertas
+GET /salud
+```
+
+</Api>
+
+- **`setGlobalPrefix('api')`**: todas las rutas bajo `/api` (útil si el front y la API comparten dominio), menos las de `exclude`.
+- **`enableVersioning`**: con `VersioningType.URI` la versión va en la URL (`/v1/…`). También puede ir en un header (`HEADER`) o en el `Accept` (`MEDIA_TYPE`). Un controlador declara su versión, y `@Version('2')` agrega otra versión de una ruta: los clientes viejos siguen en la v1 mientras los nuevos usan la v2. `VERSION_NEUTRAL` es para lo que no tiene versión, como el health check.
+- **`enableCors`**: la lista de orígenes que pueden llamar a la API desde el navegador (por eso el primer pedido, que manda `Origin`, recibe `access-control-allow-origin`). Lo explicamos en [la guía de Express](#/node/middlewares).
+- Para los headers de seguridad, `helmet` como en Express: `app.use(helmet())`.
+
+## El logger
+
+`new Logger(NombreDeLaClase)` es el logger de Nest: cada línea lleva la fecha, el nivel y el **contexto** (`[Cola]`), como las líneas que Nest imprime al arrancar.
+
+```ts
+private readonly logger = new Logger(OfertasService.name)
+
+this.logger.log('Oferta publicada')        // también: error, warn, debug, verbose, fatal
+```
+
+Los niveles se eligen al crear la app: `NestFactory.create(AppModule, { logger: ['log', 'error', 'warn'] })`, o `logger: false` para silenciarlo (como en casi todos los ejemplos de la guía). Para producción, conviene **JSON** (una línea por evento, que los servicios de logs pueden filtrar): Nest 11 en adelante lo trae con `new ConsoleLogger({ json: true })`, y para más, `nestjs-pino`.
+
+## El ciclo de vida
+
+Nest llama a estos métodos de los providers, módulos y controladores, si los tienen:
+
+| Hook | Cuándo | Para |
+| --- | --- | --- |
+| `onModuleInit()` | El módulo está armado | Conectar, cargar datos iniciales |
+| `onApplicationBootstrap()` | Todos los módulos están listos | Arrancar lo que depende de otros módulos |
+| `onModuleDestroy()` | Empieza el apagado | Dejar de aceptar trabajo nuevo |
+| `beforeApplicationShutdown(señal)` | Se cerraron las conexiones HTTP | |
+| `onApplicationShutdown(señal)` | Al final | Cerrar el pool de la base, la cola, Redis |
+
+Todos pueden ser `async`: Nest los espera.
+
+## Apagado prolijo
+
+Los hooks de apagado solo corren si Nest se entera de que lo están apagando. Eso es `app.enableShutdownHooks()`: escucha `SIGTERM` (lo que manda Docker o Kubernetes al parar un contenedor) y `SIGINT` (Ctrl+C), cierra el servidor y llama a los hooks. Así se ve:
+
+<Salida archivo="nest/03-app/produccion/apagado.ts" error />
+
+`Cola` se conectó en `onModuleInit` y se cerró en `onApplicationShutdown`, con la señal que llegó. Después, Nest se vuelve a mandar la señal para terminar el proceso, por eso el código es **143**: 128 + 15, el número de `SIGTERM`. Es el código que muestran Docker y Kubernetes cuando un contenedor se apagó con SIGTERM, y no indica un error.
+
+## Compilar y Docker
+
+```bash
+npm run build                 # nest build → dist/
+NODE_ENV=production node dist/main.js
+```
+
+```dockerfile
+FROM node:24-alpine AS build
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+COPY . .
+RUN npm run build && npm prune --omit=dev     # compila y saca las devDependencies
+
+FROM node:24-alpine
+WORKDIR /app
+ENV NODE_ENV=production
+COPY --from=build /app/node_modules ./node_modules
+COPY --from=build /app/dist ./dist
+COPY package.json ./
+USER node
+EXPOSE 3000
+CMD ["node", "dist/main.js"]
+```
+
+Dos etapas: la primera necesita TypeScript y el CLI de Nest para compilar; la imagen final solo lleva `dist/` y las dependencias de producción. `CMD ["node", …]` (y no `npm start`) para que la señal `SIGTERM` le llegue directo a Node.
+
+<Tip title="Más rápido con SWC o Fastify">
+`nest start -b swc` (o `"builder": "swc"` en `nest-cli.json`) compila con SWC, mucho más rápido que `tsc` en proyectos grandes (el chequeo de tipos se hace aparte). Y si la API necesita más pedidos por segundo, Nest puede usar **Fastify** en lugar de Express: lo vemos en el [ecosistema](#/ecosistema).
+</Tip>
+
+<Entrevista>
+"¿Qué configurás en una app de Nest para producción?" → "Config validada al arrancar; prefijo global y versionado de la API; CORS con los orígenes del front; helmet; logs en JSON con niveles; un health check sin versión; `enableShutdownHooks` para cerrar conexiones en `onApplicationShutdown` cuando llega SIGTERM; y una imagen de Docker en dos etapas que corre `node dist/main.js` con las dependencias de producción. Si hace falta rendimiento, el adaptador de Fastify y compilar con SWC."
+</Entrevista>

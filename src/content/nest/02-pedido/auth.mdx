@@ -1,0 +1,76 @@
+Un **guard** decide si un pedido puede llegar al handler: devuelve `true` (sigue) o `false` (403), o lanza una excepción (por ejemplo, un 401). Es donde va la autenticación y la autorización, porque, a diferencia de un middleware, sabe **qué handler** va a correr y puede leer sus decoradores.
+
+## Login con JWT, en Nest
+
+El mismo flujo de la [guía de Express](#/node/auth): el login devuelve un token firmado, y las rutas protegidas lo verifican. La diferencia es cómo se organiza:
+
+- `JwtModule` (paquete `@nestjs/jwt`) da un `JwtService` para firmar y verificar.
+- Un **guard global** (`AuthGuard`) protege **todas** las rutas, salvo las marcadas con `@Publica()`. Es más seguro que proteger una por una: una ruta nueva nace protegida.
+- Un segundo guard (`RolesGuard`) mira `@Roles(['admin'])`.
+- `@Usuario()` es un decorador de parámetro que trae el usuario del token.
+
+<Api archivo="nest/02-pedido/auth/app.ts" extra={['nest/02-pedido/auth/guards.ts', 'nest/02-pedido/auth/decoradores.ts', 'nest/02-pedido/auth/auth.service.ts', 'nest/02-pedido/auth/claves.ts']}>
+
+```http
+GET /yo
+POST /login {"email": "ana@ejemplo.com", "password": "otra"}
+POST /login {"email": "ana@ejemplo.com", "password": "secreto-123"}
+GET /yo [Authorization: Bearer {token}]
+GET /admin/usuarios [Authorization: Bearer {token}]
+POST /login {"email": "admin@ejemplo.com", "password": "admin-456"}
+GET /admin/usuarios [Authorization: Bearer {token}]
+GET /yo [Authorization: Bearer abc.def.ghi]
+```
+
+</Api>
+
+`{token}` es el token que devolvió el login anterior: Ana entra, ve su perfil y no puede ver los usuarios (403); el admin sí.
+
+```bash
+npm install @nestjs/jwt
+```
+
+## Cómo funciona
+
+**1. Los decoradores guardan metadatos.** `@Publica()` es `SetMetadata('esPublica', true)`: no hace nada, solo deja una marca en el método. `Reflector.createDecorator<Rol[]>()` hace lo mismo, ya tipado.
+
+**2. Los guards los leen.** Con el `Reflector` y el `ExecutionContext`:
+
+```ts
+const esPublica = this.reflector.getAllAndOverride<boolean>(ES_PUBLICA, [
+  context.getHandler(),   // primero en el método…
+  context.getClass(),     // …y si no, en el controlador
+])
+```
+
+Así `@Publica()` o `@Roles()` funcionan puestos en un método o en un controlador entero.
+
+**3. El guard deja el usuario en el pedido.** `AuthGuard` verifica el token y guarda `req.usuario`. El decorador `@Usuario()` (hecho con `createParamDecorator`) lo saca de ahí para el handler. Es la versión Nest de `res.locals.usuario` en Express.
+
+**4. Los guards globales son providers.** `{ provide: APP_GUARD, useClass: AuthGuard }` en un módulo: así Nest los crea y les inyecta `JwtService` y `Reflector`. Corren en el orden en que están registrados, por eso `RolesGuard` ya encuentra el usuario.
+
+**5. Un hook del ciclo de vida.** `AuthService` arma los usuarios de ejemplo en `onModuleInit()`, que Nest llama (y espera, si es `async`) cuando el módulo está listo. Lo vemos en [producción](#/produccion).
+
+<Nota title="¿Y Passport?">
+Muchos proyectos (y la documentación vieja de Nest) usan **Passport** con `@nestjs/passport`: una "estrategia" por tipo de login (`passport-jwt`, `passport-local`, Google, GitHub) y `@UseGuards(AuthGuard('jwt'))`. Funciona igual por dentro: un guard que valida y deja `req.user`. Para JWT solo, un guard propio como este es más simple; Passport conviene cuando hay varios proveedores de login (OAuth). Y para no hacer el login vos, hay servicios como Auth0, Clerk o Supabase Auth: el guard solo verifica su token.
+</Nota>
+
+<Ojo title="Lo mismo que en Express">
+Todo lo de [seguridad de la guía de Express](#/node/auth) aplica igual: contraseñas con hash lento (acá `scrypt`; también bcrypt o argon2), mensajes de login que no dicen qué falló, tokens de vida corta, el secreto en una variable de entorno, y en web, el token en una cookie `httpOnly` mejor que en `localStorage`.
+</Ojo>
+
+## Limitar pedidos
+
+Para frenar a quien prueba contraseñas a lo bruto, `@nestjs/throttler` es otro guard global:
+
+```ts
+imports: [ThrottlerModule.forRoot([{ ttl: 60_000, limit: 10 }])],   // 10 por minuto
+providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
+
+@Throttle({ default: { limit: 3, ttl: 60_000 } })   // más estricto en el login
+@Post('login')
+```
+
+<Entrevista>
+"¿Cómo implementás autenticación y roles en Nest?" → "Con guards. Un guard global (`APP_GUARD`) verifica el JWT de cada pedido con `JwtService` y deja el usuario en el request; las rutas públicas se marcan con un decorador `@Publica()` hecho con `SetMetadata`, que el guard lee con el `Reflector`. Los roles, igual: un `@Roles(['admin'])` y un `RolesGuard` que compara con el rol del usuario. Uso guards y no middlewares porque el guard conoce el handler y sus metadatos. Passport es una alternativa, útil cuando hay varios proveedores de OAuth."
+</Entrevista>
