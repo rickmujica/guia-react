@@ -1,0 +1,102 @@
+Un **módulo** agrupa los controladores y providers de una feature, y decide qué comparte con el resto. Toda app tiene un módulo raíz (`AppModule`), y en una app real ese módulo casi no tiene nada: importa un módulo por feature.
+
+## Dos features que se usan
+
+`OfertasModule` tiene las ofertas, y `PostulacionesModule`, las postulaciones. Para postularse hay que saber si la oferta existe, así que `PostulacionesService` necesita `OfertasService`, que es de **otro módulo**:
+
+<Api archivo="nest/01-fundamentos/modulos/app.module.ts" extra={['nest/01-fundamentos/modulos/ofertas/ofertas.module.ts', 'nest/01-fundamentos/modulos/postulaciones/postulaciones.module.ts', 'nest/01-fundamentos/modulos/postulaciones/postulaciones.service.ts', 'nest/01-fundamentos/modulos/postulaciones/postulaciones.controller.ts']}>
+
+```http
+POST /ofertas/1/postulaciones {"email": "ana@ejemplo.com"}
+POST /ofertas/1/postulaciones {"email": "ana@ejemplo.com"}
+POST /ofertas/9/postulaciones {"email": "ana@ejemplo.com"}
+```
+
+</Api>
+
+En el arranque se ve el orden: Nest inicializa los tres módulos y después registra las rutas de cada controlador.
+
+## Las cuatro propiedades de @Module
+
+| Propiedad | Qué va |
+| --- | --- |
+| `controllers` | Los controladores de este módulo |
+| `providers` | Los providers que Nest crea en este módulo. Son **privados**: solo los ven las clases del mismo módulo |
+| `exports` | Los providers que este módulo **comparte** con quien lo importe |
+| `imports` | Los módulos cuyos providers exportados quiero usar |
+
+Para usar `OfertasService` desde `PostulacionesService` hacen falta **las dos cosas**: que `OfertasModule` lo ponga en `exports`, y que `PostulacionesModule` importe `OfertasModule`. Es el encapsulamiento de Nest: cada módulo es una caja negra con una interfaz pública.
+
+## El error más común de Nest
+
+Si `OfertasModule` no exporta su servicio, la app **no arranca**. Este es el mensaje, que vas a ver muchas veces:
+
+<Salida archivo="nest/01-fundamentos/modulos/sin-exportar.ts" error />
+
+Se lee así: "no puedo crear `PostulacionesService`, porque su argumento 0 (`OfertasService`) no está disponible en `PostulacionesModule`". Las causas, en orden de probabilidad:
+
+1. El módulo que tiene el provider **no lo exporta**.
+2. El módulo que lo necesita **no importa** a ese módulo.
+3. El provider **no está registrado** en ningún `providers`.
+4. Lo importaste con `import type` (el argumento aparece como `Function`), o hay una dependencia circular entre archivos (aparece como `undefined`).
+
+<Ojo title="No registres el mismo servicio en dos módulos">
+La "solución" rápida es agregar `OfertasService` a los `providers` de `PostulacionesModule`. Arranca, pero crea **una segunda instancia** del servicio, con sus propios datos: las ofertas creadas por un módulo no las ve el otro. Un provider se registra en un solo módulo y se exporta.
+</Ojo>
+
+## Módulos globales
+
+Algunos providers se usan en todos lados (la configuración, un logger, la conexión a la base). Para no importar su módulo en cada feature, se marca como global:
+
+```ts
+@Global()
+@Module({ providers: [BaseDeDatos], exports: [BaseDeDatos] })
+export class BaseDeDatosModule {}   // se importa una vez, en AppModule
+```
+
+Con moderación: si todo es global, se pierde la ventaja de ver en los `imports` de qué depende cada módulo.
+
+## Módulos dinámicos
+
+Un módulo que recibe configuración se arma con un método estático, por convención `forRoot()` (una vez, en el raíz), `register()` (configurado en cada lugar que se usa) o `forFeature()` (una parte, en cada feature). Ya los usamos: `JwtModule.register({ secret })` en [autenticación](#/auth) y `ConfigModule.forRoot()` en [configuración](#/configuracion). Hacer uno propio es devolver un objeto con la forma de un módulo:
+
+```ts
+@Module({})
+export class NotificacionesModule {
+  static forRoot(opciones: { remitente: string }): DynamicModule {
+    return {
+      module: NotificacionesModule,
+      providers: [NotificacionesService, { provide: OPCIONES, useValue: opciones }],
+      exports: [NotificacionesService],
+    }
+  }
+}
+
+// En AppModule:  imports: [NotificacionesModule.forRoot({ remitente: 'empleos@ejemplo.com' })]
+```
+
+Si la configuración depende de otro provider (por ejemplo, del `ConfigService`), la convención es una variante `forRootAsync({ useFactory, inject })`, que funciona como el `useFactory` de los [providers](#/providers).
+
+## Cómo organizar las carpetas
+
+Por feature, una carpeta por módulo, como hace `nest g resource`:
+
+```text
+src/
+  ofertas/
+    ofertas.module.ts
+    ofertas.controller.ts
+    ofertas.service.ts
+    dto/crear-oferta.dto.ts
+    ofertas.service.spec.ts
+  postulaciones/
+    …
+  auth/
+  config/
+  app.module.ts
+  main.ts
+```
+
+<Entrevista>
+"¿Para qué sirven los módulos en Nest?" → "Para organizar la app por feature y encapsular: cada módulo declara sus controladores y providers, que son privados salvo los que pone en `exports`. Otro módulo que necesite un servicio importa el módulo que lo exporta. Eso deja explícitas las dependencias entre features. Para cosas transversales hay módulos `@Global`, y para módulos configurables, los dinámicos con `forRoot` o `register`. El error típico, 'Nest can't resolve dependencies', casi siempre es un export o un import que falta."
+</Entrevista>

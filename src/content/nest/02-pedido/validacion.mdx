@@ -1,0 +1,100 @@
+Un **pipe** recibe cada argumento del handler antes que el handler, y hace una de dos cosas: lo **transforma** (de `"3"` a `3`) o lo **rechaza** con una excepción (un 400). Validar el body, la query y los parámetros es su uso principal.
+
+## Los pipes que trae Nest
+
+```ts
+@Get(':id')
+obtener(@Param('id', ParseIntPipe) id: number) {}                    // "3" → 3; "abc" → 400
+
+@Get()
+listar(
+  @Query('pagina', new DefaultValuePipe(1), ParseIntPipe) pagina: number,   // si falta, 1
+  @Query('remoto', new ParseBoolPipe({ optional: true })) remoto?: boolean,
+) {}
+```
+
+Hay uno para cada tipo: `ParseIntPipe`, `ParseFloatPipe`, `ParseBoolPipe`, `ParseArrayPipe`, `ParseUUIDPipe`, `ParseEnumPipe`, `ParseDatePipe` y `DefaultValuePipe`. Sirven para un dato suelto; para un body entero se usa un esquema.
+
+## Validar con Zod (Nest 12)
+
+Nest 12 trae `StandardSchemaValidationPipe`, que valida con cualquier librería que implemente **Standard Schema**: Zod, Valibot, ArkType. El esquema va en el decorador del parámetro, y el pipe se activa una vez, global:
+
+<Api archivo="nest/02-pedido/validacion.ts">
+
+```http
+GET /ofertas?modalidad=remoto&pagina=2
+GET /ofertas?pagina=cero
+POST /ofertas {"titulo": "Backend Node", "empresa": "Nubelia"}
+POST /ofertas {"titulo": "QA", "modalidad": "oficina", "rol": "admin"}
+PATCH /ofertas/abc {"salarioMax": 3800}
+PATCH /ofertas/5 {"salarioMax": 3800}
+```
+
+</Api>
+
+- Lo que llega al handler es **la salida del esquema**: con la `pagina` convertida a número y los valores por defecto (`modalidad: "remoto"`, `salarioMax: null`) aplicados.
+- Los errores vienen **todos juntos**, uno por campo, con el camino adelante (`titulo: …`).
+- `z.strictObject` rechaza las propiedades que no están en el esquema (`rol`): es la protección contra *mass assignment* que vimos en la [guía de Express](#/node/validacion).
+- El mismo esquema da el **tipo** (`z.infer`): no hay que escribir la forma dos veces.
+
+<Ojo title="El último PATCH">
+`NuevaOferta.partial()` hace opcionales todos los campos, pero los `.default()` siguen aplicándose: el PATCH con solo `salarioMax` devolvió también `modalidad: "remoto"`, y guardarlo pisaría la modalidad real de la oferta. Para un PATCH, conviene un esquema sin valores por defecto.
+</Ojo>
+
+## Validar con DTOs y class-validator (la forma clásica)
+
+Casi todos los proyectos de Nest que vas a encontrar validan con **DTOs** (*Data Transfer Objects*): clases con decoradores de `class-validator`, validadas por `ValidationPipe`. Es lo que genera `nest g resource` y lo que más aparece en entrevistas.
+
+```bash
+npm install class-validator class-transformer
+```
+
+<Api archivo="nest/02-pedido/validacion-dto.ts">
+
+```http
+POST /ofertas {"titulo": "Backend Node", "empresa": "Nubelia", "salarioMax": "3500"}
+POST /ofertas {"titulo": "QA", "modalidad": "oficina", "rol": "admin"}
+```
+
+</Api>
+
+Acá no hay esquema en el decorador: `ValidationPipe` mira el **tipo del parámetro** (`CrearOfertaDto`, gracias a los metadatos), crea una instancia con `class-transformer` y la valida con los decoradores de la clase. Las opciones que conviene activar siempre:
+
+| Opción | Qué hace |
+| --- | --- |
+| `whitelist: true` | Borra las propiedades que no tienen decoradores |
+| `forbidNonWhitelisted: true` | En lugar de borrarlas, responde 400 (como `rol` arriba) |
+| `transform: true` | El handler recibe una instancia del DTO (con sus valores por defecto) y los params convertidos a su tipo |
+
+Para el PATCH, `@nestjs/mapped-types` (o `@nestjs/swagger`) trae `PartialType(CrearOfertaDto)`, que hace opcionales todos los campos, y también `PickType`, `OmitType` e `IntersectionType`.
+
+## ¿Zod o class-validator?
+
+| | Zod (Standard Schema) | class-validator |
+| --- | --- | --- |
+| Dónde está la regla | Un esquema, un valor de JavaScript | Decoradores en una clase |
+| El tipo | Sale del esquema (`z.infer`) | La clase es el tipo |
+| Reusar en el front | Sí: el mismo esquema en React (formularios, respuestas) | No (depende de decoradores y metadatos) |
+| En proyectos existentes | Cada vez más | La gran mayoría |
+| Swagger automático | Con librerías aparte | Sí, con `@nestjs/swagger` |
+
+Para un proyecto nuevo, Zod es más simple y se comparte con el front. Igual, aprendé a leer DTOs: es lo que vas a encontrar en el código de la empresa.
+
+## Un pipe propio
+
+Un pipe es una clase con `transform(valor, metadata)`: devuelve el valor (cambiado o no) o lanza una excepción.
+
+```ts
+@Injectable()
+export class RecortarPipe implements PipeTransform {
+  transform(valor: unknown) {
+    return typeof valor === 'string' ? valor.trim() : valor
+  }
+}
+
+buscar(@Query('q', RecortarPipe) q: string) {}
+```
+
+<Entrevista>
+"¿Cómo validás los datos de entrada en Nest?" → "Con pipes. Para datos sueltos, los que trae Nest, como `ParseIntPipe`. Para el body, un `ValidationPipe` global con DTOs de class-validator (con `whitelist` y `forbidNonWhitelisted` para no aceptar campos de más, y `transform` para recibir la instancia), o desde Nest 12 un esquema de Zod en el decorador con `StandardSchemaValidationPipe`. Si falla, el pipe lanza una `BadRequestException` con el detalle por campo y el handler no se ejecuta."
+</Entrevista>

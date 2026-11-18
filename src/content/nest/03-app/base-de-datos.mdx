@@ -1,0 +1,95 @@
+Las [capas de la guía de Express](#/node/capas) (rutas, servicio, repositorio) son exactamente lo que Nest propone, con una ventaja: las piezas las conecta el contenedor. Este capítulo arma la API de ofertas en capas y muestra cómo se enchufa MySQL, y después las librerías de base de datos más usadas con Nest.
+
+## La API en capas
+
+<Api archivo="nest/03-app/datos/app.ts" extra={['nest/03-app/datos/ofertas.module.ts', 'nest/03-app/datos/ofertas.controller.ts', 'nest/03-app/datos/ofertas.service.ts', 'nest/03-app/datos/ofertas.repositorio.ts', 'nest/03-app/datos/repositorio-memoria.ts', 'nest/03-app/datos/oferta.ts']}>
+
+```http
+GET /ofertas?modalidad=hibrido
+POST /ofertas {"titulo": "Backend Node", "empresa": "Nubelia"}
+POST /ofertas {"titulo": "frontend react senior", "empresa": "Nubelia"}
+GET /ofertas/7
+```
+
+</Api>
+
+| Archivo | Capa | Sabe de |
+| --- | --- | --- |
+| `ofertas.controller.ts` | Controlador | HTTP: rutas, validación con los esquemas de `oferta.ts` |
+| `ofertas.service.ts` | Servicio | Las reglas: el título repetido (409) y el 404 |
+| `ofertas.repositorio.ts` | El contrato del repositorio | Qué operaciones hay, no cómo se hacen |
+| `repositorio-memoria.ts` | Una implementación | Un array en memoria |
+| `ofertas.module.ts` | Módulo | Qué implementación se usa |
+
+El truco está en `ofertas.module.ts`:
+
+```ts
+{ provide: RepositorioOfertas, useClass: RepositorioEnMemoria }
+```
+
+El servicio pide un `RepositorioOfertas` en su constructor y recibe el que diga el módulo. `RepositorioOfertas` es una **clase abstracta** y no una `interface` porque las interfaces desaparecen al compilar, y Nest necesita un valor real para usar como token.
+
+## Con MySQL
+
+Para pasar a MySQL, una implementación más del mismo contrato, con las consultas de la guía de Node, y el pool de conexiones como provider:
+
+<Source path="src/demos/nest/03-app/datos/repositorio-mysql.ts" />
+
+- El pool se arma con `useFactory`, que recibe el `ConfigService` para leer `DB_URL` (ver [configuración](#/configuracion)).
+- `MysqlModule` cierra el pool en `onApplicationShutdown`, para no dejar conexiones colgadas al apagar.
+- En `ofertas.module.ts` se cambia una línea: `imports: [MysqlModule]` y `useClass: RepositorioMysql`. El servicio y el controlador no se tocan, y los tests siguen usando el de memoria.
+
+## Prisma, TypeORM, Drizzle
+
+En la mayoría de los proyectos de Nest no se escribe SQL a mano: se usa un ORM o un query builder. Los tres que más vas a ver:
+
+**Prisma.** El esquema se escribe en un archivo propio (`schema.prisma`), y Prisma genera las migraciones y un cliente con tipos exactos. Con Nest se usa como un servicio:
+
+```ts
+@Injectable()
+export class PrismaService extends PrismaClient implements OnModuleInit {
+  async onModuleInit() {
+    await this.$connect()
+  }
+}
+
+// En el servicio (Prisma ya es el repositorio)
+constructor(private readonly prisma: PrismaService) {}
+
+listar(modalidad?: string) {
+  return this.prisma.oferta.findMany({ where: { modalidad }, include: { empresa: true } })
+}
+```
+
+**TypeORM.** El clásico de Nest, con paquete oficial (`@nestjs/typeorm`). Las tablas son clases con decoradores, y cada feature pide su repositorio:
+
+```ts
+@Entity('ofertas')
+export class Oferta {
+  @PrimaryGeneratedColumn() id: number
+  @Column() titulo: string
+  @Column({ type: 'enum', enum: ['remoto', 'hibrido', 'presencial'] }) modalidad: string
+  @ManyToOne(() => Empresa, (empresa) => empresa.ofertas) empresa: Empresa
+}
+
+// app.module.ts:   TypeOrmModule.forRootAsync({ … type: 'mysql', url, autoLoadEntities: true })
+// ofertas.module:  TypeOrmModule.forFeature([Oferta])
+constructor(@InjectRepository(Oferta) private readonly repo: Repository<Oferta>) {}
+```
+
+**Drizzle.** Un query builder con tipos: se parece mucho a escribir SQL, sin magia, y está creciendo rápido. Se integra como el pool de MySQL de arriba: un provider con `useFactory` que devuelve el cliente de Drizzle.
+
+| | Prisma | TypeORM | Drizzle |
+| --- | --- | --- | --- |
+| Esquema | `schema.prisma` | Clases con decoradores | Código TypeScript |
+| Consultas | API propia (`findMany`) | Repositorios y QueryBuilder | Parecidas a SQL |
+| Tipos | Excelentes (generados) | Buenos, con huecos | Excelentes (inferidos) |
+| En proyectos de Nest | Muy usado | El más común en código existente | En aumento |
+
+<Tip title="Transacciones">
+Si un caso de uso toca varias tablas, va en una transacción, igual que en Express. Con Prisma, `this.prisma.$transaction(async (tx) => { … })`; con TypeORM, `dataSource.transaction(async (manager) => { … })`. El servicio abre la transacción y le pasa el cliente de la transacción a los repositorios.
+</Tip>
+
+<Entrevista>
+"¿Cómo organizás el acceso a datos en Nest?" → "En capas: el controlador traduce HTTP, el servicio tiene las reglas y el repositorio es lo único que habla con la base. El repositorio es un provider, y el servicio depende de una clase abstracta, así en los tests inyecto uno en memoria o un mock. Para la base suelo usar Prisma o TypeORM (con `@nestjs/typeorm`, `forFeature` y `@InjectRepository`), con las credenciales del `ConfigService` y las migraciones versionadas en el repo."
+</Entrevista>

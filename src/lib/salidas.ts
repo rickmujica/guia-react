@@ -1,6 +1,6 @@
-// Utilidades compartidas entre <Salida>/<Api> y scripts/node-salidas.mjs.
+// Utilidades compartidas entre <Salida>/<Api> y scripts/node-salidas.mjs y nest-salidas.mjs.
 
-/** Lo que imprimió un script de la guía de Node al ejecutarlo. */
+/** Lo que imprimió un script de la guía de Node (o de NestJS) al ejecutarlo. */
 export type SalidaScript = { stdout: string; stderr: string; codigo: number }
 
 /** Un pedido HTTP de un bloque ```http: `MÉTODO /ruta [Header: valor] cuerpo`. */
@@ -18,8 +18,11 @@ export type Respuesta = {
 export type Salidas = {
   node: string
   express: string
+  /** Solo en las salidas de la guía de NestJS. */
+  nest?: string
   scripts: Record<string, SalidaScript>
-  apis: Record<string, { pedido: Pedido; respuesta: Respuesta }[]>
+  /** `arranque`, en el primer intercambio: lo que la app imprimió al levantarse (los logs de Nest). */
+  apis: Record<string, { pedido: Pedido; respuesta: Respuesta; arranque?: string }[]>
 }
 
 /** Clave de un script en salidas.json: el archivo y sus argumentos. */

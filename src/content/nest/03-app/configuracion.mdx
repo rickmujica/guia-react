@@ -1,0 +1,76 @@
+La configuración (puerto, URL de la base, secretos) sale de **variables de entorno**, como en la [guía de Express](#/node/produccion). Nest trae `@nestjs/config`, que las lee de un `.env`, las valida al arrancar y las ofrece como un servicio inyectable.
+
+```bash
+npm install @nestjs/config
+```
+
+## ConfigModule y ConfigService
+
+El ejemplo lee este archivo (`src/demos/nest/03-app/config/.env.ejemplo`):
+
+```bash
+PUERTO=8080
+DB_URL=mysql://app:clave@localhost:3306/empleos
+JWT_SECRET=un-secreto-largo-y-aleatorio
+```
+
+<Salida archivo="nest/03-app/config/config.ts" />
+
+- `ConfigModule.forRoot()` es un [módulo dinámico](#/modulos): lee el `.env` (por defecto, el de la carpeta del proyecto) y junta esas variables con las de `process.env`. Si una variable está en los dos lados, gana la **real**, la del entorno: así en producción mandan las variables del servidor, y el `.env` queda para desarrollo.
+- `isGlobal: true` deja el `ConfigService` disponible en todos los módulos sin importar `ConfigModule` en cada uno.
+- `validate` recibe las variables y devuelve la configuración ya validada. Acá la valida **Zod**, que además convierte `PUERTO` de string a número y pone los valores por defecto.
+- `ConfigService<Entorno, true>` tipa el servicio: `get('PUERTO', { infer: true })` devuelve un `number`, y un nombre mal escrito no compila.
+
+## Si falta algo, no arranca
+
+Con un `.env` incompleto (el ejemplo recibe el nombre del archivo como argumento):
+
+```bash
+PUERTO=ocho-mil
+JWT_SECRET=corto
+```
+
+<Salida archivo="nest/03-app/config/config.ts" args=".env.incompleto" error />
+
+Es lo que se busca: que la app **falle al arrancar**, con un mensaje claro, y no a las tres horas, en el primer pedido que necesita la variable que falta. Mejor un deploy que no levanta que uno que levanta roto.
+
+<Ojo title="El .env no va al repositorio">
+El `.env` tiene secretos: va en el `.gitignore`. Al repo va un `.env.example` con los nombres y valores de mentira, para que quien clone el proyecto sepa qué completar. En producción, las variables se cargan en el servicio de hosting (Railway, Render, Fly, AWS…), no con un archivo.
+</Ojo>
+
+## Configuración por partes
+
+En una app grande, la configuración se agrupa por tema con `registerAs`, y cada módulo inyecta solo la suya:
+
+```ts
+// config/base-de-datos.config.ts
+export const configDb = registerAs('db', () => ({
+  url: process.env.DB_URL!,
+  conexiones: Number(process.env.DB_CONEXIONES ?? 10),
+}))
+
+// app.module.ts
+ConfigModule.forRoot({ isGlobal: true, load: [configDb], validate })
+
+// En un servicio, con el tipo exacto
+constructor(@Inject(configDb.KEY) private readonly db: ConfigType<typeof configDb>) {}
+// this.db.url, this.db.conexiones
+```
+
+## Módulos que necesitan la configuración
+
+Muchos módulos se configuran con valores del entorno (el secreto de JWT, la URL de la base). Para eso tienen la variante `forRootAsync` / `registerAsync`, con una fábrica que recibe el `ConfigService`:
+
+```ts
+JwtModule.registerAsync({
+  inject: [ConfigService],
+  useFactory: (config: ConfigService) => ({
+    secret: config.getOrThrow('JWT_SECRET'),
+    signOptions: { expiresIn: '15m' },
+  }),
+})
+```
+
+<Entrevista>
+"¿Cómo manejás la configuración en Nest?" → "Con `@nestjs/config`: `ConfigModule.forRoot` global, que lee el `.env` en desarrollo y las variables reales en producción, con una función `validate` (yo uso Zod) para que la app no arranque si falta algo o tiene un formato inválido. Después inyecto `ConfigService` tipado, o con `registerAs` una configuración por tema. Los módulos que necesitan configuración se registran con `forRootAsync` y una fábrica que recibe el `ConfigService`."
+</Entrevista>

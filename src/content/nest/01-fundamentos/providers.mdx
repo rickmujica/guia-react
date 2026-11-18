@@ -1,0 +1,86 @@
+Un **provider** es cualquier cosa que Nest puede crear e **inyectar**: casi siempre una clase con `@Injectable()` (un servicio, un repositorio, un cliente de una API), pero también un valor o el resultado de una función. Es donde va la lógica.
+
+## Un servicio
+
+Los datos y la lógica del capítulo anterior pasan a `OfertasService`, y el controlador queda con una línea por ruta. Mirá las pestañas:
+
+<Api archivo="nest/01-fundamentos/providers/app.ts" extra={['nest/01-fundamentos/providers/ofertas.service.ts', 'nest/01-fundamentos/providers/ofertas.controller.ts']}>
+
+```http
+GET /ofertas?modalidad=remoto
+POST /ofertas {"titulo": "Backend Node", "empresa": "Nubelia", "modalidad": "remoto", "salarioMax": 3500}
+GET /ofertas/6
+```
+
+</Api>
+
+"OfertasService creado" aparece **una vez**, al arrancar, y no en cada pedido: la oferta que crea el POST sigue estando en el GET siguiente porque es la misma instancia del servicio.
+
+## Inyección de dependencias
+
+El controlador nunca hace `new OfertasService()`. Lo **pide** en el constructor, y Nest se lo da:
+
+```ts
+constructor(private readonly ofertasService: OfertasService) {}
+```
+
+Al arrancar, Nest:
+
+1. Lee los providers de cada módulo (`providers: [OfertasService]`).
+2. Mira qué pide cada constructor (gracias a los metadatos que vimos en [el proyecto](#/proyecto)).
+3. Crea las instancias en el orden correcto (primero las que no dependen de nada) y se las pasa a quien las pidió.
+
+Ese mecanismo es el **contenedor de inyección de dependencias** (o de inversión de control, IoC). En la [guía de Express](#/node/capas) hicimos lo mismo a mano: `crearServicioOfertas(repo)` recibía el repositorio. Nest lo automatiza, y se nota cuando hay cuarenta servicios que dependen unos de otros.
+
+¿Para qué tanto? Para poder **cambiar las piezas** sin tocar a quien las usa: en los tests, el servicio recibe un repositorio falso; en producción, el de MySQL. El servicio no se entera.
+
+## Providers personalizados
+
+`providers: [OfertasService]` es un atajo. La forma completa dice **qué token** se pide y **qué** se entrega:
+
+```ts
+providers: [{ provide: OfertasService, useClass: OfertasService }]
+```
+
+Con eso se puede entregar otra cosa. Las cuatro variantes en un ejemplo:
+
+<Salida archivo="nest/01-fundamentos/providers/personalizados.ts" />
+
+| Forma | Entrega | Para qué |
+| --- | --- | --- |
+| `useClass` | Una instancia de esa clase | Elegir la implementación (consola en desarrollo, email en producción) |
+| `useValue` | Ese valor tal cual | Constantes, configuración, un mock en los tests |
+| `useFactory` | Lo que devuelva la función (puede ser `async`) | Algo que hay que armar: un pool de conexiones, un cliente con su config. `inject` dice qué recibe |
+| `useExisting` | El mismo provider con otro nombre | Alias |
+
+Y el token puede ser:
+
+- **Una clase** (lo normal). Una **clase abstracta** también sirve, y es la forma de tener una "interface" inyectable (`Notificador` en el ejemplo).
+- **Un string o un Symbol**, para lo que no es una clase. Esos se piden con `@Inject(TOKEN)`, porque el tipo del parámetro (`string`) no le dice nada a Nest.
+
+`NestFactory.createApplicationContext` arma el contenedor sin servidor HTTP: sirve para scripts, tareas o CLIs que reusan los servicios de la app. Y `app.get(Clase)` saca un provider del contenedor (mirá que devuelve **siempre la misma instancia**).
+
+## Scopes: cuántas instancias
+
+| Scope | Instancias | Cuándo |
+| --- | --- | --- |
+| `DEFAULT` (singleton) | Una para toda la app | Casi siempre. Es lo más rápido |
+| `REQUEST` | Una por pedido | Datos del pedido actual (el usuario, el tenant). Ojo: "contagia" el scope a todo lo que lo inyecta, y es más lento |
+| `TRANSIENT` | Una por cada clase que lo inyecta | Algo que no se comparte, como un logger con el nombre de su dueño |
+
+```ts
+@Injectable({ scope: Scope.REQUEST })
+export class TenantActual {
+  constructor(@Inject(REQUEST) private readonly req: Request) {}
+}
+```
+
+Como el singleton es compartido por todos los pedidos, **no guardes en un servicio datos de un pedido** (como el usuario logueado en `this.usuario`): el pedido siguiente lo pisaría. Eso va en el pedido mismo (lo hace el guard en [autenticación](#/auth)) o en un provider con scope `REQUEST`.
+
+<Ojo title="Dependencias circulares">
+Si `A` inyecta `B` y `B` inyecta `A`, Nest no puede crear ninguno primero y falla al arrancar. Se puede parchear con `forwardRef(() => B)` en los dos lados, pero casi siempre es una señal de diseño: sacá lo que comparten a un tercer servicio `C` que usen los dos.
+</Ojo>
+
+<Entrevista>
+"¿Qué es la inyección de dependencias y cómo funciona en Nest?" → "Es que una clase reciba sus dependencias en lugar de crearlas. En Nest, cada clase las declara en el constructor, y el contenedor (que conoce los providers de cada módulo) las crea y se las pasa. Por defecto son singletons. Se pueden registrar con `useClass`, `useValue` o `useFactory` y con tokens que no son clases (con `@Inject`). La ventaja es el desacople: en un test reemplazo el repositorio por un mock sin tocar el servicio."
+</Entrevista>

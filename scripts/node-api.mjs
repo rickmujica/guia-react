@@ -1,6 +1,7 @@
-// Lo usa node-salidas.mjs, en un proceso aparte por ejemplo (así cada uno arranca de cero):
-// carga la app de Express del ejemplo, la levanta en un puerto libre, le hace los pedidos
-// y devuelve las respuestas. Lo que la app imprime queda separado por pedido con marcas.
+// Lo usan node-salidas.mjs y nest-salidas.mjs, en un proceso aparte por ejemplo (así cada uno
+// arranca de cero): carga la app de Express o de Nest del ejemplo, la levanta en un puerto libre,
+// le hace los pedidos y devuelve las respuestas. Lo que la app imprime queda separado por pedido
+// con marcas.
 import { pathToFileURL } from 'node:url'
 
 const [archivo, pedidosJson] = process.argv.slice(2)
@@ -8,6 +9,8 @@ const pedidos = JSON.parse(pedidosJson)
 
 // Lo que la app escribe con console.error también es parte de su consola
 console.error = (...args) => console.log(...args)
+// (el logger de Nest escribe directo en process.stderr)
+process.stderr.write = process.stdout.write.bind(process.stdout)
 
 // {variable} en un pedido se reemplaza por ese campo de una respuesta JSON anterior
 // (por ejemplo, el token que devolvió un login).
@@ -15,10 +18,18 @@ const variables = {}
 const completar = (texto) => texto?.replace(/\{(\w+)\}/g, (todo, nombre) => variables[nombre] ?? todo)
 
 const modulo = await import(pathToFileURL(archivo).href)
-const app = modulo.app ?? modulo.default ?? modulo.crearApp?.() // una app, o una función que la arma
-const server = await new Promise((resolve) => {
-  const s = app.listen(0, () => resolve(s))
-})
+// Una app, o una función (que puede ser async, como NestFactory.create) que la arma
+const app = modulo.app ?? modulo.default ?? (await modulo.crearApp?.())
+let server
+if (typeof app.getHttpServer === 'function') {
+  // Una app de Nest: listen() devuelve una promesa
+  await app.listen(0)
+  server = app.getHttpServer()
+} else {
+  server = await new Promise((resolve) => {
+    const s = app.listen(0, () => resolve(s))
+  })
+}
 const { port } = server.address()
 
 const ignorar = new Set(['date', 'connection', 'keep-alive']) // cambian en cada corrida

@@ -1,0 +1,77 @@
+Testear es donde más rinde la inyección de dependencias: como cada clase recibe sus dependencias, en un test se le pasan otras. `@nestjs/testing` arma un **módulo de prueba** con solo lo que el test necesita, y deja reemplazar cualquier provider.
+
+```bash
+npm install -D @nestjs/testing    # ya viene en un proyecto de nest new
+```
+
+## Test unitario de un servicio
+
+El `OfertasService` del [capítulo anterior](#/base-de-datos), con un repositorio falso:
+
+<Salida archivo="nest/03-app/testing/ofertas.service.test.ts" flags="--test" />
+
+`Test.createTestingModule({ … }).compile()` recibe lo mismo que un `@Module` y devuelve un contenedor de Nest. `{ provide: RepositorioOfertas, useValue: repo }` hace que el servicio reciba el mock. Después, `modulo.get(OfertasService)` saca el servicio ya armado.
+
+El mock está hecho con `mock.fn()` de `node:test`, que registra cada llamada: así el segundo test comprueba que, si el título está repetido, **no se llamó** a `crear`.
+
+## Test de la API entera (end-to-end)
+
+Para probar todo junto (rutas, pipes, guards, filtros), se importa el módulo de la app, se levanta en un puerto libre y se le hacen pedidos de verdad:
+
+<Salida archivo="nest/03-app/testing/ofertas.e2e.test.ts" flags="--test" />
+
+- `modulo.createNestApplication()` crea la app como `NestFactory.create`, pero desde el módulo de prueba. Lo que se configura en `main.ts` (pipes globales, prefijo) **hay que repetirlo** acá. Por eso conviene tenerlo en una función compartida (como `crearApp` en los ejemplos de esta guía).
+- `.overrideProvider(Token).useValue(…)` (o `.useClass`, `.useFactory`) reemplaza un provider de cualquier módulo importado: la forma de usar una base en memoria, o de no mandar emails de verdad. También existen `overrideGuard`, `overrideInterceptor`, `overridePipe` y `overrideFilter`, por ejemplo para saltear la autenticación.
+- `app.listen(0)` toma un puerto libre, y `app.close()` lo libera al final.
+
+## En un proyecto de nest new: Vitest
+
+Los ejemplos de esta guía usan `node:test` para correr sin instalar nada, igual que en la guía de Express. Un proyecto nuevo de Nest 12 trae **Vitest** (los proyectos CommonJS y los más viejos, **Jest**), con archivos `*.spec.ts` al lado del código y `test/*.e2e-spec.ts`. Lo de Nest es idéntico; cambian los nombres de las funciones:
+
+```ts
+import { Test } from '@nestjs/testing'
+
+describe('OfertasService', () => {
+  let servicio: OfertasService
+  const repo = { listar: vi.fn(), buscar: vi.fn(), crear: vi.fn() }   // jest.fn() en Jest
+
+  beforeEach(async () => {
+    const modulo = await Test.createTestingModule({
+      providers: [OfertasService, { provide: RepositorioOfertas, useValue: repo }],
+    }).compile()
+    servicio = modulo.get(OfertasService)
+  })
+
+  it('responde 404 si la oferta no existe', async () => {
+    repo.buscar.mockResolvedValue(undefined)
+    await expect(servicio.obtener(7)).rejects.toThrow(NotFoundException)
+  })
+})
+```
+
+Y los e2e del proyecto usan **supertest**, que hace los pedidos sin levantar un puerto:
+
+```ts
+app = modulo.createNestApplication()
+await app.init()
+
+await request(app.getHttpServer()).post('/ofertas').send({ titulo: 'QA' }).expect(400)
+```
+
+| | node:test | Vitest | Jest |
+| --- | --- | --- | --- |
+| Mock | `mock.fn()` | `vi.fn()` | `jest.fn()` |
+| Comprobar | `assert.equal(a, b)` | `expect(a).toBe(b)` | `expect(a).toBe(b)` |
+| Errores async | `await assert.rejects(p, Clase)` | `await expect(p).rejects.toThrow(Clase)` | igual que Vitest |
+| Correr | `node --test` | `npm test` (`vitest run`) | `npm test` |
+
+## Qué testear
+
+- **Servicios**, con unit tests: es donde están las reglas. Con mocks de los repositorios y de los servicios externos.
+- **La API**, con unos pocos e2e por feature: el camino feliz, la validación (400), la autenticación (401/403) y los errores del negocio (404, 409).
+- **Los controladores**, poco: si solo llaman al servicio, los cubren los e2e.
+- **Los repositorios**, contra una base real (MySQL en Docker o Testcontainers), en tests de integración aparte.
+
+<Entrevista>
+"¿Cómo testeás en Nest?" → "Con `@nestjs/testing`: `Test.createTestingModule` arma un módulo solo con lo que necesito y reemplazo dependencias con `useValue` o con `overrideProvider`. Para los servicios, unit tests con mocks de los repositorios. Para la API, e2e: importo el `AppModule`, creo la app con `createNestApplication` aplicando la misma configuración que en `main.ts`, y le pego con supertest, cubriendo validación, auth y errores. Con Vitest o Jest según el proyecto."
+</Entrevista>

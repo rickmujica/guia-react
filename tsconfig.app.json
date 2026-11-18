@@ -24,5 +24,5 @@
   },
   "include": ["src"],
   // Los ejemplos de la guía de TypeScript y los de Node se chequean con su propia config.
-  "exclude": ["src/demos/typescript/ejemplos", "src/demos/node"]
+  "exclude": ["src/demos/typescript/ejemplos", "src/demos/node", "src/demos/nest"]
 }

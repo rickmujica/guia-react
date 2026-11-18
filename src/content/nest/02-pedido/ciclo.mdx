@@ -1,0 +1,95 @@
+En Express, todo lo que pasa antes de la ruta es un **middleware**: autenticar, validar, loguear, transformar. Nest separa ese trabajo en piezas con un rol fijo y un lugar fijo en el ciclo del pedido. Saber en qué orden corren es de lo más preguntado sobre Nest.
+
+## El orden
+
+```text
+Pedido HTTP
+   │
+   ▼
+Middlewares        Como en Express: (req, res, next). No saben qué handler va a atender.
+   │
+   ▼
+Guards             ¿Puede pasar? true sigue; false o una excepción corta (401, 403).
+   │
+   ▼
+Interceptores      Antes del handler…
+   │
+   ▼
+Pipes              Transforman y validan cada argumento (@Param, @Body…). 400 si no sirve.
+   │
+   ▼
+Handler            El método del controlador (y los servicios que llama)
+   │
+   ▼
+Interceptores      …y después: pueden transformar la respuesta.
+   │
+   ▼
+Respuesta
+
+Si algo lanza una excepción, la atrapan los filtros de excepciones,
+que arman la respuesta de error.
+```
+
+## Verlo correr
+
+Cada pieza de este ejemplo imprime su paso. El primer pedido pasa todo; en el segundo, el pipe rechaza `abc`; en el tercero, el guard no deja pasar:
+
+<Api archivo="nest/02-pedido/ciclo.ts">
+
+```http
+GET /ofertas/1
+GET /ofertas/abc
+GET /ofertas/1 [X-Bloquear: si]
+```
+
+</Api>
+
+Lo que conviene notar en la consola:
+
+- El **guard** ya sabe qué controlador y qué método van a atender (`OfertasController obtener`). Un middleware no lo sabe: por eso la autorización va en guards.
+- El **interceptor** corre antes del pipe, y su parte de "después" recibe lo que devolvió el handler.
+- Cuando el pipe o el guard fallan, el handler **no se ejecuta**, y el filtro arma la respuesta.
+
+## Qué va en cada uno
+
+| Pieza | Interface | Para qué | Ejemplos |
+| --- | --- | --- | --- |
+| Middleware | `NestMiddleware` | Lo que no depende del handler | Logs de pedidos, `helmet`, `cookie-parser`, cualquier middleware de Express |
+| Guard | `CanActivate` | Decidir si el pedido sigue | Autenticación, roles, permisos, feature flags |
+| Interceptor | `NestInterceptor` | Envolver al handler | Transformar la respuesta, medir tiempos, caché, timeouts |
+| Pipe | `PipeTransform` | Cada argumento del handler | Validar el body, convertir `"3"` en `3` |
+| Filtro | `ExceptionFilter` | Errores → respuesta | Formato de error propio, traducir errores de la base o del negocio |
+
+Guards, interceptores y filtros reciben un **`ExecutionContext`** (o `ArgumentsHost`), que sirve igual para HTTP, WebSockets o microservicios: `context.switchToHttp().getRequest()` da el `req` de Express, y `context.getHandler()` / `context.getClass()` dicen qué método y qué controlador van a correr (con eso se leen los metadatos de decoradores como `@Roles()`).
+
+## Dónde se registran
+
+Guards, interceptores, pipes y filtros se aplican en tres niveles. Corren del más general al más particular:
+
+```ts
+// 1. Globales, en main.ts (o como providers APP_GUARD, APP_PIPE…, para que puedan inyectar dependencias)
+app.useGlobalGuards(new MiGuard())
+
+// 2. En un controlador: todas sus rutas
+@UseGuards(AuthGuard)
+@UseInterceptors(LogInterceptor)
+@Controller('ofertas')
+export class OfertasController {
+
+  // 3. En un handler
+  @UseGuards(SoloAdmin)
+  @UsePipes(MiPipe)
+  @UseFilters(MiFiltro)
+  @Delete(':id')
+  borrar() {}
+}
+
+// Los pipes también van por parámetro
+obtener(@Param('id', ParseIntPipe) id: number) {}
+```
+
+Los **middlewares** son distintos: se registran en un módulo, por ruta, con `configure(consumer)` (como en el ejemplo), o globales con `app.use()` en `main.ts`.
+
+<Entrevista>
+"¿Cuál es el ciclo de un pedido en Nest?" → "Middlewares, guards, interceptores (la parte de antes), pipes, el handler, y los interceptores de nuevo con la respuesta. Si algo lanza una excepción, la atrapan los filtros. Cada uno tiene su rol: el middleware no sabe qué handler corre, así que la autorización va en guards; los pipes validan y transforman argumentos; los interceptores envuelven al handler para transformar la respuesta o medir; los filtros traducen errores. Guards, interceptores, pipes y filtros pueden ser globales, de un controlador o de un método."
+</Entrevista>

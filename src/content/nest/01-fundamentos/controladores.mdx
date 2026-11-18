@@ -1,0 +1,82 @@
+Un **controlador** es una clase con `@Controller()` cuyos métodos atienden rutas. Es el equivalente a un `Router` de Express, pero declarativo: cada método dice con decoradores qué ruta atiende y qué partes del pedido necesita.
+
+## Un CRUD
+
+La misma API de ofertas de la [guía de Express](#/node/api-rest), con los datos en memoria (en el capítulo siguiente pasan a un servicio). Mirá los pedidos: el status, el JSON y los errores los arma Nest.
+
+<Api archivo="nest/01-fundamentos/controladores.ts" headers="content-type,x-total">
+
+```http
+GET /ofertas?modalidad=hibrido
+GET /ofertas/3
+GET /ofertas/abc
+GET /ofertas/42
+POST /ofertas {"titulo": "Backend Node", "empresa": "Nubelia", "modalidad": "remoto", "salarioMax": 3500}
+PATCH /ofertas/6 {"salarioMax": 3800}
+DELETE /ofertas/6
+GET /ofertas/exportar/csv
+GET /ofertas/remotas/contar
+```
+
+</Api>
+
+## Rutas
+
+`@Controller('ofertas')` pone el prefijo, y cada método suma su parte con un decorador por método HTTP: `@Get()`, `@Post()`, `@Put()`, `@Patch()`, `@Delete()`, `@All()`.
+
+```ts
+@Controller('ofertas')
+class OfertasController {
+  @Get()              // GET /ofertas
+  @Get(':id')         // GET /ofertas/3          (parámetro)
+  @Get('exportar/csv')// GET /ofertas/exportar/csv
+  @Get('*ruta')       // GET /ofertas/lo/que/sea (comodín con nombre, como en Express 5)
+}
+```
+
+El orden importa como en Express: si `@Get(':id')` estuviera antes que una ruta fija de un solo segmento como `@Get('remotas')`, `:id` la atraparía primero. Las rutas fijas van antes.
+
+## Lo que recibe el método
+
+En lugar de `req`, cada parámetro del método pide una parte del pedido con un decorador:
+
+| Decorador | Qué trae | En Express |
+| --- | --- | --- |
+| `@Param('id')` | Un parámetro de la ruta (string) | `req.params.id` |
+| `@Param()` | Todos los parámetros | `req.params` |
+| `@Query('modalidad')` | Un dato de la query (string, o array si se repite) | `req.query.modalidad` |
+| `@Body()` | El body ya parseado (JSON o formulario) | `req.body` (con `express.json()`) |
+| `@Body('email')` | Una propiedad del body | `req.body.email` |
+| `@Headers('authorization')` | Un header | `req.get('authorization')` |
+| `@Ip()` | La IP del cliente | `req.ip` |
+| `@Req()`, `@Res()` | Los objetos de Express | `req`, `res` |
+
+Nest ya trae el parser de JSON activado: no hace falta `express.json()`.
+
+<Ojo title="Los tipos no validan">
+`@Body() body: Omit<Oferta, 'id'>` le dice a TypeScript qué esperás, pero **no controla nada**: si el cliente manda cualquier cosa, llega igual. Y `@Param('id') id: number` sigue siendo un string. Para convertir y validar están los **pipes**: `ParseIntPipe` en el ejemplo (por eso `/ofertas/abc` da 400), y Zod o class-validator en el [capítulo de validación](#/validacion).
+</Ojo>
+
+## La respuesta
+
+El método **devuelve** la respuesta y Nest la manda:
+
+- Un objeto o un array → JSON (`res.json()`). Un string → texto. `undefined` → sin cuerpo.
+- Puede ser `async`: Nest espera la promesa. (También acepta un Observable de RxJS.)
+- El status es **200**, salvo `@Post()`, que es **201**. Se cambia con `@HttpCode(204)`.
+- Headers fijos con `@Header('Content-Type', 'text/csv')`. Redirecciones con `@Redirect('/otra', 301)`.
+- Un error se **lanza**: `throw new NotFoundException('No existe')` → 404 con el JSON que viste arriba. Lo vemos en [excepciones](#/excepciones).
+
+Que el método devuelva un valor en lugar de llamar a `res.json()` tiene una ventaja grande: se puede testear como una función común (`controlador.obtener(3)` devuelve la oferta), y los **interceptores** pueden transformar la respuesta.
+
+<Tip title="@Res() con passthrough">
+Si necesitás el `res` de Express (para un header calculado, una cookie o un stream), pedilo con `@Res({ passthrough: true })`, como en `/ofertas/remotas/contar`: tocás `res` y seguís devolviendo el valor. Sin `passthrough`, Nest deja de responder por vos y tenés que llamar a `res.json()` a mano, y los interceptores dejan de funcionar en esa ruta.
+</Tip>
+
+## Subrutas y organización
+
+Un controlador por recurso, con su prefijo. Para recursos anidados, el prefijo puede tener parámetros: `@Controller('ofertas/:ofertaId/postulaciones')`, como en el [capítulo de módulos](#/modulos). Y un prefijo para toda la API (`/api`) o versiones (`/v1`) se configuran una vez en `main.ts`: lo vemos en [producción](#/produccion).
+
+<Entrevista>
+"¿Qué hace un controlador en Nest?" → "Traduce HTTP: recibe el pedido, saca lo que necesita con decoradores como `@Param`, `@Query` y `@Body`, llama al servicio y devuelve el resultado, que Nest serializa como JSON con el status adecuado (200, o 201 en un POST). No tiene lógica de negocio ni acceso a datos: eso va en los providers. Los errores se lanzan como excepciones HTTP y los traduce Nest."
+</Entrevista>
